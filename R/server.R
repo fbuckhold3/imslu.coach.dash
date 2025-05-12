@@ -1,6 +1,9 @@
 server <- function(input, output, session) {
     redcap_url <- "https://redcapsurvey.slu.edu/api/"
     
+    # Development mode flag (set to FALSE for production)
+    dev_mode <- TRUE
+    
     # Show loading notification
     showNotification("Loading data... may take a sec", type = "message", duration = NULL, id = "loading")
     
@@ -20,8 +23,8 @@ server <- function(input, output, session) {
     #--------------------------------------------------
     # Access code validation
     observeEvent(input$submit_access, {
-        # Get the access code from environment variables
-        stored_access_code <- Sys.getenv("ACCESS_CODE")
+        # Get the access code based on mode
+        stored_access_code <- if(dev_mode) "default123" else Sys.getenv("ACCESS_CODE")
         
         # Compare the input with the stored access code
         if (input$access_code == stored_access_code) {

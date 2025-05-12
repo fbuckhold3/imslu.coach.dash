@@ -7,7 +7,7 @@ library(ggplot2)
 library(DT)
 library(dplyr)
 library(config)
-library(imres)
+library(imres)  # Make sure this package is installed
 library(bslib)
 library(httr)
 library(gganimate)
@@ -21,262 +21,401 @@ library(data.table)
 library(purrr)
 library(ggradar)
 
-# Add this to your global.R file after initialize_app_config
+# ---------- SOURCE HELPER FUNCTIONS ----------
+# Uncomment and adjust paths as needed
+source("R/helpers.R")
+# source("R/goal_mod.R")  # Uncomment if needed
+
+# ---------- INITIALIZE APP CONFIG ----------
+initialize_app_config <- function() {
+  # Set up REDCap API URL
+  url <- "https://redcapsurvey.slu.edu/api/"
+  
+  # Debug information about environment variables
+  message("Available environment variables (first 10):")
+  env_vars <- names(Sys.getenv())
+  print(head(env_vars, 10))
+  message("EVAL_TOKEN exists:", "EVAL_TOKEN" %in% names(Sys.getenv()))
+  message("RDM_TOKEN exists:", "RDM_TOKEN" %in% names(Sys.getenv()))
+  message("FAC_TOKEN exists:", "FAC_TOKEN" %in% names(Sys.getenv()))
+  
+  # Identify whether we are in a hosted environment
+  is_hosted <- Sys.getenv("EVAL_TOKEN") != ""
+  
+  # Load tokens from environment variables or config file
+  if (is_hosted) {
+    eval_token <- Sys.getenv("EVAL_TOKEN")
+    rdm_token <- Sys.getenv("RDM_TOKEN")
+    fac_token <- Sys.getenv("FAC_TOKEN")
+    
+    # Check if tokens are empty strings even though they exist
+    if (nchar(eval_token) == 0 || nchar(rdm_token) == 0 || nchar(fac_token) == 0) {
+      message("WARNING: One or more required tokens are empty in environment!")
+      message("Using config file as fallback.")
+      # Load from config file as fallback
+      conf <- tryCatch({
+        config::get(file = "config.yml")
+      }, error = function(e) {
+        message("Error loading config file: ", e$message)
+        list(
+          eval_token = "",
+          rdm_token = "",
+          fac_token = ""
+        )
+      })
+      
+      # Use config values if environment variables are empty
+      if (nchar(eval_token) == 0) eval_token <- conf$eval_token
+      if (nchar(rdm_token) == 0) rdm_token <- conf$rdm_token
+      if (nchar(fac_token) == 0) fac_token <- conf$fac_token
+    }
+    
+    # Disable SSL verification in the hosted environment (NOT recommended for production)
+    httr::set_config(httr::config(ssl_verifypeer = FALSE))
+  } else {
+    # Use config file for local development
+    conf <- tryCatch({
+      config::get(file = "config.yml")
+    }, error = function(e) {
+      message("Error loading config file: ", e$message)
+      list(
+        eval_token = "",
+        rdm_token = "",
+        fac_token = ""
+      )
+    })
+    eval_token <- conf$eval_token
+    rdm_token <- conf$rdm_token
+    fac_token <- conf$fac_token
+  }
+  
+  # Print token values (length only for security)
+  message("EVAL_TOKEN length:", nchar(eval_token))
+  message("RDM_TOKEN length:", nchar(rdm_token))
+  message("FAC_TOKEN length:", nchar(fac_token))
+  
+  # Return the environment with the tokens and URL
+  list(
+    url = url,
+    eval_token = eval_token,
+    rdm_token = rdm_token,
+    fac_token = fac_token
+  )
+}
+
+# ---------- LOAD IMRES DATA ----------
 load_imres_data <- function(config) {
+  message("=== STARTING load_imres_data FUNCTION ===")
   
+  # --- RDM Dictionary ---
   rdm_dict <- tryCatch({
-    cat("Attempting to get rdm_dict data dictionary...\n")
+    message("Attempting to get rdm_dict data dictionary...")
     result <- get_data_dict(config$rdm_token, config$url)
-    cat("Successfully retrieved rdm_dict with", nrow(result), "rows\n")
+    message("Successfully retrieved rdm_dict with ", nrow(result), " rows")
     result
   }, error = function(e) {
-    cat("Error getting rdm_dict:", e$message, "\n")
+    message("Error getting rdm_dict: ", e$message)
     NULL
   })
   
+  # --- Assessment Dictionary ---
   ass_dict <- tryCatch({
-    cat("Attempting to get ass_dict data dictionary...\n")
+    message("Attempting to get ass_dict data dictionary...")
     result <- get_data_dict(config$eval_token, config$url)
-    cat("Successfully retrieved ass_dict with", nrow(result), "rows\n")
+    message("Successfully retrieved ass_dict with ", nrow(result), " rows")
     result
   }, error = function(e) {
-    cat("Error getting ass_dict:", e$message, "\n")
+    message("Error getting ass_dict: ", e$message)
     NULL
   })
   
-  # Pull forms data first to get rdm_dat
+  # --- Pull all forms data ---
+  message("About to call forms_api_pull with these arguments:")
+  message("- rdm_token length: ", nchar(config$rdm_token))
+  message("- url: ", config$url)
+  message("- forms: resident_data, faculty_evaluation, ilp, s_eval, scholarship")
+  
   rdm_dat <- tryCatch({
-    cat("Pulling forms data...\n")
+    message("Pulling forms data...")
     result <- forms_api_pull(config$rdm_token, config$url, 'resident_data', 'faculty_evaluation', 'ilp', 's_eval', 'scholarship')
-    cat("Forms data pulled\n")
+    
+    message("Forms data pulled. Structure of rdm_dat:")
+    message("rdm_dat is of class: ", paste(class(result), collapse=", "))
+    message("rdm_dat contains these keys: ", paste(names(result), collapse=", "))
+    
+    # If rdm_dat is a data frame, check if it has the redcap_repeat_instrument column
+    if (is.data.frame(result)) {
+      message("rdm_dat is a data frame with ", nrow(result), " rows and ", ncol(result), " columns")
+      if ("redcap_repeat_instrument" %in% names(result)) {
+        message("redcap_repeat_instrument values: ", paste(unique(result$redcap_repeat_instrument), collapse=", "))
+      } else {
+        message("WARNING: redcap_repeat_instrument column not found in rdm_dat")
+      }
+    }
+    
     result
   }, error = function(e) {
-    cat("Error pulling forms data:", e$message, "\n")
+    message("Error pulling forms data: ", e$message)
     NULL
   })
   
-  # Extract ILP data from rdm_dat
+  # --- Extract ILP data ---
   ilp_data <- tryCatch({
-    cat("DEBUG: Starting ILP data extraction\n")
+    message("Starting ILP data extraction")
     if (is.null(rdm_dat)) {
-      cat("DEBUG: rdm_dat is NULL, cannot extract ILP data\n")
+      message("rdm_dat is NULL, cannot extract ILP data")
       NULL
     } else {
-      cat("DEBUG: rdm_dat contains these keys:", paste(names(rdm_dat), collapse=", "), "\n")
+      message("rdm_dat contains these keys: ", paste(names(rdm_dat), collapse=", "))
       
-      # Try both lowercase and capitalized key names
+      # Try multiple approaches to extract ILP data
       if ("ilp" %in% names(rdm_dat)) {
-        cat("DEBUG: Found ilp data (lowercase) in rdm_dat\n")
+        message("Found ilp data (lowercase) in rdm_dat")
         ilp_data <- rdm_dat$ilp
       } else if ("ILP" %in% names(rdm_dat)) {
-        cat("DEBUG: Found ILP data (capitalized) in rdm_dat\n")
+        message("Found ILP data (capitalized) in rdm_dat")
         ilp_data <- rdm_dat$ILP
-      } else {
-        # Alternative approach: try to extract from the main data frame
-        cat("DEBUG: Looking for ilp data in repeating instruments\n")
-        if ("redcap_repeat_instrument" %in% names(rdm_dat)) {
-          ilp_data <- rdm_dat %>%
-            filter(tolower(redcap_repeat_instrument) == "ilp")
-          if (nrow(ilp_data) > 0) {
-            cat("DEBUG: Extracted", nrow(ilp_data), "rows of ILP data from main dataframe\n")
-          } else {
-            cat("DEBUG: No ILP data found in main dataframe\n")
-            NULL
-          }
+      } else if (is.data.frame(rdm_dat) && "redcap_repeat_instrument" %in% names(rdm_dat)) {
+        # Check for ILP in repeating instruments, case-insensitive
+        message("Looking for ilp data in repeating instruments")
+        
+        # Print all unique values in redcap_repeat_instrument
+        message("Unique redcap_repeat_instrument values: ", 
+                paste(unique(rdm_dat$redcap_repeat_instrument), collapse=", "))
+        
+        ilp_data <- rdm_dat %>%
+          filter(tolower(redcap_repeat_instrument) == "ilp")
+        
+        if (nrow(ilp_data) > 0) {
+          message("Extracted ", nrow(ilp_data), " rows of ILP data from main dataframe")
         } else {
-          cat("DEBUG: No ILP data found and no repeating instruments in rdm_dat\n")
+          message("No rows found with redcap_repeat_instrument='ilp' (case insensitive)")
+          
+          # Try one more approach - check if there's a column that has 'ilp' in its name
+          ilp_columns <- names(rdm_dat)[grepl("ilp", tolower(names(rdm_dat)))]
+          if (length(ilp_columns) > 0) {
+            message("Found columns with 'ilp' in their name: ", paste(ilp_columns, collapse=", "))
+          }
+          
           NULL
         }
+      } else {
+        message("No ILP data found using any extraction method")
+        NULL
       }
       
       # Debug the extracted data
-      if (exists("ilp_data")) {
-        cat("DEBUG: ILP data class:", class(ilp_data), "\n")
+      if (exists("ilp_data") && !is.null(ilp_data)) {
+        message("ILP data class: ", paste(class(ilp_data), collapse=", "))
         if (is.data.frame(ilp_data)) {
-          cat("DEBUG: ILP data has", nrow(ilp_data), "rows and", ncol(ilp_data), "columns\n")
+          message("ILP data has ", nrow(ilp_data), " rows and ", ncol(ilp_data), " columns")
+          message("ILP data column names: ", paste(names(ilp_data), collapse=", "))
         }
         ilp_data
       } else {
+        message("ilp_data is NULL after extraction attempts")
         NULL
       }
     }
   }, error = function(e) {
-    cat("DEBUG: Error extracting ILP data:", e$message, "\n")
+    message("Error extracting ILP data: ", e$message)
     NULL
   })
   
-  # Extract s_eval data from rdm_dat
+  # --- Extract s_eval data ---
   s_eval_data <- tryCatch({
-    cat("DEBUG: Starting s_eval data extraction\n")
+    message("Starting s_eval data extraction")
     if (is.null(rdm_dat)) {
-      cat("DEBUG: rdm_dat is NULL, cannot extract s_eval data\n")
+      message("rdm_dat is NULL, cannot extract s_eval data")
       NULL
     } else {
-      cat("DEBUG: rdm_dat contains these keys:", paste(names(rdm_dat), collapse=", "), "\n")
+      message("rdm_dat contains these keys: ", paste(names(rdm_dat), collapse=", "))
       
-      # Try both lowercase and capitalized key names
+      # Try multiple approaches to extract s_eval data
       if ("s_eval" %in% names(rdm_dat)) {
-        cat("DEBUG: Found s_eval data (lowercase) in rdm_dat\n")
+        message("Found s_eval data (lowercase) in rdm_dat")
         s_eval_data <- rdm_dat$s_eval
       } else if ("S_eval" %in% names(rdm_dat)) {
-        cat("DEBUG: Found S_eval data (capitalized) in rdm_dat\n")
+        message("Found S_eval data (capitalized) in rdm_dat")
         s_eval_data <- rdm_dat$S_eval
-      } else {
-        # Alternative approach: try to extract from the main data frame
-        cat("DEBUG: Looking for s_eval data in repeating instruments\n")
-        if ("redcap_repeat_instrument" %in% names(rdm_dat)) {
-          s_eval_data <- rdm_dat %>%
-            filter(tolower(redcap_repeat_instrument) == "s_eval")
-          if (nrow(s_eval_data) > 0) {
-            cat("DEBUG: Extracted", nrow(s_eval_data), "rows of s_eval data from main dataframe\n")
-          } else {
-            cat("DEBUG: No s_eval data found in main dataframe\n")
-            NULL
-          }
+      } else if (is.data.frame(rdm_dat) && "redcap_repeat_instrument" %in% names(rdm_dat)) {
+        # Check for s_eval in repeating instruments, case-insensitive
+        message("Looking for s_eval data in repeating instruments")
+        
+        s_eval_data <- rdm_dat %>%
+          filter(tolower(redcap_repeat_instrument) == "s_eval")
+        
+        if (nrow(s_eval_data) > 0) {
+          message("Extracted ", nrow(s_eval_data), " rows of s_eval data from main dataframe")
         } else {
-          cat("DEBUG: No s_eval data found and no repeating instruments in rdm_dat\n")
+          message("No rows found with redcap_repeat_instrument='s_eval' (case insensitive)")
           NULL
         }
+      } else {
+        message("No s_eval data found using any extraction method")
+        NULL
       }
       
       # Debug the extracted data
-      if (exists("s_eval_data")) {
-        cat("DEBUG: s_eval data class:", class(s_eval_data), "\n")
+      if (exists("s_eval_data") && !is.null(s_eval_data)) {
+        message("s_eval data class: ", paste(class(s_eval_data), collapse=", "))
         if (is.data.frame(s_eval_data)) {
-          cat("DEBUG: s_eval data has", nrow(s_eval_data), "rows and", ncol(s_eval_data), "columns\n")
+          message("s_eval data has ", nrow(s_eval_data), " rows and ", ncol(s_eval_data), " columns")
         }
         s_eval_data
       } else {
+        message("s_eval_data is NULL after extraction attempts")
         NULL
       }
     }
   }, error = function(e) {
-    cat("DEBUG: Error extracting s_eval data:", e$message, "\n")
+    message("Error extracting s_eval data: ", e$message)
     NULL
   })
   
-  # In the load_imres_data function, modify the scholarship data extraction:
+  # --- Extract scholarship data ---
   schol_data <- tryCatch({
-    cat("DEBUG: Starting scholarship data extraction\n")
+    message("Starting scholarship data extraction")
     if (is.null(rdm_dat)) {
-      cat("DEBUG: rdm_dat is NULL, cannot extract scholarship data\n")
+      message("rdm_dat is NULL, cannot extract scholarship data")
       NULL
     } else {
-      cat("DEBUG: rdm_dat is not NULL\n")
-      cat("DEBUG: rdm_dat contains these keys:", paste(names(rdm_dat), collapse=", "), "\n")
+      message("rdm_dat is not NULL")
+      message("rdm_dat contains these keys: ", paste(names(rdm_dat), collapse=", "))
       
-      # Try both "scholarship" and "Scholarship" keys
+      # Try multiple approaches to extract scholarship data
       if ("scholarship" %in% names(rdm_dat)) {
-        cat("DEBUG: Found scholarship data (lowercase) in rdm_dat\n")
+        message("Found scholarship data (lowercase) in rdm_dat")
         schol_data <- rdm_dat$scholarship
       } else if ("Scholarship" %in% names(rdm_dat)) {
-        cat("DEBUG: Found Scholarship data (capitalized) in rdm_dat\n")
+        message("Found Scholarship data (capitalized) in rdm_dat")
         schol_data <- rdm_dat$Scholarship
-      } else {
-        # Alternative approach: try to extract from the main data frame
-        cat("DEBUG: Looking for scholarship data in repeating instruments\n")
-        if ("redcap_repeat_instrument" %in% names(rdm_dat)) {
-          schol_data <- rdm_dat %>%
-            filter(tolower(redcap_repeat_instrument) == "scholarship")
-          if (nrow(schol_data) > 0) {
-            cat("DEBUG: Extracted", nrow(schol_data), "rows of scholarship data from main dataframe\n")
-          } else {
-            cat("DEBUG: No scholarship data found in main dataframe\n")
-            NULL
-          }
+      } else if (is.data.frame(rdm_dat) && "redcap_repeat_instrument" %in% names(rdm_dat)) {
+        # Check for scholarship in repeating instruments, case-insensitive
+        message("Looking for scholarship data in repeating instruments")
+        
+        schol_data <- rdm_dat %>%
+          filter(tolower(redcap_repeat_instrument) == "scholarship")
+        
+        if (nrow(schol_data) > 0) {
+          message("Extracted ", nrow(schol_data), " rows of scholarship data from main dataframe")
         } else {
-          cat("DEBUG: No scholarship data found and no repeating instruments in rdm_dat\n")
+          message("No scholarship data found in main dataframe")
           NULL
         }
+      } else {
+        message("No scholarship data found using any extraction method")
+        NULL
       }
       
       # Debug the extracted data
-      if (exists("schol_data")) {
-        cat("DEBUG: scholarship data class:", class(schol_data), "\n")
+      if (exists("schol_data") && !is.null(schol_data)) {
+        message("scholarship data class: ", paste(class(schol_data), collapse=", "))
         if (is.data.frame(schol_data)) {
-          cat("DEBUG: scholarship data has", nrow(schol_data), "rows and", ncol(schol_data), "columns\n")
+          message("scholarship data has ", nrow(schol_data), " rows and ", ncol(schol_data), " columns")
         }
         schol_data
       } else {
+        message("schol_data is NULL after extraction attempts")
         NULL
       }
     }
   }, error = function(e) {
-    cat("DEBUG: Error extracting scholarship data:", e$message, "\n")
+    message("Error extracting scholarship data: ", e$message)
     NULL
   })
   
-  # Function to safely pull resident data from REDCap API
+  # --- Get resident data ---
   resident_data <- tryCatch({
-    cat("Attempting to pull assessment data...\n")
+    message("Attempting to pull assessment data...")
     ass_dat <- full_api_pull(config$eval_token, config$url)
-    cat("Successfully pulled assessment data\n")
+    message("Successfully pulled assessment data")
     
-    cat("Wrangling assessment data...\n")
+    message("Wrangling assessment data...")
     ass_dat <- wrangle_assessment_data(ass_dat)
-    cat("Assessment data wrangled\n")
+    message("Assessment data wrangled")
     
-    # We already have rdm_dat from earlier
-    cat("Creating resident data...\n")
+    message("Creating resident data...")
     result <- create_res_data(ass_dat, rdm_dat)
-    cat("Resident data created with", nrow(result), "rows\n")
+    message("Resident data created with ", nrow(result), " rows")
     
     result
   }, error = function(e) {
-    cat("Error in resident data API pull:", e$message, "\n")
+    message("Error in resident data API pull: ", e$message)
     NULL
   })
   
-  # Load milestone data
+  # Debug check for resident_data
+  if (exists("resident_data")) {
+    message("resident_data exists and is ", if(is.null(resident_data)) "NULL" else "not NULL")
+  } else {
+    message("WARNING: resident_data variable doesn't exist!")
+    # Initialize it to prevent errors
+    resident_data <- NULL
+  }
+  
+  # --- Get milestone data ---
   miles <- tryCatch({
-    cat("Getting all milestones...\n")
+    message("Getting all milestones...")
     result <- get_all_milestones(config$rdm_token, config$url)
-    cat("All milestones retrieved\n")
+    message("All milestones retrieved")
     
-    cat("Filling missing resident data in milestones...\n")
+    message("Filling missing resident data in milestones...")
     result <- fill_missing_resident_data(result)
-    cat("Resident data filled in milestones\n")
+    message("Resident data filled in milestones")
     
     result
   }, error = function(e) {
-    cat("Error loading milestones:", e$message, "\n")
+    message("Error loading milestones: ", e$message)
     NULL
   })
   
-  # Process milestones
+  # --- Process milestones ---
   p_miles <- NULL
   s_miles <- NULL
   if (!is.null(miles)) {
     p_miles <- tryCatch({
-      cat("Processing program milestones...\n")
+      message("Processing program milestones...")
       result <- process_milestones(miles, type = "program")
-      cat("Program milestones processed\n")
+      message("Program milestones processed")
       result
     }, error = function(e) {
-      cat("Error processing program milestones:", e$message, "\n")
+      message("Error processing program milestones: ", e$message)
       NULL
     })
     
     s_miles <- tryCatch({
-      cat("Processing self milestones...\n")
+      message("Processing self milestones...")
       result <- process_milestones(miles, type = "self")
-      cat("Self milestones processed\n")
+      message("Self milestones processed")
       result
     }, error = function(e) {
-      cat("Error processing self milestones:", e$message, "\n")
+      message("Error processing self milestones: ", e$message)
       NULL
     })
   }
   
-  # Return all the data
-  list(
+  # --- Create result list ---
+  message("Preparing return value with all data components")
+  
+  # Make sure all variables exist before creating the result list
+  # If any variable doesn't exist, initialize it to NULL
+  for (var_name in c("rdm_dict", "ass_dict", "resident_data", "miles", 
+                     "ilp_data", "s_eval_data", "schol_data", "p_miles", "s_miles")) {
+    if (!exists(var_name)) {
+      message(paste("WARNING:", var_name, "variable doesn't exist, initializing to NULL"))
+      assign(var_name, NULL)
+    }
+  }
+  
+  result_list <- list(
     rdm_dict = rdm_dict,
     ass_dict = ass_dict,
     resident_data = resident_data,
     miles = miles,
+    ilp = ilp_data,  # Make sure to include ilp data here
+    s_eval = s_eval_data,
     schol_data = schol_data,
-    ilp = ilp_data,  # Updated to use the extracted ilp_data 
-    s_eval = s_eval_data,  # Updated to use the extracted s_eval_data
     p_miles = p_miles,
     s_miles = s_miles,
     url = config$url,
@@ -284,11 +423,32 @@ load_imres_data <- function(config) {
     rdm_token = config$rdm_token,
     fac_token = config$fac_token
   )
+  
+  # Final debugging check of the return value
+  message("Return list contains these keys: ", paste(names(result_list), collapse=", "))
+  message("ILP data in return list is NULL? ", is.null(result_list$ilp))
+  
+  message("=== FINISHED load_imres_data FUNCTION ===")
+  return(result_list)
 }
 
-# ---------- HELPER FUNCTIONS ----------
-# Load helper functions
-source("R/helpers.R")
+# ---------- GLOBAL APP DATA MANAGEMENT ----------
+# Define a variable to hold app data
+app_data_store <- NULL
 
-
-
+# Function to ensure data is loaded
+ensure_data_loaded <- function() {
+  if (is.null(app_data_store)) {
+    # Only initialize data when needed
+    message("Starting data load process...")
+    config <- initialize_app_config()
+    message("Config initialized")
+    app_data_store <<- load_imres_data(config)
+    message("Data loaded")
+    
+    # Add final check after data is loaded
+    message("FINAL CHECK: app_data_store contains these keys:", paste(names(app_data_store), collapse=", "))
+    message("FINAL CHECK: ILP data is NULL?", is.null(app_data_store$ilp))
+  }
+  return(app_data_store)
+}
