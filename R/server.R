@@ -976,6 +976,179 @@ server <- function(input, output, session) {
         )
     })
     
+    # Wellness Card
+    # ----------------------------------------------
+    # Check if resident is an intern in intro period
+    output$is_intern_intro <- reactive({
+        req(values$selected_resident)
+        req(values$current_period)
+        
+        # Check if resident is an intern and in intro period
+        is_intro <- values$selected_resident$Level == "Intern" && 
+            values$current_period == "Intern Intro"
+        
+        if(dev_mode) {
+            message("Is intern intro period: ", is_intro)
+        }
+        
+        return(is_intro)
+    })
+    outputOptions(output, "is_intern_intro", suspendWhenHidden = FALSE)
+    
+    # Evaluation Card
+    # ---------------------------------
+    # 
+    get_most_recent_self_eval <- function(resident_name, period, column_name) {
+        # Get app data directly
+        data <- app_data()
+        resident_data <- data$resident_data
+        
+        # Filter for this resident
+        resident_rows <- resident_data %>% 
+            filter(name == resident_name)
+        
+        # If no rows found
+        if(nrow(resident_rows) == 0) {
+            return(NULL)
+        }
+        
+        # If we have a period column, try to filter by period
+        if("s_e_period" %in% names(resident_rows) && period %in% resident_rows$s_e_period) {
+            # Get the rows for this period
+            period_rows <- resident_rows %>% filter(s_e_period == period)
+            
+            if(nrow(period_rows) > 0) {
+                # Check for date column to sort by (try common date column names)
+                date_cols <- intersect(c("date", "s_e_date", "entry_date", "created_date", "timestamp"), 
+                                       names(period_rows))
+                
+                if(length(date_cols) > 0) {
+                    # Use the first date column found
+                    date_col <- date_cols[1]
+                    
+                    # Convert to Date object if needed
+                    if(!inherits(period_rows[[date_col]], "Date")) {
+                        period_rows[[date_col]] <- as.Date(period_rows[[date_col]])
+                    }
+                    
+                    # Sort by date descending (most recent first)
+                    period_rows <- period_rows[order(period_rows[[date_col]], decreasing = TRUE), ]
+                }
+                
+                # Check if the requested column exists and has a non-NA value
+                if(column_name %in% names(period_rows) && !is.na(period_rows[[column_name]][1])) {
+                    return(period_rows[[column_name]][1])
+                }
+            }
+        }
+        
+        # If no period match, check for any rows with the column
+        if(column_name %in% names(resident_rows)) {
+            # Check for date column to sort by
+            date_cols <- intersect(c("date", "s_e_date", "entry_date", "created_date", "timestamp"), 
+                                   names(resident_rows))
+            
+            if(length(date_cols) > 0) {
+                # Use the first date column found
+                date_col <- date_cols[1]
+                
+                # Convert to Date object if needed
+                if(!inherits(resident_rows[[date_col]], "Date")) {
+                    resident_rows[[date_col]] <- as.Date(resident_rows[[date_col]])
+                }
+                
+                # Sort by date descending (most recent first)
+                resident_rows <- resident_rows[order(resident_rows[[date_col]], decreasing = TRUE), ]
+            }
+            
+            # Get the first non-NA value
+            non_na_rows <- resident_rows[!is.na(resident_rows[[column_name]]), ]
+            
+            if(nrow(non_na_rows) > 0) {
+                return(non_na_rows[[column_name]][1])
+            }
+        }
+        
+        # No data found
+        return(NULL)
+    }
+    output$resident_plus_header <- renderText({
+        req(values$selected_resident)
+        paste0("What ", values$selected_resident$name, " feels is done well:")
+    })
+    
+    output$resident_plus_assessment <- renderText({
+        req(values$selected_resident)
+        req(values$current_period)
+        
+        # Use helper function to get the most recent value
+        plus_value <- get_most_recent_self_eval(
+            resident_name = values$selected_resident$name,
+            period = values$current_period,
+            column_name = "s_e_plus"
+        )
+        
+        # Return the value or a default message
+        if(!is.null(plus_value)) {
+            return(plus_value)
+        } else {
+            return("No self-assessment of strengths provided for this period.")
+        }
+    })
+    
+    # 3. Use the helper function for delta assessment
+    output$resident_delta_header <- renderText({
+        req(values$selected_resident)
+        paste0("What ", values$selected_resident$name, " can improve upon:")
+    })
+    
+    output$resident_delta_assessment <- renderText({
+        req(values$selected_resident)
+        req(values$current_period)
+        
+        # Use helper function to get the most recent value
+        delta_value <- get_most_recent_self_eval(
+            resident_name = values$selected_resident$name,
+            period = values$current_period,
+            column_name = "s_e_delta"
+        )
+        
+        # Return the value or a default message
+        if(!is.null(delta_value)) {
+            return(delta_value)
+        } else {
+            return("No self-assessment of areas for improvement provided for this period.")
+        }
+    })
+    
+    # 4. Simplified plus/delta table implementation
+    output$plus_delta_table <- DT::renderDT({
+        req(values$selected_resident)
+        
+        # Get raw resident data directly
+        data <- app_data()
+        
+        # Call the generate_p_d function directly
+        plus_delta_data <- generate_p_d(data$resident_data, values$selected_resident$name)
+        
+        # Use create_styled_dt to format the table
+        create_styled_dt(plus_delta_data, caption = paste0("Plus/Delta Feedback for ", values$selected_resident$name))
+    })
+    #Modal handlers to open p_d table   
+    observeEvent(input$open_eval_modal, {
+        show_evaluation_modal()
+    })
+    
+    observeEvent(input$open_eval_modal_top, {
+        show_evaluation_modal()
+    })
+    
+    observeEvent(input$reopen_eval_modal, {
+        show_evaluation_modal()
+    })
+
+       
+    
     # Tab navigation
     observeEvent(input$next_tab, {
         req(values$current_tab)

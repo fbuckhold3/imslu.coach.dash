@@ -506,6 +506,7 @@ ui <- page_fluid(
           ),
           
           # Third nav panel - Evaluations Review (New Panel)
+          
           nav_panel(
             title = "3. Evaluations",
             value = "evaluations",
@@ -515,36 +516,91 @@ ui <- page_fluid(
                 tagList(
                   "Rotation & Clinical Evaluations",
                   actionButton("open_eval_modal", label = NULL, icon = icon("table"), 
-                               class = "btn btn-link", title = "View Plus/Delta Assessment Table")
+                               class = "btn btn-link card-header-action", title = "View Plus/Delta Assessment Table")
                 )
               ),
               card_body(
                 p("Review the resident's evaluations from rotations, outpatient clinics, and other experiences."),
                 
+                # Debugging section (only visible in dev mode)
+                conditionalPanel(
+                  condition = "window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'",
+                  div(
+                    class = "alert alert-secondary mt-3 mb-4",
+                    h5("Debug Information (DEV MODE ONLY)", class = "alert-heading"),
+                    
+                    # Tabs for different debug sections
+                    tabsetPanel(
+                      tabPanel("Self-Eval", verbatimTextOutput("debug_self_eval")),
+                      tabPanel("Plus/Delta", verbatimTextOutput("debug_plus_delta"))
+                    )
+                  )
+                ),
+                
+                # Link to resident dashboard for evaluations
+                div(
+                  class = "mb-4",
+                  p("Access the resident's evaluation dashboard for more detailed information:"),
+                  a("Open Resident Dashboard", 
+                    href = "https://fbuckhold3-imsluresidentdashboard.share.connect.posit.cloud", 
+                    target = "_blank", 
+                    class = "btn btn-outline-primary btn-sm")
+                ),
+                
                 # Display the resident's self-reflection on strengths
-                h4("What the resident thinks they're doing well:"),
-                verbatimTextOutput("resident_plus_assessment"),
+                div(
+                  class = "mt-4",
+                  h4(textOutput("resident_plus_header"), class = "text-success"), 
+                  div(
+                    class = "p-3 border-left border-success bg-light",
+                    style = "border-left: 4px solid #28a745 !important;",
+                    verbatimTextOutput("resident_plus_assessment", placeholder = TRUE)
+                  )
+                ),
                 
                 # Display the resident's self-reflection on areas for improvement
-                h4("What the resident thinks they need to improve:"),
-                verbatimTextOutput("resident_delta_assessment"),
+                div(
+                  class = "mt-4 mb-4",
+                  h4(textOutput("resident_delta_header"), class = "text-danger"),
+                  div(
+                    class = "p-3 border-left border-danger bg-light",
+                    style = "border-left: 4px solid #dc3545 !important;",
+                    verbatimTextOutput("resident_delta_assessment", placeholder = TRUE)
+                  )
+                ),
                 
                 # Divider
                 hr(),
                 
-                # Coach's comments about evaluations
-                h4("Your Assessment of Evaluations:"),
+                # Coach's assessment of resident's evaluations
+                h4("Your Assessment of Evaluations:", class = "mt-4"),
+                textAreaInput(
+                  "evaluations_assessment", 
+                  label = "Please enter your thoughts about how the resident has done in collecting evaluations, doing faculty evaluations, and completing peer evaluations:",
+                  rows = 4,
+                  width = "100%",
+                  placeholder = "Enter your assessment of the resident's evaluation performance..."
+                ),
+                
+                # Coach's comments about plus/delta feedback
                 textAreaInput(
                   "evaluations_comments", 
-                  label = NULL,
-                  rows = 5,
+                  label = "Comments about Plus/Delta data and the resident's reflection:",
+                  rows = 4,
                   width = "100%",
                   placeholder = "Document your discussion about the resident's evaluations. Consider: Do they have accurate self-assessment? What patterns do you see in their evaluations? What strategies would help them improve?"
                 ),
                 
                 # Button to view the plus/delta table at the bottom as well
-                actionButton("reopen_eval_modal", "View Full Plus/Delta Table", 
-                             icon = icon("table"), class = "btn-secondary mt-3")
+                div(
+                  class = "text-center mt-4",
+                  actionButton(
+                    "reopen_eval_modal", 
+                    "View Full Plus/Delta Table", 
+                    icon = icon("table"), 
+                    class = "btn-secondary"
+                  )
+                )
               )
             )
           ),

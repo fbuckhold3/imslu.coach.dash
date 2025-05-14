@@ -1020,3 +1020,8 @@ create_ccc_notes_table <- function(resident_name, current_period, resident_level
   message("Found", nrow(display_data), "prior CCC records")
   return(display_data)
 }
+
+
+
+
+
