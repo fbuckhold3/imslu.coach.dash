@@ -24,7 +24,8 @@ library(ggradar)
 # ---------- SOURCE HELPER FUNCTIONS ----------
 # Uncomment and adjust paths as needed
 source("R/helpers.R")
-# source("R/goal_mod.R")  # Uncomment if needed
+source("R/modules.R")
+
 
 # ---------- INITIALIZE APP CONFIG ----------
 initialize_app_config <- function() {
@@ -137,7 +138,7 @@ load_imres_data <- function(config) {
   
   rdm_dat <- tryCatch({
     message("Pulling forms data...")
-    result <- forms_api_pull(config$rdm_token, config$url, 'resident_data', 'faculty_evaluation', 'ilp', 's_eval', 'scholarship')
+    result <- forms_api_pull(config$rdm_token, config$url, 'resident_data', 'faculty_evaluation', 'ilp', 's_eval', 'scholarship', 'ccc_review')
     
     message("Forms data pulled. Structure of rdm_dat:")
     message("rdm_dat is of class: ", paste(class(result), collapse=", "))
@@ -223,55 +224,150 @@ load_imres_data <- function(config) {
   })
   
   # --- Extract s_eval data ---
-  s_eval_data <- tryCatch({
-    message("Starting s_eval data extraction")
-    if (is.null(rdm_dat)) {
-      message("rdm_dat is NULL, cannot extract s_eval data")
-      NULL
-    } else {
-      message("rdm_dat contains these keys: ", paste(names(rdm_dat), collapse=", "))
+  # Additional debugging for career data rendering
+  # Add this to your server.R file in the renderUI function for career_data_ui
+  
+  # Enhanced s_eval data extraction function with tryCatch
+  # Add this to your global.R or helpers.R file
+  
+  get_s_eval_data <- function(rdm_data) {
+    tryCatch({
+      message("Starting enhanced s_eval data extraction")
+      
+      if (is.null(rdm_data)) {
+        message("rdm_data is NULL, cannot extract s_eval data")
+        return(NULL)
+      }
       
       # Try multiple approaches to extract s_eval data
-      if ("s_eval" %in% names(rdm_dat)) {
-        message("Found s_eval data (lowercase) in rdm_dat")
-        s_eval_data <- rdm_dat$s_eval
-      } else if ("S_eval" %in% names(rdm_dat)) {
-        message("Found S_eval data (capitalized) in rdm_dat")
-        s_eval_data <- rdm_dat$S_eval
-      } else if (is.data.frame(rdm_dat) && "redcap_repeat_instrument" %in% names(rdm_dat)) {
-        # Check for s_eval in repeating instruments, case-insensitive
-        message("Looking for s_eval data in repeating instruments")
-        
-        s_eval_data <- rdm_dat %>%
-          filter(tolower(redcap_repeat_instrument) == "s_eval")
-        
-        if (nrow(s_eval_data) > 0) {
-          message("Extracted ", nrow(s_eval_data), " rows of s_eval data from main dataframe")
-        } else {
-          message("No rows found with redcap_repeat_instrument='s_eval' (case insensitive)")
-          NULL
-        }
-      } else {
-        message("No s_eval data found using any extraction method")
-        NULL
+      
+      # Approach 1: Check if s_eval is a direct component
+      if ("s_eval" %in% names(rdm_data)) {
+        message("Found s_eval data as a direct component in rdm_data")
+        return(rdm_data$s_eval)
       }
       
-      # Debug the extracted data
-      if (exists("s_eval_data") && !is.null(s_eval_data)) {
-        message("s_eval data class: ", paste(class(s_eval_data), collapse=", "))
-        if (is.data.frame(s_eval_data)) {
-          message("s_eval data has ", nrow(s_eval_data), " rows and ", ncol(s_eval_data), " columns")
-        }
-        s_eval_data
-      } else {
-        message("s_eval_data is NULL after extraction attempts")
-        NULL
+      # Approach 2: Check if it's a capitalized key
+      if ("S_eval" %in% names(rdm_data)) {
+        message("Found S_eval data (capitalized) in rdm_data")
+        return(rdm_data$S_eval)
       }
+      
+      # Approach 3: If rdm_data is a data frame with repeating instruments
+      if (is.data.frame(rdm_data) && "redcap_repeat_instrument" %in% names(rdm_data)) {
+        message("Looking for s_eval data in repeating instruments")
+        
+        # Print all unique values in redcap_repeat_instrument for debugging
+        message("Unique redcap_repeat_instrument values: ", 
+                paste(unique(rdm_data$redcap_repeat_instrument), collapse=", "))
+        
+        # Try case-insensitive match
+        s_eval_rows <- rdm_data %>%
+          filter(tolower(redcap_repeat_instrument) %in% c("s_eval", "self evaluation", "self_evaluation"))
+        
+        if (nrow(s_eval_rows) > 0) {
+          message("Extracted ", nrow(s_eval_rows), " rows of s_eval data from main dataframe")
+          return(s_eval_rows)
+        }
+        
+        message("No rows found with matching redcap_repeat_instrument values")
+      }
+      
+      # Approach 4: Look for s_eval in field names
+      message("Searching for s_eval fields in rdm_data...")
+      if (is.data.frame(rdm_data)) {
+        s_eval_cols <- names(rdm_data)[grepl("s_e_", names(rdm_data), fixed = TRUE)]
+        
+        if (length(s_eval_cols) > 0) {
+          message("Found ", length(s_eval_cols), " columns with 's_e_' prefix")
+          message("Sample column names: ", paste(head(s_eval_cols, 5), collapse=", "))
+          
+          # If we found columns, return the dataframe with at least name column and all s_eval columns
+          select_cols <- c("name", s_eval_cols)
+          select_cols <- select_cols[select_cols %in% names(rdm_data)]
+          
+          if ("name" %in% select_cols) {
+            s_eval_data <- rdm_data[, select_cols]
+            message("Created s_eval dataframe with ", nrow(s_eval_data), " rows and ", ncol(s_eval_data), " columns")
+            return(s_eval_data)
+          } else {
+            message("WARNING: Found s_eval columns but no 'name' column")
+          }
+        }
+      }
+      
+      # Approach 5: Look for objects with career paths/fellowship fields
+      message("Searching for career fields in rdm_data components...")
+      
+      if (is.list(rdm_data) && !is.data.frame(rdm_data)) {
+        for (component_name in names(rdm_data)) {
+          component <- rdm_data[[component_name]]
+          
+          if (is.data.frame(component)) {
+            career_cols <- names(component)[grepl("career|fellow|track", names(component), ignore.case = TRUE)]
+            
+            if (length(career_cols) > 0) {
+              message("Found career fields in component '", component_name, "': ", 
+                      paste(head(career_cols, 5), collapse=", "))
+              return(component)
+            }
+          }
+        }
+      }
+      
+      message("No s_eval data found using any extraction method")
+      return(NULL)
+    }, 
+    error = function(e) {
+      message("ERROR in get_s_eval_data: ", e$message)
+      # Print stack trace for debugging
+      message("Stack trace:")
+      print(sys.calls())
+      # Return NULL on error
+      return(NULL)
+    },
+    warning = function(w) {
+      message("WARNING in get_s_eval_data: ", w$message)
+      # Continue execution
+      NULL
+    },
+    finally = {
+      message("Completed s_eval data extraction attempt")
+    })
+  }
+  
+  # Updated ensure_data_loaded function with tryCatch for s_eval enhancement
+  ensure_data_loaded <- function() {
+    if (is.null(app_data_store)) {
+      # Only initialize data when needed
+      message("Starting data load process...")
+      config <- initialize_app_config()
+      message("Config initialized")
+      app_data_store <<- load_imres_data(config)
+      message("Data loaded")
+      
+      # Add enhanced s_eval extraction if it's not present
+      if (is.null(app_data_store$s_eval)) {
+        message("s_eval data is NULL, trying enhanced extraction...")
+        
+        # Use tryCatch for the enhancement attempt
+        tryCatch({
+          app_data_store$s_eval <<- get_s_eval_data(app_data_store)
+          message("Enhanced s_eval extraction complete. s_eval is now ", 
+                  ifelse(is.null(app_data_store$s_eval), "still NULL", "available"))
+        },
+        error = function(e) {
+          message("ERROR during enhanced s_eval extraction: ", e$message)
+          # Don't modify app_data_store on error
+        })
+      }
+      
+      # Add final check after data is loaded
+      message("FINAL CHECK: app_data_store contains these keys:", paste(names(app_data_store), collapse=", "))
+      message("FINAL CHECK: s_eval data is NULL?", is.null(app_data_store$s_eval))
     }
-  }, error = function(e) {
-    message("Error extracting s_eval data: ", e$message)
-    NULL
-  })
+    return(app_data_store)
+  }
   
   # --- Extract scholarship data ---
   schol_data <- tryCatch({
@@ -395,6 +491,55 @@ load_imres_data <- function(config) {
     })
   }
   
+  # --- Extract CCC review data ---
+  ccc_review_data <- tryCatch({
+    message("Starting CCC review data extraction")
+    if (is.null(rdm_dat)) {
+      message("rdm_dat is NULL, cannot extract CCC review data")
+      NULL
+    } else {
+      message("rdm_dat contains these keys: ", paste(names(rdm_dat), collapse=", "))
+      
+      # Try multiple approaches to extract CCC review data
+      if ("ccc_review" %in% names(rdm_dat)) {
+        message("Found ccc_review data in rdm_dat")
+        ccc_review_data <- rdm_dat$ccc_review
+      } else if (is.data.frame(rdm_dat) && "redcap_repeat_instrument" %in% names(rdm_dat)) {
+        # Check for ccc_review in repeating instruments
+        message("Looking for ccc_review data in repeating instruments")
+        
+        ccc_review_data <- rdm_dat %>%
+          filter(tolower(redcap_repeat_instrument) == "ccc_review")
+        
+        if (nrow(ccc_review_data) > 0) {
+          message("Extracted ", nrow(ccc_review_data), " rows of CCC review data from main dataframe")
+        } else {
+          message("No rows found with redcap_repeat_instrument='ccc_review'")
+          NULL
+        }
+      } else {
+        message("No CCC review data found using any extraction method")
+        NULL
+      }
+      
+      # Debug the extracted data
+      if (exists("ccc_review_data") && !is.null(ccc_review_data)) {
+        message("CCC review data class: ", paste(class(ccc_review_data), collapse=", "))
+        if (is.data.frame(ccc_review_data)) {
+          message("CCC review data has ", nrow(ccc_review_data), " rows and ", ncol(ccc_review_data), " columns")
+          message("CCC review data column names: ", paste(names(ccc_review_data), collapse=", "))
+        }
+        ccc_review_data
+      } else {
+        message("ccc_review_data is NULL after extraction attempts")
+        NULL
+      }
+    }
+  }, error = function(e) {
+    message("Error extracting CCC review data: ", e$message)
+    NULL
+  })
+  
   # --- Create result list ---
   message("Preparing return value with all data components")
   
@@ -413,11 +558,12 @@ load_imres_data <- function(config) {
     ass_dict = ass_dict,
     resident_data = resident_data,
     miles = miles,
-    ilp = ilp_data,  # Make sure to include ilp data here
+    ilp = ilp_data,
     s_eval = s_eval_data,
     schol_data = schol_data,
     p_miles = p_miles,
     s_miles = s_miles,
+    ccc_review = ccc_review_data,  # Add this line
     url = config$url,
     eval_token = config$eval_token,
     rdm_token = config$rdm_token,
@@ -436,7 +582,7 @@ load_imres_data <- function(config) {
 # Define a variable to hold app data
 app_data_store <- NULL
 
-# Function to ensure data is loaded
+# Updated ensure_data_loaded function with tryCatch for s_eval enhancement
 ensure_data_loaded <- function() {
   if (is.null(app_data_store)) {
     # Only initialize data when needed
@@ -446,9 +592,13 @@ ensure_data_loaded <- function() {
     app_data_store <<- load_imres_data(config)
     message("Data loaded")
     
+    # Remove the enhanced s_eval extraction section completely
+    # The filters will handle this dynamically when needed
+    
     # Add final check after data is loaded
     message("FINAL CHECK: app_data_store contains these keys:", paste(names(app_data_store), collapse=", "))
-    message("FINAL CHECK: ILP data is NULL?", is.null(app_data_store$ilp))
   }
   return(app_data_store)
 }
+
+
