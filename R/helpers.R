@@ -1313,5 +1313,301 @@ get_milestone_goals <- function(resident_name, current_period, resident_data, rd
   )
 }
 
-
+# Revised process_career_data function that works with text values directly in fields
+process_career_data <- function(resident_name, current_period, resident_data, rdm_dict) {
+  # Debug
+  message(paste("Processing career data for:", resident_name, "period:", current_period))
+  
+  # Skip processing if resident_name is missing or NA
+  if (is.null(resident_name) || is.na(resident_name) || resident_name == "") {
+    message("Resident name is empty or NA, returning empty data")
+    return(NULL)
+  }
+  
+  # Filter for this resident
+  resident_rows <- resident_data %>% 
+    filter(name == resident_name)
+  
+  message("Found ", nrow(resident_rows), " rows for resident")
+  
+  if (nrow(resident_rows) == 0) {
+    return(NULL)
+  }
+  
+  # Try to filter by period if available
+  if("s_e_period" %in% names(resident_rows)) {
+    period_rows <- resident_rows %>% filter(s_e_period == current_period)
+    
+    if(nrow(period_rows) > 0) {
+      message("Found ", nrow(period_rows), " rows for period ", current_period)
+      resident_rows <- period_rows
+    } else {
+      message("No rows found for period ", current_period, ", using all rows")
+    }
+  }
+  
+  # Sort by date if available to use most recent records
+  if("s_e_date" %in% names(resident_rows) && !all(is.na(resident_rows$s_e_date))) {
+    resident_rows <- resident_rows %>% arrange(desc(s_e_date))
+    message("Sorted rows by date, most recent first")
+  }
+  
+  # Initialize result lists
+  career_path <- list()
+  fellowship <- list()
+  track_info <- NULL
+  grad_info <- NULL
+  
+  # Check if this is a graduating resident based on period only
+  is_graduating <- (current_period == "Graduating")
+  
+  if (is_graduating) {
+    message("Processing graduating resident data")
+    
+    # Extract graduation next steps info
+    if ("s_e_grad_next" %in% names(resident_rows)) {
+      grad_next <- resident_rows$s_e_grad_next[1]
+      if (!is.na(grad_next)) {
+        if (grad_next == "Other" && "s_e_grad_next_othe" %in% names(resident_rows)) {
+          grad_next <- paste("Other:", resident_rows$s_e_grad_next_othe[1])
+        }
+        grad_info <- list(
+          next_step = grad_next
+        )
+        
+        # Add location info
+        if ("s_e_grad_where" %in% names(resident_rows)) {
+          grad_info$location <- resident_rows$s_e_grad_where[1]
+        }
+        
+        if ("s_e_grad_loc" %in% names(resident_rows)) {
+          location_type <- resident_rows$s_e_grad_loc[1]
+          if (!is.na(location_type)) {
+            if (location_type == "Other" && "s_e_grad_loc_other" %in% names(resident_rows)) {
+              grad_info$location_type <- paste("Other:", resident_rows$s_e_grad_loc_other[1])
+            } else {
+              grad_info$location_type <- location_type
+            }
+          }
+        }
+        
+        # Add fellowship location
+        if ("s_e_grad_fellow_loc" %in% names(resident_rows)) {
+          fellow_loc <- resident_rows$s_e_grad_fellow_loc[1]
+          if (!is.na(fellow_loc)) {
+            if (fellow_loc == "Other" && "s_e_grad_fellow_loc_else" %in% names(resident_rows)) {
+              grad_info$fellowship_location <- paste("Other:", resident_rows$s_e_grad_fellow_loc_else[1])
+            } else {
+              grad_info$fellowship_location <- fellow_loc
+            }
+          }
+        }
+      }
+    }
+    
+    # Extract fellowship interests for graduating residents - DIRECT METHOD
+    fellow_cols <- grep("^s_e_grad_fellow___", names(resident_rows), value=TRUE)
+    if (length(fellow_cols) > 0) {
+      message("Found ", length(fellow_cols), " grad fellowship columns")
+      
+      for (col in fellow_cols) {
+        for (i in 1:min(nrow(resident_rows), 5)) { # Check first 5 rows max
+          val <- resident_rows[[col]][i]
+          
+          # Only process non-NA values
+          if (!is.na(val)) {
+            # If the value is a text string (not 0/1), use it directly
+            if (is.character(val) && val != "0" && val != "1") {
+              fellowship[[col]] <- val
+              message("Found graduation fellowship text: ", val)
+              break
+            }
+            # Check for 0/1 or "0"/"1" checkbox values
+            else if (val == 1 || val == "1") {
+              # Extract the fellowship number from column name
+              fellow_num <- gsub("s_e_grad_fellow___", "", col)
+              
+              # Don't try to look up labels - just use the column identifier
+              fellowship[[col]] <- paste("Fellowship", fellow_num)
+              message("Found graduation fellowship indicator: ", col)
+              break
+            }
+          }
+        }
+      }
+    }
+    
+    # Check for "other" fellowship
+    if ("s_e_grad_fellow_oth" %in% names(resident_rows)) {
+      for (i in 1:min(nrow(resident_rows), 5)) {
+        other_val <- resident_rows$s_e_grad_fellow_oth[i]
+        if (!is.na(other_val) && other_val != "") {
+          fellowship[["other"]] <- paste("Other:", other_val)
+          message("Found 'other' graduation fellowship: ", other_val)
+          break
+        }
+      }
+    }
+  } else {
+    message("Processing regular (non-graduating) career data")
+    
+    # Process career path interests - DIRECT METHOD
+    career_cols <- grep("^s_e_career_path___", names(resident_rows), value=TRUE)
+    if (length(career_cols) > 0) {
+      message("Found ", length(career_cols), " career path columns")
+      
+      for (col in career_cols) {
+        for (i in 1:min(nrow(resident_rows), 5)) { # Check first 5 rows max
+          val <- resident_rows[[col]][i]
+          
+          # Only process non-NA values
+          if (!is.na(val)) {
+            # If the value is a text string (not 0/1), use it directly
+            if (is.character(val) && val != "0" && val != "1") {
+              career_path[[col]] <- val
+              message("Found career path text: ", val)
+              break
+            }
+            # Check for 0/1 or "0"/"1" checkbox values
+            else if (val == 1 || val == "1") {
+              # Extract the career number from column name
+              career_num <- gsub("s_e_career_path___", "", col)
+              
+              # Don't try to look up labels - just use the column identifier
+              career_path[[col]] <- paste("Career Path", career_num)
+              message("Found career path indicator: ", col)
+              break
+            }
+          }
+        }
+      }
+    }
+    
+    # Check for "other" career path
+    if ("s_e_career_oth" %in% names(resident_rows)) {
+      for (i in 1:min(nrow(resident_rows), 5)) {
+        other_val <- resident_rows$s_e_career_oth[i]
+        if (!is.na(other_val) && other_val != "") {
+          career_path[["other"]] <- paste("Other:", other_val)
+          message("Found 'other' career path: ", other_val)
+          break
+        }
+      }
+    }
+    
+    # Process fellowship interests - DIRECT METHOD
+    fellow_cols <- grep("^s_e_fellow___", names(resident_rows), value=TRUE)
+    if (length(fellow_cols) > 0) {
+      message("Found ", length(fellow_cols), " fellowship columns")
+      
+      for (col in fellow_cols) {
+        for (i in 1:min(nrow(resident_rows), 5)) { # Check first 5 rows max
+          val <- resident_rows[[col]][i]
+          
+          # Only process non-NA values
+          if (!is.na(val)) {
+            # If the value is a text string (not 0/1), use it directly
+            if (is.character(val) && val != "0" && val != "1") {
+              fellowship[[col]] <- val
+              message("Found fellowship text: ", val)
+              break
+            }
+            # Check for 0/1 or "0"/"1" checkbox values
+            else if (val == 1 || val == "1") {
+              # Extract the fellowship number from column name
+              fellow_num <- gsub("s_e_fellow___", "", col)
+              
+              # Don't try to look up labels - just use the column identifier
+              fellowship[[col]] <- paste("Fellowship", fellow_num)
+              message("Found fellowship indicator: ", col)
+              break
+            }
+          }
+        }
+      }
+    }
+    
+    # Check for "other" fellowship
+    if ("s_e_fellow_oth" %in% names(resident_rows)) {
+      for (i in 1:min(nrow(resident_rows), 5)) {
+        other_val <- resident_rows$s_e_fellow_oth[i]
+        if (!is.na(other_val) && other_val != "") {
+          fellowship[["other"]] <- paste("Other:", other_val)
+          message("Found 'other' fellowship: ", other_val)
+          break
+        }
+      }
+    }
+    
+    # Process track information
+    if ("s_e_track" %in% names(resident_rows)) {
+      track_val <- NULL
+      track_types <- list()
+      
+      # Find the first non-NA track value
+      for (i in 1:nrow(resident_rows)) {
+        if (!is.na(resident_rows$s_e_track[i])) {
+          track_val <- resident_rows$s_e_track[i]
+          break
+        }
+      }
+      
+      if (!is.null(track_val) && track_val != "" && track_val != "No") {
+        # Look for track types - DIRECT METHOD
+        track_type_cols <- grep("^s_e_track_type___", names(resident_rows), value=TRUE)
+        
+        if (length(track_type_cols) > 0) {
+          message("Found ", length(track_type_cols), " track type columns")
+          
+          for (col in track_type_cols) {
+            for (i in 1:min(nrow(resident_rows), 5)) {
+              val <- resident_rows[[col]][i]
+              
+              # Only process non-NA values
+              if (!is.na(val)) {
+                # If the value is a text string (not 0/1), use it directly
+                if (is.character(val) && val != "0" && val != "1") {
+                  track_types[[col]] <- val
+                  message("Found track type text: ", val)
+                  break
+                }
+                # Check for 0/1 or "0"/"1" checkbox values
+                else if (val == 1 || val == "1") {
+                  # Extract the track type number from column name
+                  type_num <- gsub("s_e_track_type___", "", col)
+                  
+                  # Don't try to look up labels - just use the column identifier
+                  track_types[[col]] <- paste("Track Type", type_num)
+                  message("Found track type indicator: ", col)
+                  break
+                }
+              }
+            }
+          }
+        }
+        
+        track_info <- list(
+          has_track = track_val,
+          track_types = track_types
+        )
+      }
+    }
+  }
+  
+  # Return NULL if we didn't find any career data
+  if (length(career_path) == 0 && length(fellowship) == 0 && 
+      is.null(track_info) && is.null(grad_info)) {
+    message("No career data found for this resident")
+    return(NULL)
+  }
+  
+  # Return all collected data
+  return(list(
+    career_path = career_path,
+    fellowship = fellowship,
+    track_info = track_info,
+    grad_info = grad_info,
+    is_graduating = is_graduating
+  ))
+}
 

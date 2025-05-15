@@ -2069,6 +2069,192 @@ server <- function(input, output, session) {
     })
     
     
+    #---------------------
+    # Career Planning
+    # ------------------
+    # Career Planning UI
+    output$career_data_ui <- renderUI({
+        req(values$selected_resident)
+        req(values$current_period)
+        
+        # Get app data
+        data <- app_data()
+        resident_data <- data$resident_data
+        
+        # Get career data using our helper function
+        career_data <- process_career_data(
+            resident_name = values$selected_resident$name,
+            current_period = values$current_period,
+            resident_data = resident_data,
+            rdm_dict = data$rdm_dict
+        )
+        
+        # If no career data could be found
+        if (is.null(career_data)) {
+            return(
+                div(
+                    class = "alert alert-info",
+                    icon("info-circle"), 
+                    paste("No career planning data is available for", values$selected_resident$name, 
+                          "in the", values$current_period, "period.")
+                )
+            )
+        }
+        
+        # Create UI based on whether resident is graduating or not
+        if (career_data$is_graduating) {
+            # UI for graduating residents
+            tagList(
+                # Graduation plans section
+                if (!is.null(career_data$grad_info)) {
+                    div(
+                        class = "career-section",
+                        h5("Post-Graduation Plans", class = "text-primary"),
+                        
+                        # Next step after graduation
+                        if (!is.null(career_data$grad_info$next_step)) {
+                            div(
+                                class = "mb-3",
+                                tags$strong("Next Step:"),
+                                p(career_data$grad_info$next_step, class = "ms-3")
+                            )
+                        },
+                        
+                        # Location if available
+                        if (!is.null(career_data$grad_info$location)) {
+                            div(
+                                class = "mb-3",
+                                tags$strong("Location:"),
+                                p(career_data$grad_info$location, class = "ms-3")
+                            )
+                        },
+                        
+                        # Location type if available
+                        if (!is.null(career_data$grad_info$location_type)) {
+                            div(
+                                class = "mb-3",
+                                tags$strong("Location Type:"),
+                                p(career_data$grad_info$location_type, class = "ms-3")
+                            )
+                        },
+                        
+                        # Fellowship location if applicable
+                        if (!is.null(career_data$grad_info$fellowship_location)) {
+                            div(
+                                class = "mb-3",
+                                tags$strong("Fellowship Location:"),
+                                p(career_data$grad_info$fellowship_location, class = "ms-3")
+                            )
+                        }
+                    )
+                } else {
+                    div(
+                        class = "alert alert-info",
+                        icon("info-circle"), 
+                        paste("No post-graduation plans are recorded for", values$selected_resident$name)
+                    )
+                },
+                
+                # Fellowship section for graduating residents
+                if (length(career_data$fellowship) > 0) {
+                    div(
+                        class = "career-section",
+                        h5("Fellowship Plans", class = "text-primary"),
+                        tags$ul(
+                            class = "list-group list-group-flush",
+                            lapply(career_data$fellowship, function(fellow) {
+                                tags$li(
+                                    class = "list-group-item",
+                                    icon("award", class = "text-primary me-2"),
+                                    fellow
+                                )
+                            })
+                        )
+                    )
+                }
+            )
+        } else {
+            # UI for non-graduating residents
+            tagList(
+                # Career path interests section
+                if (length(career_data$career_path) > 0) {
+                    div(
+                        class = "career-section",
+                        h5("Career Path Interests", class = "text-primary"),
+                        tags$ul(
+                            class = "list-group list-group-flush",
+                            lapply(career_data$career_path, function(career) {
+                                tags$li(
+                                    class = "list-group-item",
+                                    icon("briefcase", class = "text-primary me-2"),
+                                    career
+                                )
+                            })
+                        )
+                    )
+                } else {
+                    div(
+                        class = "alert alert-info",
+                        icon("info-circle"), 
+                        paste("No career path interests are recorded for", values$selected_resident$name)
+                    )
+                },
+                
+                # Fellowship interests section
+                if (length(career_data$fellowship) > 0) {
+                    div(
+                        class = "career-section mt-4",
+                        h5("Fellowship Interests", class = "text-primary"),
+                        tags$ul(
+                            class = "list-group list-group-flush",
+                            lapply(career_data$fellowship, function(fellow) {
+                                tags$li(
+                                    class = "list-group-item",
+                                    icon("award", class = "text-primary me-2"),
+                                    fellow
+                                )
+                            })
+                        )
+                    )
+                },
+                
+                # Track information section
+                if (!is.null(career_data$track_info) && career_data$track_info$has_track == "Yes") {
+                    div(
+                        class = "career-section mt-4",
+                        h5("Interest in Special Tracks", class = "text-primary"),
+                        p(strong("Interested in a Track: "), "Yes"),
+                        
+                        if (length(career_data$track_info$track_types) > 0) {
+                            tagList(
+                                p(strong("Track Types:")),
+                                tags$ul(
+                                    lapply(career_data$track_info$track_types, function(track) {
+                                        tags$li(track)
+                                    })
+                                )
+                            )
+                        }
+                    )
+                },
+                
+                # Discussion topics section
+                div(
+                    class = "discussion-topics mt-4",
+                    h5("Suggested Discussion Topics"),
+                    p("Consider discussing these topics with the resident:"),
+                    tags$ul(
+                        tags$li("Career timeline and major decision points"),
+                        tags$li("Resources for exploring specialties and fellowship options"),
+                        tags$li("Networking opportunities and mentorship connections"),
+                        tags$li("Work-life balance considerations"),
+                        tags$li("CV/resume development and interview preparation")
+                    )
+                )
+            )
+        }
+    })
+    
     # ----------------------
     # Tab navigation
     # --------------------

@@ -783,11 +783,44 @@ ui <- page_fluid(
             title = "7. Career Plan",
             value = "career",
             
-            # Career path section
+            # Career path information section - populated by server
             card(
-              card_header("Career Path Information"),
+              card_header("Career Interests and Planning"),
               card_body(
-                uiOutput("career_data_ui")  # This will be populated dynamically in server.R
+                # This will be populated dynamically by the server.R code
+                uiOutput("career_data_ui")
+              )
+            ),
+            
+            # Discussion guide section
+            card(
+              card_header("Career Discussion Guide"),
+              card_body(
+                fluidRow(
+                  column(
+                    width = 6,
+                    h4("For Early Stage Residents", class = "text-success mb-3"),
+                    tags$ul(
+                      class = "list-group",
+                      tags$li(class = "list-group-item", "Discuss career paths available"),
+                      tags$li(class = "list-group-item", "Gauge interest in fellowship"),
+                      tags$li(class = "list-group-item", "Identify mentors in areas of interest"),
+                      tags$li(class = "list-group-item", "Discuss research opportunities")
+                    )
+                  ),
+                  
+                  column(
+                    width = 6,
+                    h4("For Graduating Residents", class = "text-primary mb-3"),
+                    tags$ul(
+                      class = "list-group",
+                      tags$li(class = "list-group-item", "Confirm post-graduation plans"),
+                      tags$li(class = "list-group-item", "Review job search/fellowship match results"),
+                      tags$li(class = "list-group-item", "Discuss credentialing requirements"),
+                      tags$li(class = "list-group-item", "Address transition to practice or fellowship")
+                    )
+                  )
+                )
               )
             ),
             
@@ -795,7 +828,7 @@ ui <- page_fluid(
             card(
               card_header("Career Plan Discussion"),
               card_body(
-                p("Based on the resident's career interests above, provide your guidance and feedback:"),
+                p("Based on the resident's career interests, provide your guidance and feedback:"),
                 textAreaInput(
                   "career_comments", 
                   label = NULL,
@@ -807,17 +840,54 @@ ui <- page_fluid(
             )
           ),
           
-          # Eighth nav panel - Summary
+          # Updated Summary Panel for ui.R file
+          
           nav_panel(
             title = "8. Summary",
             value = "summary",
             
-            p("Please take a moment to briefly summarize your discussion with the resident and your thoughts on their progress. List any resources, needs, or concerns the Program needs to know to ensure their success."),
+            # Summary instructions card
+            card(
+              card_header("Summary Instructions"),
+              card_body(
+                div(
+                  class = "alert alert-primary",
+                  tags$i(class = "fas fa-exclamation-circle me-2"),
+                  tags$strong("Important: "),
+                  "Please spend a few minutes reviewing and fully updating the resident's \"Individualized Learning Plan\". This must include a reflection on up-to-date progress, knowledge acquisition and board prep, scholarship, Milestone-based goals, and career plans. This summary will be what is used by the CCC to review and assess."
+                ),
+                p("Take a moment to briefly summarize your discussion with the resident and your thoughts on their progress. List any resources, needs, or concerns the Program needs to know to ensure their success.")
+              )
+            ),
             
-            textAreaInput("summary_comments", "Summary", 
-                          rows = 10, placeholder = "Enter summary of discussion, including resources, needs, or concerns...")
+            # Summary input card
+            card(
+              card_header("Summary and ILP Update"),
+              card_body(
+                textAreaInput(
+                  "summary_comments", 
+                  label = NULL,
+                  rows = 12, 
+                  width = "100%",
+                  placeholder = "Please include the following elements in your summary:\n\n1. PROGRESS: Overall assessment of resident's progress\n2. KNOWLEDGE: Assessment of medical knowledge and board preparation\n3. SCHOLARSHIP: Progress on scholarly activities\n4. MILESTONE GOALS: Update on goals for each competency area\n5. CAREER PLANS: Progress towards career objectives\n6. CONCERNS: Any areas of concern that need program attention\n7. RESOURCES: Specific resources the resident needs for success"
+                )
+              )
+            ),
+            
+            # Confirmation checkbox
+            card(
+              card_body(
+                checkboxInput(
+                  "summary_complete", 
+                  label = tags$span(
+                    tags$strong("I confirm"), 
+                    "that I have completed a thorough review of this resident's progress and updated their Individualized Learning Plan."
+                  ),
+                  value = FALSE
+                )
+              )
+            )
           ),
-          
           # Ninth nav panel - Milestone Review
           nav_panel(
             title = "9. Milestone Review",
