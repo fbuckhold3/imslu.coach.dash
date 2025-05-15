@@ -1021,7 +1021,297 @@ create_ccc_notes_table <- function(resident_name, current_period, resident_level
   return(display_data)
 }
 
+get_knowledge_data <- function(resident_name, current_period, resident_level, resident_data) {
+  # Debug
+  message("Getting knowledge data for: ", resident_name, ", period: ", current_period)
+  
+  # Map the current period to the correct format for data filtering
+  mapped_period <- map_to_milestone_period(resident_level, current_period)
+  message("Mapped period from ", current_period, " to ", mapped_period)
+  
+  # Filter for this resident
+  resident_rows <- resident_data %>% 
+    filter(name == resident_name)
+  
+  message("Found ", nrow(resident_rows), " rows for ", resident_name)
+  
+  # Filter by period if available
+  if("s_e_period" %in% names(resident_rows)) {
+    # Try exact match first
+    period_rows <- resident_rows %>% filter(s_e_period == current_period)
+    
+    # If no rows, try mapped period
+    if(nrow(period_rows) == 0 && !is.na(mapped_period)) {
+      period_rows <- resident_rows %>% filter(s_e_period == mapped_period)
+    }
+    
+    message("After filtering for period ", current_period, " or ", mapped_period, 
+            ", found ", nrow(period_rows), " rows")
+    
+    if(nrow(period_rows) > 0) {
+      resident_rows <- period_rows
+    } else {
+      message("No rows found for period. Using most recent s_e data.")
+      # Sort by date and use the most recent record
+      if("s_e_date" %in% names(resident_rows) && !all(is.na(resident_rows$s_e_date))) {
+        resident_rows <- resident_rows %>% 
+          arrange(desc(s_e_date)) %>%
+          slice(1)
+        message("Using most recent record from date: ", resident_rows$s_e_date[1])
+      }
+    }
+  }
+  
+  # Get all topic selection columns
+  topic_cols <- grep("^s_e_topic_sel___", names(resident_rows), value=TRUE)
+  message("Found ", length(topic_cols), " topic columns")
+  
+  # Prepare results lists
+  selected_topics <- list()
+  selected_styles <- list()
+  
+  # Check each topic column for value = 1
+  for(col in topic_cols) {
+    for(i in 1:nrow(resident_rows)) {
+      val <- resident_rows[[col]][i]
+      # Check both for 1 and "1" (could be stored as character)
+      if(!is.na(val) && (val == 1 || val == "1")) {
+        # Extract the number suffix
+        topic_num <- as.numeric(gsub("s_e_topic_sel___", "", col))
+        
+        # Hard-coded labels based on your sample data
+        topic_label <- switch(
+          as.character(topic_num),
+          "3" = "Acute coronary syndrome",
+          "4" = "Acute kidney injury", 
+          "5" = "Altered mental status",
+          "7" = "Cirrhosis",
+          "9" = "Diabetes",
+          paste("Topic", topic_num)
+        )
+        
+        selected_topics[[col]] <- topic_label
+        message("Found selected topic: ", topic_label, " (", col, " = ", val, ")")
+      }
+    }
+  }
+  
+  # Check for "other" topic
+  if("s_e_topic_oth" %in% names(resident_rows)) {
+    for(i in 1:nrow(resident_rows)) {
+      other_val <- resident_rows$s_e_topic_oth[i]
+      if(!is.na(other_val) && other_val != "") {
+        selected_topics[["other"]] <- paste("Other:", other_val)
+        message("Found 'other' topic: ", other_val)
+      }
+    }
+  }
+  
+  # Get all learning style columns
+  style_cols <- grep("^s_e_learn_style___", names(resident_rows), value=TRUE)
+  message("Found ", length(style_cols), " learning style columns")
+  
+  # Check each style column for value = 1
+  for(col in style_cols) {
+    for(i in 1:nrow(resident_rows)) {
+      val <- resident_rows[[col]][i]
+      # Check both for 1 and "1" (could be stored as character)
+      if(!is.na(val) && (val == 1 || val == "1")) {
+        # Extract the number suffix
+        style_num <- as.numeric(gsub("s_e_learn_style___", "", col))
+        
+        # Hard-coded labels based on your sample data
+        style_label <- switch(
+          as.character(style_num),
+          "1" = "Case discussion sessions",
+          paste("Learning Style", style_num)
+        )
+        
+        selected_styles[[col]] <- style_label
+        message("Found selected style: ", style_label, " (", col, " = ", val, ")")
+      }
+    }
+  }
+  
+  # Check for "other" learning style
+  if("s_e_learn_oth" %in% names(resident_rows)) {
+    for(i in 1:nrow(resident_rows)) {
+      other_val <- resident_rows$s_e_learn_oth[i]
+      if(!is.na(other_val) && other_val != "") {
+        selected_styles[["other"]] <- paste("Other:", other_val)
+        message("Found 'other' style: ", other_val)
+      }
+    }
+  }
+  
+  # Collect board prep and exam data as well
+  board_prep <- list()
+  exam_scores <- list()
+  
+  # Board prep fields
+  board_fields <- c("s_e_step3", "s_e_step3_contact", "s_e_step3_date_set", 
+                    "s_e_step3_date", "s_e_board_concern", "s_e_board_help", 
+                    "s_e_board_discu", "s_e_mksap_comp")
+  
+  for(field in board_fields) {
+    if(field %in% names(resident_rows)) {
+      for(i in 1:nrow(resident_rows)) {
+        val <- resident_rows[[field]][i]
+        if(!is.na(val) && val != "") {
+          # Special handling for date
+          if(field == "s_e_step3_date" && !is.na(as.Date(val))) {
+            board_prep[[field]] <- format(as.Date(val), "%b %d, %Y")
+          } else {
+            board_prep[[field]] <- val
+          }
+          break
+        }
+      }
+    }
+  }
+  
+  # Exam score fields
+  exam_fields <- c("usmle1", "usmle2", "comlex1", "comlex2", 
+                   "usmle3", "ite_int", "ite2", "ite3")
+  
+  for(field in exam_fields) {
+    if(field %in% names(resident_rows)) {
+      for(i in 1:nrow(resident_rows)) {
+        val <- resident_rows[[field]][i]
+        if(!is.na(val) && val != "") {
+          exam_scores[[field]] <- val
+          break
+        }
+      }
+    }
+  }
+  
+  # Return all collected data
+  return(list(
+    topics = selected_topics,
+    styles = selected_styles,
+    board_prep = board_prep,
+    exam_scores = exam_scores
+  ))
+}
 
+# Add these functions to your server.R file:
+
+# Simplified version of the function that directly searches for the exact columns
+get_milestone_goals <- function(resident_name, current_period, resident_data, rdm_dict) {
+  # Debug
+  message(paste("Getting milestone goals for:", resident_name, "period:", current_period))
+  
+  # Filter resident data just by name - no period filtering
+  filtered_data <- resident_data %>%
+    filter(name == resident_name)
+  
+  # If no rows found, return empty data
+  if (nrow(filtered_data) == 0) {
+    message("No data found for resident:", resident_name)
+    return(list(
+      pc_mk_goal = NULL,
+      pc_mk_action = NULL,
+      sbp_pbl_goal = NULL,
+      sbp_pbl_action = NULL,
+      prof_ics_goal = NULL,
+      prof_ics_action = NULL
+    ))
+  }
+  
+  # Debug: Show what we found
+  message("Found ", nrow(filtered_data), " rows for resident: ", resident_name)
+  message("Column names available: ", paste(head(names(filtered_data), 10), "...", collapse=", "))
+  
+  # Define exactly the columns we want to check
+  pc_mk_cols <- c("pc1_r1", "pc1_r2", "pc2_r1", "pc2_r2", "pc3_r1", "pc3_r2", "pc4_r1", "pc4_r2",
+                  "pc5_r1", "pc5_r2", "pc5_r3", "pc6_r1", "pc6_r2", "mk1_r1", "mk2_r1", "mk3_r1", "mk3_r2")
+  
+  sbp_pbl_cols <- c("sbp1_r1", "sbp1_r2", "sbp1_r3", "sbp2_r1", "sbp2_r2", "sbp2_r3", "sbp3_r1", 
+                    "sbp3_r2", "pbl1_r1", "pbl2_r1", "pbl2_r2", "pbl2_r3")
+  
+  prof_ics_cols <- c("prof1_r1", "prof2_r1", "prof3_r1", "prof4_r1", "prof4_r2", "ics1_r1", 
+                     "ics1_r2", "ics2_r1", "ics2_r2", "ics3_r1", "ics3_r2")
+  
+  # Function to find the first non-NA value among the columns
+  find_first_non_na <- function(data, columns) {
+    # Check which columns exist in the dataframe
+    existing_cols <- intersect(columns, names(data))
+    message("Checking columns: ", paste(existing_cols, collapse=", "))
+    
+    if (length(existing_cols) == 0) {
+      message("None of the specified columns exist in the data")
+      return(NULL)
+    }
+    
+    # Find the first non-NA value
+    for (col in existing_cols) {
+      for (i in 1:nrow(data)) {
+        val <- data[[col]][i]
+        if (!is.na(val) && val != "") {
+          message("Found non-NA value in column ", col, ": ", substr(val, 1, 30), "...")
+          return(list(column = col, value = val))
+        }
+      }
+    }
+    
+    message("No non-NA values found in any columns")
+    return(NULL)
+  }
+  
+  # Find goals
+  pc_mk_goal <- find_first_non_na(filtered_data, pc_mk_cols)
+  sbp_pbl_goal <- find_first_non_na(filtered_data, sbp_pbl_cols)
+  prof_ics_goal <- find_first_non_na(filtered_data, prof_ics_cols)
+  
+  # Find action plans - check all rows for these
+  pc_mk_action <- NULL
+  sbp_pbl_action <- NULL
+  prof_ics_action <- NULL
+  
+  if ("how_pcmk" %in% names(filtered_data)) {
+    for (i in 1:nrow(filtered_data)) {
+      val <- filtered_data$how_pcmk[i]
+      if (!is.na(val) && val != "") {
+        pc_mk_action <- val
+        message("Found PC/MK action plan: ", substr(pc_mk_action, 1, 30), "...")
+        break
+      }
+    }
+  }
+  
+  if ("how_sbppbl" %in% names(filtered_data)) {
+    for (i in 1:nrow(filtered_data)) {
+      val <- filtered_data$how_sbppbl[i]
+      if (!is.na(val) && val != "") {
+        sbp_pbl_action <- val
+        message("Found SBP/PBL action plan: ", substr(sbp_pbl_action, 1, 30), "...")
+        break
+      }
+    }
+  }
+  
+  if ("how_profics" %in% names(filtered_data)) {
+    for (i in 1:nrow(filtered_data)) {
+      val <- filtered_data$how_profics[i]
+      if (!is.na(val) && val != "") {
+        prof_ics_action <- val
+        message("Found Prof/ICS action plan: ", substr(prof_ics_action, 1, 30), "...")
+        break
+      }
+    }
+  }
+  
+  # Return the results
+  list(
+    pc_mk_goal = pc_mk_goal,
+    pc_mk_action = pc_mk_action,
+    sbp_pbl_goal = sbp_pbl_goal,
+    sbp_pbl_action = sbp_pbl_action,
+    prof_ics_goal = prof_ics_goal,
+    prof_ics_action = prof_ics_action
+  )
+}
 
 
 

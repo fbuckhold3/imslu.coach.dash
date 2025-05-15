@@ -13,6 +13,8 @@ server <- function(input, output, session) {
         review_type = NULL,
         primary_review_data = NULL,
         current_period = NULL,
+        redcap_period = NULL,  # Add this line
+        redcap_prev_period = NULL,
         tab_order = c("pre_review", "wellness", "evaluations", "knowledge", 
                       "scholarship", "ilp", "career", "summary", "milestones")
     )
@@ -66,6 +68,49 @@ server <- function(input, output, session) {
             return(processed_data)
         } else {
             return(NULL)
+        }
+    })
+    
+    
+    # Centralized period mapping to incorporate into other functions
+    observe({
+        req(values$selected_resident)
+        req(values$current_period)
+        
+        # Map the current period
+        values$redcap_period <- map_to_milestone_period(
+            values$selected_resident$Level, 
+            values$current_period
+        )
+        
+        # Get the previous period in app format
+        prev_app_period <- get_previous_period(
+            values$current_period, 
+            values$selected_resident$Level
+        )
+        
+        # Map the previous period if it exists
+        if (!is.na(prev_app_period)) {
+            values$redcap_prev_period <- map_to_milestone_period(
+                values$selected_resident$Level, 
+                prev_app_period
+            )
+            
+            # Special case handling for End Review Interns, similar to your original code
+            if (values$current_period == "End Review" && values$selected_resident$Level == "Intern") {
+                values$redcap_prev_period <- "Mid Intern"
+            }
+        } else {
+            values$redcap_prev_period <- NA
+        }
+        
+        # For debugging
+        if (dev_mode) {
+            message(paste("Centralized period mapping:", values$current_period, "->", values$redcap_period, 
+                          "for resident level:", values$selected_resident$Level))
+            message(paste("Previous period mapping:", 
+                          ifelse(is.na(prev_app_period), "None", prev_app_period), "->", 
+                          ifelse(is.na(values$redcap_prev_period), "None", values$redcap_prev_period)))
         }
     })
     
@@ -607,12 +652,15 @@ server <- function(input, output, session) {
     # Render the current self-assessment plot
     output$self_milestones_plot <- renderPlot({
         req(values$selected_resident)
-        req(values$current_period)
+        req(values$redcap_period)  # <-- CHANGE: Use redcap_period instead
         
         data <- app_data()
         
-        # Map the app period to milestone period format
-        mile_period <- map_to_milestone_period(values$selected_resident$Level, values$current_period)
+        # REMOVE: No longer need to map the period here
+        # mile_period <- map_to_milestone_period(values$selected_resident$Level, values$current_period)
+        
+        # Use the centrally mapped period directly
+        mile_period <- values$redcap_period  # <-- CHANGE: Use redcap_period
         
         if (!is.null(data$s_miles) && !is.na(mile_period)) {
             tryCatch({
@@ -646,38 +694,19 @@ server <- function(input, output, session) {
     # Render the previous program assessment plot
     output$program_milestones_plot <- renderPlot({
         req(values$selected_resident)
-        req(values$current_period)
+        # Require the previously mapped period instead of calculating it again
+        req(values$redcap_prev_period)  
         
         data <- app_data()
         
         # Debugging
-        message("In program_milestones_plot - Getting previous period")
+        message("In program_milestones_plot - Using mapped previous period")
         message("Current period: ", values$current_period)
-        message("Resident level: ", values$selected_resident$Level)
+        message("Current mapped period: ", values$redcap_period)
+        message("Previous mapped period: ", values$redcap_prev_period)
         
-        # Get the previous period in app format
-        prev_app_period <- get_previous_period(
-            values$current_period, 
-            values$selected_resident$Level
-        )
-        
-        message("Previous app period: ", ifelse(is.na(prev_app_period), "NA", prev_app_period))
-        
-        # If there's a previous period, map it to milestone format
-        if (!is.na(prev_app_period)) {
-            prev_mile_period <- map_to_milestone_period(values$selected_resident$Level, prev_app_period)
-            message("Previous milestone period: ", ifelse(is.na(prev_mile_period), "NA", prev_mile_period))
-        } else {
-            prev_mile_period <- NA
-            message("No previous period found")
-        }
-        
-        # If we're dealing with "End Review" we might need a special mapping
-        if (values$current_period == "End Review" && values$selected_resident$Level == "Intern") {
-            message("Special case: End Review for Intern")
-            prev_mile_period <- "Mid Intern"
-            message("Forced previous milestone period to: Mid Intern")
-        }
+        # Use the centrally calculated previous period directly
+        prev_mile_period <- values$redcap_prev_period
         
         # Only attempt to render if previous period exists and should have program data
         if (!is.na(prev_mile_period) && !is.null(data$p_miles)) {
@@ -733,7 +762,7 @@ server <- function(input, output, session) {
     
     output$prior_ccc_notes <- renderUI({
         req(values$selected_resident)
-        req(values$current_period)
+        req(values$redcap_period)  # We need the current period in REDCap format
         
         # Get resident level
         resident_level <- values$selected_resident$Level
@@ -741,11 +770,11 @@ server <- function(input, output, session) {
         # Get app data
         data <- app_data()
         
-        # Create CCC notes table
+        # Create CCC notes table - pass the mapping directly
         ccc_table <- tryCatch({
             create_ccc_notes_table(
                 resident_name = values$selected_resident$name,
-                current_period = values$current_period,
+                current_period = values$redcap_period,  # Use mapped period here
                 resident_level = resident_level,
                 resident_data = processed_resident_data(),
                 rdm_dict = data$rdm_dict
@@ -854,24 +883,18 @@ server <- function(input, output, session) {
     
     output$prior_ilp <- renderUI({
         req(values$selected_resident)
-        req(values$current_period)
+        req(values$redcap_prev_period)  # Use the centrally calculated previous period
         
         # Get resident level
         resident_level <- values$selected_resident$Level
         
         # Debug
-        message("Looking for previous period for current period: ", values$current_period, 
-                ", resident level: ", resident_level)
+        message("Looking for previous ILP data for resident: ", values$selected_resident$name, 
+                ", previous period: ", values$redcap_prev_period)
         
-        # Get the previous period
-        prev_period <- get_previous_period(values$current_period, resident_level)
+        # Skip the period calculation since we already have it in values$redcap_prev_period
         
-        # Debug
-        message("Current period: ", values$current_period, 
-                ", Resident level: ", resident_level,
-                ", Previous period: ", ifelse(is.na(prev_period), "NA", prev_period))
-        
-        if (is.na(prev_period)) {
+        if (is.na(values$redcap_prev_period)) {
             return(div(class = "alert alert-info", 
                        "No previous ILP data available for this resident's current level and period."))
         }
@@ -879,15 +902,11 @@ server <- function(input, output, session) {
         # Get app data
         data <- app_data()
         
-        # Debug
-        message("Attempting to find ILP data for resident: ", values$selected_resident$name, 
-                " in period: ", prev_period)
-        
-        # Create ILP table
+        # Create ILP table - pass the centrally mapped previous period
         ilp_table <- tryCatch({
             create_ilp_data_table(
                 resident_name = values$selected_resident$name,
-                period = prev_period,
+                period = values$redcap_prev_period,  # Use centrally mapped previous period
                 resident_data = processed_resident_data(),
                 rdm_dict = data$rdm_dict
             )
@@ -899,7 +918,7 @@ server <- function(input, output, session) {
         if (is.null(ilp_table) || nrow(ilp_table) == 0) {
             return(div(class = "alert alert-info", 
                        paste("No prior ILP data available for", values$selected_resident$name, 
-                             "in the", prev_period, "period.")))
+                             "in the", values$redcap_prev_period, "period.")))
         }
         
         # Clean up column names
@@ -917,7 +936,7 @@ server <- function(input, output, session) {
         
         # Return the formatted table
         div(
-            h4(paste("Previous ILP from", prev_period, "Period")),
+            h4(paste("Previous ILP from", values$redcap_prev_period, "Period")), # FIXED: Using values$redcap_prev_period instead of prev_period
             div(
                 style = "overflow-x: auto;",
                 DT::renderDataTable({
@@ -1146,10 +1165,913 @@ server <- function(input, output, session) {
     observeEvent(input$reopen_eval_modal, {
         show_evaluation_modal()
     })
-
-       
     
+    # Card 4: Knowledge adn Board Prep
+
+    output$knowledge_topics_ui <- renderUI({
+        req(values$selected_resident)
+        req(values$current_period)
+        
+        # Get app data
+        data <- app_data()
+        resident_data <- data$resident_data
+        
+        # Debug
+        message("Looking for knowledge data for: ", values$selected_resident$name, ", period: ", values$current_period)
+        
+        # Use direct query based on your example
+        s_e_rows <- resident_data %>%
+            filter(name == values$selected_resident$name & s_e_period == "End Intern") %>%
+            select(starts_with("s_e_")) %>%
+            select(where(~ !all(is.na(.))))
+        
+        message("Direct query found ", nrow(s_e_rows), " rows")
+        
+        if(nrow(s_e_rows) == 0) {
+            # If direct query failed, try mapped period
+            mapped_period <- map_to_milestone_period(values$selected_resident$Level, values$current_period)
+            message("Trying mapped period: ", mapped_period)
+            
+            s_e_rows <- resident_data %>%
+                filter(name == values$selected_resident$name & s_e_period == mapped_period) %>%
+                select(starts_with("s_e_")) %>%
+                select(where(~ !all(is.na(.))))
+            
+            message("Mapped period query found ", nrow(s_e_rows), " rows")
+        }
+        
+        if(nrow(s_e_rows) == 0) {
+            message("No rows found with period filtering")
+            return(div(class = "alert alert-info", "No self-assessment data available for this period."))
+        }
+        
+        # If multiple rows, use the most recent by date
+        if(nrow(s_e_rows) > 1 && "s_e_date" %in% names(s_e_rows)) {
+            s_e_rows <- s_e_rows %>% 
+                arrange(desc(s_e_date)) %>%
+                slice(1)
+            message("Using most recent row from date: ", s_e_rows$s_e_date[1])
+        }
+        
+        # Get topic columns - these contain actual text values
+        topic_cols <- grep("^s_e_topic_sel___", names(s_e_rows), value=TRUE)
+        message("Topic columns found: ", paste(topic_cols, collapse=", "))
+        
+        # Extract non-NA values directly
+        selected_topics <- c()
+        for(col in topic_cols) {
+            if(!is.na(s_e_rows[[col]][1]) && s_e_rows[[col]][1] != "") {
+                selected_topics <- c(selected_topics, s_e_rows[[col]][1])
+                message("Found topic: ", s_e_rows[[col]][1])
+            }
+        }
+        
+        # Get learning style columns
+        style_cols <- grep("^s_e_learn_style___", names(s_e_rows), value=TRUE)
+        message("Style columns found: ", paste(style_cols, collapse=", "))
+        
+        # Extract non-NA values directly
+        selected_styles <- c()
+        for(col in style_cols) {
+            if(!is.na(s_e_rows[[col]][1]) && s_e_rows[[col]][1] != "") {
+                selected_styles <- c(selected_styles, s_e_rows[[col]][1])
+                message("Found style: ", s_e_rows[[col]][1])
+            }
+        }
+        
+        # Create a visually appealing UI
+        fluidRow(
+            column(
+                width = 6,
+                div(
+                    class = "card mb-4",
+                    div(
+                        class = "card-header bg-primary text-white",
+                        h4("Topics Least Comfortable With", class = "m-0")
+                    ),
+                    div(
+                        class = "card-body p-0",
+                        if(length(selected_topics) > 0) {
+                            tags$ul(
+                                class = "list-group list-group-flush",
+                                lapply(selected_topics, function(topic) {
+                                    tags$li(
+                                        class = "list-group-item d-flex align-items-center",
+                                        tags$i(class = "fas fa-exclamation-circle text-warning me-2"),
+                                        topic  # Use the value directly
+                                    )
+                                })
+                            )
+                        } else {
+                            div(
+                                class = "p-3 text-center text-muted",
+                                tags$i(class = "fas fa-info-circle me-2"),
+                                "No topics identified"
+                            )
+                        }
+                    )
+                )
+            ),
+            
+            column(
+                width = 6,
+                div(
+                    class = "card mb-4",
+                    div(
+                        class = "card-header bg-success text-white",
+                        h4("Preferred Learning Styles", class = "m-0")
+                    ),
+                    div(
+                        class = "card-body p-0",
+                        if(length(selected_styles) > 0) {
+                            tags$ul(
+                                class = "list-group list-group-flush",
+                                lapply(selected_styles, function(style) {
+                                    tags$li(
+                                        class = "list-group-item d-flex align-items-center",
+                                        tags$i(class = "fas fa-check-circle text-success me-2"),
+                                        style  # Use the value directly
+                                    )
+                                })
+                            )
+                        } else {
+                            div(
+                                class = "p-3 text-center text-muted",
+                                tags$i(class = "fas fa-info-circle me-2"),
+                                "No learning styles identified"
+                            )
+                        }
+                    )
+                )
+            )
+        )
+    })
+    
+    # Modified board prep data table to remove "Not Available" rows
+    output$board_prep_data <- renderTable({
+        req(values$selected_resident)
+        
+        # Get the resident data
+        data <- app_data()
+        resident_data <- data$resident_data
+        
+        # Filter for this resident
+        resident_rows <- resident_data %>% 
+            filter(name == values$selected_resident$name)
+        
+        # Try to filter by period if available
+        if("s_e_period" %in% names(resident_rows) && !is.null(values$current_period)) {
+            period_rows <- resident_rows %>% filter(s_e_period == values$current_period)
+            
+            if(nrow(period_rows) > 0) {
+                resident_rows <- period_rows
+            }
+        }
+        
+        # If no rows found
+        if(nrow(resident_rows) == 0) {
+            message("No rows found for this resident, returning default table")
+            return(data.frame(
+                "Category" = c("Step 3 Status"),
+                "Value" = c("Not Available")
+            ))
+        }
+        
+        # Sort by date if available, to get most recent entry
+        if("s_e_date" %in% names(resident_rows) && 
+           any(!is.na(resident_rows$s_e_date))) {
+            resident_rows <- resident_rows %>%
+                arrange(desc(s_e_date))
+        }
+        
+        # Create a function to safely extract a value from the first non-NA row
+        get_first_non_na <- function(df, col_name) {
+            if(!(col_name %in% names(df))) return("Not Available")
+            
+            for(i in 1:nrow(df)) {
+                if(!is.na(df[[col_name]][i])) {
+                    return(df[[col_name]][i])
+                }
+            }
+            return("Not Available")
+        }
+        
+        # Create initial board prep data with all categories
+        all_categories <- c("Step 3 Status", "Step 3 Contact", "Step 3 Date Set", "Step 3 Date", 
+                            "Board Concerns", "Board Help Needed", "Board Discussed", "MKSAP Complete")
+        
+        all_values <- c(
+            get_first_non_na(resident_rows, "s_e_step3"),
+            get_first_non_na(resident_rows, "s_e_step3_contact"),
+            get_first_non_na(resident_rows, "s_e_step3_date_set"),
+            # Special handling for date
+            ifelse(
+                "s_e_step3_date" %in% names(resident_rows) && 
+                    any(!is.na(resident_rows$s_e_step3_date)),
+                format(as.Date(resident_rows$s_e_step3_date[min(which(!is.na(resident_rows$s_e_step3_date)))]), "%b %d, %Y"),
+                "Not Available"
+            ),
+            get_first_non_na(resident_rows, "s_e_board_concern"),
+            get_first_non_na(resident_rows, "s_e_board_help"),
+            get_first_non_na(resident_rows, "s_e_board_discu"),
+            get_first_non_na(resident_rows, "s_e_mksap_comp")
+        )
+        
+        # Filter out "Not Available" rows
+        available_indices <- which(all_values != "Not Available")
+        
+        # Only keep rows with actual values
+        if(length(available_indices) > 0) {
+            board_prep_data <- data.frame(
+                "Category" = all_categories[available_indices],
+                "Value" = all_values[available_indices]
+            )
+        } else {
+            # If all rows would be removed, return a message
+            board_prep_data <- data.frame(
+                "Category" = "No Board Prep Data",
+                "Value" = "No data available"
+            )
+        }
+        
+        message("Board prep table has ", nrow(board_prep_data), " rows after filtering out 'Not Available'")
+        return(board_prep_data)
+    }, striped = TRUE, bordered = TRUE, hover = TRUE, align = 'l', width = "100%")
+    
+    # Modify the exam scores data function to use the same knowledge data
+    output$exam_scores_data <- renderTable({
+        req(values$selected_resident)
+        req(values$current_period)
+        
+        # Get app data
+        data <- app_data()
+        
+        # Get knowledge data using our helper function
+        knowledge_data <- get_knowledge_data(
+            resident_name = values$selected_resident$name,
+            current_period = values$current_period,
+            resident_level = values$selected_resident$Level,
+            resident_data = data$resident_data
+        )
+        
+        # Extract exam scores data
+        exam_scores <- knowledge_data$exam_scores
+        
+        # Create the display table
+        exam_scores_data <- data.frame(
+            "Exam" = c("USMLE Step 1", "USMLE Step 2", "COMLEX Level 1", "COMLEX Level 2", 
+                       "USMLE Step 3", "ITE Intern Year", "ITE PGY-2", "ITE PGY-3"),
+            "Score" = c(
+                ifelse("usmle1" %in% names(exam_scores), exam_scores[["usmle1"]], "Not Available"),
+                ifelse("usmle2" %in% names(exam_scores), exam_scores[["usmle2"]], "Not Available"),
+                ifelse("comlex1" %in% names(exam_scores), exam_scores[["comlex1"]], "Not Available"),
+                ifelse("comlex2" %in% names(exam_scores), exam_scores[["comlex2"]], "Not Available"),
+                ifelse("usmle3" %in% names(exam_scores), exam_scores[["usmle3"]], "Not Available"),
+                ifelse("ite_int" %in% names(exam_scores), exam_scores[["ite_int"]], "Not Available"),
+                ifelse("ite2" %in% names(exam_scores), exam_scores[["ite2"]], "Not Available"),
+                ifelse("ite3" %in% names(exam_scores), exam_scores[["ite3"]], "Not Available")
+            )
+        )
+        
+        return(exam_scores_data)
+    }, striped = TRUE, bordered = TRUE, hover = TRUE, align = 'l', width = "100%", caption = "ITE scores are in percentiles for PGY")
+    
+    # Add this below your existing tables to display warnings
+    output$board_prep_warnings <- renderUI({
+        req(values$selected_resident)
+        
+        # Get the resident data
+        data <- app_data()
+        resident_data <- data$resident_data
+        
+        # Filter for this resident
+        resident_rows <- resident_data %>% 
+            filter(name == values$selected_resident$name)
+        
+        # Sort by date if available, to get most recent entry
+        if("s_e_date" %in% names(resident_rows) && 
+           any(!is.na(resident_rows$s_e_date))) {
+            resident_rows <- resident_rows %>%
+                arrange(desc(s_e_date))
+        }
+        
+        # Create a function to safely extract a value from the first non-NA row
+        get_first_non_na <- function(df, col_name) {
+            if(!(col_name %in% names(df))) return(NA)
+            
+            for(i in 1:nrow(df)) {
+                if(!is.na(df[[col_name]][i])) {
+                    return(df[[col_name]][i])
+                }
+            }
+            return(NA)
+        }
+        
+        # Get Step 3 and board concerns status
+        step3_status <- get_first_non_na(resident_rows, "s_e_step3")
+        board_concerns <- get_first_non_na(resident_rows, "s_e_board_concern")
+        
+        # Create warnings if needed
+        warnings_list <- tagList()
+        
+        if(!is.na(step3_status) && step3_status == "No") {
+            warnings_list <- tagAppendChild(
+                warnings_list,
+                div(
+                    class = "alert alert-danger mt-3",
+                    tags$strong("Warning: "), 
+                    paste(values$selected_resident$name, "has not completed Step 3.")
+                )
+            )
+        }
+        
+        if(!is.na(board_concerns) && board_concerns == "Yes") {
+            warnings_list <- tagAppendChild(
+                warnings_list,
+                div(
+                    class = "alert alert-danger mt-3",
+                    tags$strong("Warning: "), 
+                    paste(values$selected_resident$name, "has concerns about passing boards.")
+                )
+            )
+        }
+        
+        return(warnings_list)
+    })
+
+    
+    #-----------------------------------
+    # Scholarship card
+    # ----------------------------------
+    
+    # Process scholarship data function
+    process_scholarship_data <- function(data, resident_name, rdm_dict) {
+        # Debug
+        message(paste("Processing scholarship data for resident:", resident_name))
+        
+        # Skip processing if resident_name is missing or NA
+        if (is.null(resident_name) || is.na(resident_name) || resident_name == "") {
+            message("Resident name is empty or NA, returning empty data")
+            return(list(
+                table_data = data.frame(
+                    Scholarship_Type = character(0),
+                    Description = character(0),
+                    stringsAsFactors = FALSE
+                ),
+                completed_ps = FALSE,
+                completed_rca = FALSE
+            ))
+        }
+        
+        # Filter data for the specific resident
+        filtered_data <- data[data$name == resident_name, ]
+        
+        # Filter to keep only rows with schol_type column filled
+        if ("schol_type" %in% names(filtered_data)) {
+            filtered_data <- filtered_data[!is.na(filtered_data$schol_type), ]
+        }
+        
+        message(paste("After filtering, found", nrow(filtered_data), "scholarship rows"))
+        
+        # Skip processing if no data is found
+        if (nrow(filtered_data) == 0) {
+            return(list(
+                table_data = data.frame(
+                    Scholarship_Type = character(0),
+                    Description = character(0),
+                    stringsAsFactors = FALSE
+                ),
+                completed_ps = FALSE,
+                completed_rca = FALSE
+            ))
+        }
+        
+        # Check for Patient Safety and RCA completion
+        completed_ps <- FALSE
+        completed_rca <- FALSE
+        
+        # Check if columns exist first
+        if ("schol_ps" %in% names(filtered_data)) {
+            completed_ps <- any(filtered_data$schol_ps == "1" |
+                                    filtered_data$schol_ps == 1 |
+                                    filtered_data$schol_ps == "Yes",
+                                na.rm = TRUE)
+        }
+        
+        if ("schol_rca" %in% names(filtered_data)) {
+            completed_rca <- any(filtered_data$schol_rca == "1" |
+                                     filtered_data$schol_rca == 1 |
+                                     filtered_data$schol_rca == "Yes",
+                                 na.rm = TRUE)
+        }
+        
+        message(paste("PS flag =", completed_ps, ", RCA flag =", completed_rca))
+        
+        # Create a display table based on what's available
+        if ("schol_type" %in% names(filtered_data)) {
+            # Get type labels if available in the data dictionary
+            type_labels <- NULL
+            if (!is.null(rdm_dict) && "field_name" %in% names(rdm_dict)) {
+                type_row <- rdm_dict[rdm_dict$field_name == "schol_type", ]
+                if (nrow(type_row) > 0 && "select_choices_or_calculations" %in% names(type_row)) {
+                    choices_str <- type_row$select_choices_or_calculations[1]
+                    if (!is.na(choices_str) && choices_str != "") {
+                        choices <- strsplit(choices_str, "\\|")[[1]]
+                        type_labels <- list()
+                        for (choice in choices) {
+                            parts <- strsplit(trimws(choice), ",")[[1]]
+                            if (length(parts) >= 2) {
+                                key <- trimws(parts[1])
+                                value <- trimws(paste(parts[-1], collapse = ", "))
+                                type_labels[[key]] <- value
+                            }
+                        }
+                    }
+                }
+            }
+            
+            # Create a safe version that avoids using field names that might not exist
+            table_data <- data.frame(
+                Scholarship_Type = as.character(filtered_data$schol_type),
+                Description = "",
+                stringsAsFactors = FALSE
+            )
+            
+            # Replace type codes with labels if available
+            if (!is.null(type_labels)) {
+                for (i in 1:nrow(table_data)) {
+                    type_code <- as.character(table_data$Scholarship_Type[i])
+                    if (type_code %in% names(type_labels)) {
+                        table_data$Scholarship_Type[i] <- type_labels[[type_code]]
+                    }
+                }
+            }
+            
+            # Add description if available, checking each possible field
+            for (i in 1:nrow(table_data)) {
+                desc <- ""
+                
+                if ("schol_cit" %in% names(filtered_data) && i <= nrow(filtered_data) && 
+                    !is.na(filtered_data$schol_cit[i]) && filtered_data$schol_cit[i] != "") {
+                    desc <- filtered_data$schol_cit[i]
+                } else if ("schol_res" %in% names(filtered_data) && i <= nrow(filtered_data) && 
+                           !is.na(filtered_data$schol_res[i]) && filtered_data$schol_res[i] != "") {
+                    desc <- filtered_data$schol_res[i]
+                } else if ("schol_qi" %in% names(filtered_data) && i <= nrow(filtered_data) && 
+                           !is.na(filtered_data$schol_qi[i]) && filtered_data$schol_qi[i] != "") {
+                    desc <- filtered_data$schol_qi[i]
+                } else if ("schol_pres_conf" %in% names(filtered_data) && i <= nrow(filtered_data) && 
+                           !is.na(filtered_data$schol_pres_conf[i]) && filtered_data$schol_pres_conf[i] != "") {
+                    desc <- filtered_data$schol_pres_conf[i]
+                } else if ("schol_comm" %in% names(filtered_data) && i <= nrow(filtered_data) && 
+                           !is.na(filtered_data$schol_comm[i]) && filtered_data$schol_comm[i] != "") {
+                    desc <- filtered_data$schol_comm[i]
+                }
+                
+                table_data$Description[i] <- desc
+            }
+        } else {
+            # No schol_type column - create empty table
+            table_data <- data.frame(
+                Scholarship_Type = character(0),
+                Description = character(0),
+                stringsAsFactors = FALSE
+            )
+        }
+        
+        # Return the results
+        list(
+            table_data = table_data,
+            completed_ps = completed_ps,
+            completed_rca = completed_rca
+        )
+    }
+       
+    # Process scholarship data for the selected resident
+    output$scholarship_data <- renderUI({
+        req(values$selected_resident)
+        req(values$current_period)
+        
+        # Get app data
+        data <- app_data()
+        resident_data <- data$resident_data
+        
+        # Debug
+        message(paste("Processing scholarship data for:", values$selected_resident$name))
+        
+        # Process scholarship data
+        scholarship_results <- process_scholarship_data(
+            data = resident_data,
+            resident_name = values$selected_resident$name,
+            rdm_dict = data$rdm_dict
+        )
+        
+        # Create UI elements to display
+        tagList(
+            # Achievement notifications (Patient Safety & RCA status)
+            div(
+                class = "mb-4",
+                h4("Patient Safety Achievements", class = "text-primary mb-3"),
+                
+                # Build notifications for PS and RCA status
+                if (isTRUE(scholarship_results$completed_ps)) {
+                    div(
+                        class = "alert alert-success",
+                        tags$p(
+                            tags$span(icon("check-circle"), class = "text-success me-2"),
+                            tags$strong("Achievement: "),
+                            paste(values$selected_resident$name, "has completed a Patient Safety Review")
+                        )
+                    )
+                } else {
+                    div(
+                        class = "alert alert-warning",
+                        tags$p(
+                            tags$span(icon("exclamation-circle"), class = "text-warning me-2"),
+                            tags$strong("Pending: "),
+                            paste(values$selected_resident$name, "has not yet completed a Patient Safety Review")
+                        )
+                    )
+                },
+                
+                # Root Cause Analysis status
+                if (isTRUE(scholarship_results$completed_rca)) {
+                    div(
+                        class = "alert alert-success",
+                        tags$p(
+                            tags$span(icon("check-circle"), class = "text-success me-2"),
+                            tags$strong("Achievement: "),
+                            paste(values$selected_resident$name, "has completed a Root Cause Analysis")
+                        )
+                    )
+                } else {
+                    div(
+                        class = "alert alert-warning",
+                        tags$p(
+                            tags$span(icon("exclamation-circle"), class = "text-warning me-2"),
+                            tags$strong("Pending: "),
+                            paste(values$selected_resident$name, "has not yet completed a Root Cause Analysis")
+                        )
+                    )
+                }
+            ),
+            
+            # Scholarship table
+            div(
+                class = "mt-4",
+                h4("Scholarship Activities", class = "text-primary mb-3"),
+                
+                # Render the table using DTOutput
+                if (nrow(scholarship_results$table_data) == 0) {
+                    div(
+                        class = "alert alert-info",
+                        tags$p(
+                            tags$span(icon("info-circle"), class = "me-2"),
+                            paste(values$selected_resident$name, "has no scholarship activities recorded")
+                        )
+                    )
+                } else {
+                    # Using DT::renderDataTable directly within renderUI
+                    tags$div(
+                        style = "overflow-x: auto;",
+                        DT::renderDataTable({
+                            create_styled_dt(scholarship_results$table_data, 
+                                             caption = paste("Scholarship Activities for", values$selected_resident$name))
+                        })
+                    )
+                }
+            )
+        )
+    })
+    
+    
+    #--------------------------
+    # Milestone Goals
+    # --------------------
+    # Render the previous milestone goals
+    output$previous_milestone_goals <- renderUI({
+        req(values$selected_resident)
+        req(values$redcap_prev_period)  # Use the centrally mapped previous period
+        
+        # Get app data
+        data <- app_data()
+        
+        # Check if we have a previous period
+        if (is.na(values$redcap_prev_period)) {
+            return(div(class = "alert alert-info", 
+                       "No previous period data available for this resident's current level and period."))
+        }
+        
+        # Get the ILP table for the previous period - reuse the existing function
+        ilp_table <- tryCatch({
+            create_ilp_data_table(
+                resident_name = values$selected_resident$name,
+                period = values$redcap_prev_period,
+                resident_data = processed_resident_data(),
+                rdm_dict = data$rdm_dict
+            )
+        }, error = function(e) {
+            message("Error creating ILP table: ", e$message)
+            return(NULL)
+        })
+        
+        if (is.null(ilp_table) || nrow(ilp_table) == 0) {
+            return(div(class = "alert alert-info", 
+                       paste("No prior milestone goals available for", values$selected_resident$name, 
+                             "in the", values$redcap_prev_period, "period.")))
+        }
+        
+        # Clean up column names
+        colnames(ilp_table) <- c(
+            "Competency", 
+            "Goal Met", 
+            "Comments", 
+            "Goal Description", 
+            "Action Plan", 
+            "Milestone Descriptions"
+        )
+        
+        # Clean up milestone descriptions
+        ilp_table$`Milestone Descriptions` <- gsub("\\n\\nNA", "", ilp_table$`Milestone Descriptions`)
+        
+        # Return the formatted table
+        div(
+            div(
+                style = "overflow-x: auto;",
+                DT::renderDataTable({
+                    DT::datatable(
+                        ilp_table,
+                        options = list(
+                            pageLength = 3,
+                            scrollX = TRUE,
+                            dom = 't',
+                            ordering = FALSE,
+                            columnDefs = list(
+                                list(className = 'dt-left', targets = "_all"),
+                                list(width = '18%', targets = 0),
+                                list(width = '8%', targets = 1),
+                                list(width = '15%', targets = 2),
+                                list(width = '20%', targets = 3),
+                                list(width = '15%', targets = 4),
+                                list(width = '24%', targets = 5)
+                            )
+                        ),
+                        rownames = FALSE,
+                        escape = FALSE,
+                        class = "display compact stripe"
+                    ) %>%
+                        DT::formatStyle(
+                            'Competency',
+                            fontWeight = 'bold',
+                            backgroundColor = '#f0f7fa'
+                        ) %>%
+                        DT::formatStyle(
+                            'Goal Met',
+                            backgroundColor = styleEqual(
+                                c("Yes", "No"), 
+                                c('#d4edda', '#f8d7da')
+                            ),
+                            color = styleEqual(
+                                c("Yes", "No"), 
+                                c('#155724', '#721c24')
+                            ),
+                            fontWeight = 'bold',
+                            textAlign = 'center'
+                        ) %>%
+                        DT::formatStyle(
+                            'Goal Description',
+                            fontWeight = 'bold',
+                            backgroundColor = '#f8f9fa'
+                        ) %>%
+                        DT::formatStyle(
+                            'Milestone Descriptions',
+                            whiteSpace = 'pre-line',
+                            fontSize = '90%',
+                            backgroundColor = '#fafafa'
+                        )
+                })
+            )
+        )
+    })
+    
+    # Current milestone goals UI outputs
+    output$pc_mk_goal_ui <- renderUI({
+        req(values$selected_resident)
+        req(values$redcap_period)
+        
+        # Get app data
+        data <- app_data()
+        
+        # Get milestone goals
+        milestone_goals <- get_milestone_goals(
+            resident_name = values$selected_resident$name,
+            current_period = values$redcap_period,
+            resident_data = data$resident_data,
+            rdm_dict = data$rdm_dict
+        )
+        
+        # Format PC/MK goal
+        pc_mk_goal <- milestone_goals$pc_mk_goal
+        pc_mk_action <- milestone_goals$pc_mk_action
+        
+        if (is.null(pc_mk_goal)) {
+            goal_content <- div(
+                class = "alert alert-warning",
+                tags$i(class = "fas fa-exclamation-triangle me-2"),
+                "No Patient Care / Medical Knowledge milestone goal specified"
+            )
+        } else {
+            # Format the goal with milestone ID
+            goal_content <- div(
+                div(
+                    class = "card mb-3",
+                    div(
+                        class = "card-body",
+                        tags$p(
+                            tags$strong(paste0("Goal (", pc_mk_goal$column, "): ")),
+                            pc_mk_goal$value
+                        )
+                    )
+                )
+            )
+        }
+        
+        # Format action plan
+        if (is.null(pc_mk_action) || is.na(pc_mk_action) || pc_mk_action == "") {
+            action_content <- div(
+                class = "alert alert-warning",
+                tags$i(class = "fas fa-exclamation-triangle me-2"),
+                "No action plan specified for this goal"
+            )
+        } else {
+            action_content <- div(
+                div(
+                    class = "card",
+                    div(
+                        class = "card-header bg-light",
+                        "Action Plan"
+                    ),
+                    div(
+                        class = "card-body",
+                        tags$p(pc_mk_action)
+                    )
+                )
+            )
+        }
+        
+        # Combine goal and action plan
+        tagList(
+            goal_content,
+            action_content
+        )
+    })
+    
+    output$sbp_pbl_goal_ui <- renderUI({
+        req(values$selected_resident)
+        req(values$redcap_period)
+        
+        # Get app data
+        data <- app_data()
+        
+        # Get milestone goals
+        milestone_goals <- get_milestone_goals(
+            resident_name = values$selected_resident$name,
+            current_period = values$redcap_period,
+            resident_data = data$resident_data,
+            rdm_dict = data$rdm_dict
+        )
+        
+        # Format SBP/PBL goal
+        sbp_pbl_goal <- milestone_goals$sbp_pbl_goal
+        sbp_pbl_action <- milestone_goals$sbp_pbl_action
+        
+        if (is.null(sbp_pbl_goal)) {
+            goal_content <- div(
+                class = "alert alert-warning",
+                tags$i(class = "fas fa-exclamation-triangle me-2"),
+                "No Systems-Based Practice / Practice-Based Learning milestone goal specified"
+            )
+        } else {
+            # Format the goal with milestone ID
+            goal_content <- div(
+                div(
+                    class = "card mb-3",
+                    div(
+                        class = "card-body",
+                        tags$p(
+                            tags$strong(paste0("Goal (", sbp_pbl_goal$column, "): ")),
+                            sbp_pbl_goal$value
+                        )
+                    )
+                )
+            )
+        }
+        
+        # Format action plan
+        if (is.null(sbp_pbl_action) || is.na(sbp_pbl_action) || sbp_pbl_action == "") {
+            action_content <- div(
+                class = "alert alert-warning",
+                tags$i(class = "fas fa-exclamation-triangle me-2"),
+                "No action plan specified for this goal"
+            )
+        } else {
+            action_content <- div(
+                div(
+                    class = "card",
+                    div(
+                        class = "card-header bg-light",
+                        "Action Plan"
+                    ),
+                    div(
+                        class = "card-body",
+                        tags$p(sbp_pbl_action)
+                    )
+                )
+            )
+        }
+        
+        # Combine goal and action plan
+        tagList(
+            goal_content,
+            action_content
+        )
+    })
+    
+    output$prof_ics_goal_ui <- renderUI({
+        req(values$selected_resident)
+        req(values$redcap_period)
+        
+        # Get app data
+        data <- app_data()
+        
+        # Get milestone goals
+        milestone_goals <- get_milestone_goals(
+            resident_name = values$selected_resident$name,
+            current_period = values$redcap_period,
+            resident_data = data$resident_data,
+            rdm_dict = data$rdm_dict
+        )
+        
+        # Format Prof/ICS goal
+        prof_ics_goal <- milestone_goals$prof_ics_goal
+        prof_ics_action <- milestone_goals$prof_ics_action
+        
+        if (is.null(prof_ics_goal)) {
+            goal_content <- div(
+                class = "alert alert-warning",
+                tags$i(class = "fas fa-exclamation-triangle me-2"),
+                "No Professionalism / Interpersonal Communication Skills milestone goal specified"
+            )
+        } else {
+            # Format the goal with milestone ID
+            goal_content <- div(
+                div(
+                    class = "card mb-3",
+                    div(
+                        class = "card-body",
+                        tags$p(
+                            tags$strong(paste0("Goal (", prof_ics_goal$column, "): ")),
+                            prof_ics_goal$value
+                        )
+                    )
+                )
+            )
+        }
+        
+        # Format action plan
+        if (is.null(prof_ics_action) || is.na(prof_ics_action) || prof_ics_action == "") {
+            action_content <- div(
+                class = "alert alert-warning",
+                tags$i(class = "fas fa-exclamation-triangle me-2"),
+                "No action plan specified for this goal"
+            )
+        } else {
+            action_content <- div(
+                div(
+                    class = "card",
+                    div(
+                        class = "card-header bg-light",
+                        "Action Plan"
+                    ),
+                    div(
+                        class = "card-body",
+                        tags$p(prof_ics_action)
+                    )
+                )
+            )
+        }
+        
+        # Combine goal and action plan
+        tagList(
+            goal_content,
+            action_content
+        )
+    })
+    
+    
+    # ----------------------
     # Tab navigation
+    # --------------------
     observeEvent(input$next_tab, {
         req(values$current_tab)
         current_index <- match(values$current_tab, values$tab_order)

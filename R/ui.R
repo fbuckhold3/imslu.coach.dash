@@ -70,8 +70,7 @@ ui <- page_fluid(
     #resident_details_section {
         display: none;
     }
-    ")),
-    tags$style(HTML("
+    
         /* Make table rows more obviously clickable */
         #coach_residents_table .dataTables_wrapper tbody tr {
             cursor: pointer;
@@ -220,6 +219,25 @@ ui <- page_fluid(
     color: #f8f9fa;
     text-decoration: none;
 }
+
+    /* Style for board prep table warning rows */
+    .board-prep-table tr td:nth-child(2) {
+      position: relative;
+    }
+    
+    .board-prep-table tr:nth-child(1) td:nth-child(2),
+    .board-prep-table tr:nth-child(2) td:nth-child(2),
+    .board-prep-table tr:nth-child(3) td:nth-child(2) {
+      background-color: #f8d7da !important;
+      color: #721c24 !important;
+      font-weight: bold !important;
+    }
+    
+    .board-prep-table tr:nth-child(5) td:nth-child(2)[data-value='Yes'] {
+      background-color: #f8d7da !important;
+      color: #721c24 !important;
+      font-weight: bold !important;
+    }
 "))
   ),
   
@@ -610,12 +628,74 @@ ui <- page_fluid(
             title = "4. Exams & Knowledge",
             value = "knowledge",
             
-            # Exam data will be pulled here
-            verbatimTextOutput("exam_data"),
+            # First card: Topics and Learning Styles
+            card(
+              card_header("Knowledge Assessment"),
+              card_body(
+                # Render the topics and learning styles lists
+                uiOutput("knowledge_topics_ui"),
+                
+                # Comments on topics and learning styles
+                textAreaInput(
+                  "knowledge_topics_comments", 
+                  label = "Comments on topics and learning styles:",
+                  rows = 3,
+                  width = "100%",
+                  placeholder = "Enter your comments about the resident's identified challenging topics and preferred learning styles..."
+                )
+              )
+            ),
             
-            # Comments
-            textAreaInput("knowledge_comments", "Knowledge Acquisition Comments", 
-                          rows = 5, placeholder = "Enter comments regarding resident's knowledge development...")
+            # Second card: Exam and Board Prep Data
+            card(
+              card_header("Exam Performance & Board Preparation"),
+              card_body(
+                fluidRow(
+                  # Board Prep Data (left column)
+                  column(
+                    width = 6,
+                    h4("Board Preparation Status"),
+                    tableOutput("board_prep_data")  # Changed back from DTOutput
+                  ),
+                  
+                  # Exam Scores (right column)
+                  column(
+                    width = 6,
+                    h4("Exam Scores"),
+                    tableOutput("exam_scores_data")  # Changed back from DTOutput
+                  )
+                ),
+                fluidRow(
+                  column(
+                    width = 12,
+                    uiOutput("board_prep_warnings")
+                  )
+                ),
+                
+                # Comments on Step 3 and Board Prep
+                textAreaInput(
+                  "board_prep_comments", 
+                  label = "Notes about Step 3 and Board Preparation:",
+                  rows = 3,
+                  width = "100%",
+                  placeholder = "Enter your comments about the resident's board preparation status and exam performance..."
+                )
+              )
+            ),
+            
+            # Overall knowledge assessment
+            card(
+              card_header("Overall Knowledge Assessment"),
+              card_body(
+                textAreaInput(
+                  "knowledge_overall_comments", 
+                  label = "Overall Assessment of Knowledge Development:",
+                  rows = 5,
+                  width = "100%",
+                  placeholder = "Provide an overall assessment of the resident's knowledge development, strengths, areas for improvement, and recommended resources or strategies..."
+                )
+              )
+            )
           ),
           
           # Fifth nav panel - Scholarship (moved)
@@ -623,25 +703,79 @@ ui <- page_fluid(
             title = "5. Scholarship",
             value = "scholarship",
             
-            # Scholarship data will be pulled here
-            verbatimTextOutput("scholarship_data"),
+            # Instructions/explanation card
+            card(
+              card_header("Scholarship & Patient Safety"),
+              card_body(
+                p("This section displays the resident's scholarship activities and patient safety achievements."),
+                p("Residents are expected to complete a Patient Safety Review and a Root Cause Analysis during their training."),
+                p("All research, quality improvement, and other scholarly activities are also tracked here.")
+              )
+            ),
+            
+            # Scholarship data will be pulled and rendered here
+            uiOutput("scholarship_data"),
             
             # Comments
-            textAreaInput("scholarship_comments", "Scholarship Comments", 
-                          rows = 5, placeholder = "Enter comments regarding resident's scholarship activities...")
+            card(
+              card_header("Scholarship & Patient Safety Comments"),
+              card_body(
+                textAreaInput("scholarship_comments", "Comments", 
+                              rows = 8, 
+                              width = "100%",
+                              placeholder = "Enter your comments about the resident's scholarship activities, patient safety work, and any recommendations for further development...")
+              )
+            )
           ),
-          
-          # Sixth nav panel - ILP (moved)
+          # Add this after the Scholarship nav_panel in your UI code
           nav_panel(
-            title = "6. ILP",
+            title = "6. Milestone Goals",
             value = "ilp",
             
-            # ILP data will be pulled here
-            verbatimTextOutput("ilp_data"),
+            # Previous milestone goals card
+            card(
+              card_header("Previous Milestone Goals"),
+              card_body(
+                p("Review the resident's previous milestone-based goals:"),
+                uiOutput("previous_milestone_goals")
+              )
+            ),
             
-            # Comments
-            textAreaInput("ilp_comments", "ILP Comments", 
-                          rows = 5, placeholder = "Enter comments regarding resident's individualized learning plan...")
+            # Current milestone goals card
+            card(
+              card_header("Current Milestone Goals"),
+              card_body(
+                # Patient Care / Medical Knowledge Goal
+                div(
+                  class = "mb-4",
+                  h5("1. Patient Care / Medical Knowledge Milestone Goal", class = "text-primary"),
+                  uiOutput("pc_mk_goal_ui")
+                ),
+                
+                # Systems-Based Practice / PBLI Goal
+                div(
+                  class = "mb-4",
+                  h5("2. Systems-Based Practice / Practice-Based Learning Milestone Goal", class = "text-primary"),
+                  uiOutput("sbp_pbl_goal_ui")
+                ),
+                
+                # Professionalism / ICS Goal
+                div(
+                  class = "mb-4",
+                  h5("3. Professionalism / Interpersonal Communication Skills Milestone Goal", class = "text-primary"),
+                  uiOutput("prof_ics_goal_ui")
+                ),
+                
+                # Only one comments section at the bottom
+                textAreaInput(
+                  "milestone_goals_comments", 
+                  label = "Comments on Milestone-Based Goals",
+                  rows = 5,
+                  width = "100%",
+                  placeholder = "Take a moment to comment on all the milestone-based goals. Consider: Are they appropriate for the resident's level? Do they address key areas for development? How will you help them achieve these goals?"
+                )
+              )
+            )
           ),
           
           # Seventh nav panel - Career Plan (moved)
