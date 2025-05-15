@@ -2255,6 +2255,63 @@ server <- function(input, output, session) {
         }
     })
     
+    #------------------------
+    # Summary Review
+    # ------------------------
+    # Server code for the discussion topics component
+    # Add this to your server.R file
+    # 
+    # Render the discussion topics UI
+    output$discussion_topics_ui <- renderUI({
+        req(values$selected_resident)
+        req(values$current_period)
+        
+        # Get app data
+        data <- app_data()
+        resident_data <- data$resident_data
+        
+        # Debug
+        message("Rendering discussion topics UI for: ", values$selected_resident$name)
+        
+        # Get discussion topics using our fixed function
+        discussion_topics <- get_discussion_topics(
+            resident_name = values$selected_resident$name,
+            current_period = values$current_period,
+            resident_data = resident_data
+        )
+        
+        # Only display if there are discussion topics
+        if (!is.null(discussion_topics) && discussion_topics != "") {
+            message("Creating discussion topics UI")
+            
+            return(card(
+                card_header("Additional Concerns from Self-Evaluation"),
+                card_body(
+                    # Display the discussion topics
+                    div(
+                        class = "p-3 bg-light border rounded mb-4",
+                        style = "white-space: pre-wrap;",
+                        discussion_topics
+                    ),
+                    
+                    # Add comments input
+                    textAreaInput(
+                        "discussion_topics_comments", 
+                        label = "Comments on Discussion Topics:",
+                        rows = 4,
+                        width = "100%",
+                        placeholder = "Add your comments about these discussion topics..."
+                    )
+                )
+            ))
+        } else {
+            message("No discussion topics found, returning NULL")
+            return(NULL)
+        }
+    })
+    
+    
+    
     # ----------------------
     # Tab navigation
     # --------------------

@@ -840,8 +840,6 @@ ui <- page_fluid(
             )
           ),
           
-          # Updated Summary Panel for ui.R file
-          
           nav_panel(
             title = "8. Summary",
             value = "summary",
@@ -854,11 +852,13 @@ ui <- page_fluid(
                   class = "alert alert-primary",
                   tags$i(class = "fas fa-exclamation-circle me-2"),
                   tags$strong("Important: "),
-                  "Please spend a few minutes reviewing and fully updating the resident's \"Individualized Learning Plan\". This must include a reflection on up-to-date progress, knowledge acquisition and board prep, scholarship, Milestone-based goals, and career plans. This summary will be what is used by the CCC to review and assess."
-                ),
-                p("Take a moment to briefly summarize your discussion with the resident and your thoughts on their progress. List any resources, needs, or concerns the Program needs to know to ensure their success.")
+                  "Please spend a few minutes reviewing and fully updating the resident's \"Individualized Learning Plan\". This must include a reflection on up-to-date progress, knowledge acquisition and board prep, scholarship, Milestone-based goals, and career plans. This summary will be used by the CCC to review and assess the resident."
+                )
               )
             ),
+            
+            # Discussion topics UI (if any)
+            uiOutput("discussion_topics_ui"),
             
             # Summary input card
             card(
