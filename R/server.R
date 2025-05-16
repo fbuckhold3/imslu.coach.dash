@@ -168,7 +168,7 @@ server <- function(input, output, session) {
     stored_access_code <- if (dev_mode) {
       "default123"
     } else {
-      Sys.getenv("ACCESS_CODE", "default123")
+      Sys.getenv("ACCESS_CODE")
     }
     
     # 2. Now just compare inside the observer
