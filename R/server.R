@@ -1,8 +1,32 @@
 server <- function(input, output, session) {
     redcap_url <- "https://redcapsurvey.slu.edu/api/"
+
+    # Get list of valid coach_rev fields from the data dictionary
+    coach_rev_fields <- reactive({
+        req(app_data())
+        
+        # Extract fields for coach_rev form
+        if (!is.null(app_data()$rdm_dict)) {
+            fields <- app_data()$rdm_dict %>%
+                filter(form_name == "coach_rev") %>%
+                pull(field_name)
+            
+            if (length(fields) > 0) {
+                return(fields)
+            }
+        }
+        
+        # Fallback list if dictionary not available
+        c("coach_date", "coach_period", "coach_pre_rev", "coach_intro_back", 
+          "coach_coping", "coach_wellness", "coach_evaluations", "coach_p_d_comments", 
+          "coach_ls_and_topic", "coach_step_board", "coach_scholarship", "coach_mile_goal", 
+          "coach_career", "coach_anyelse", "coach_summary", "coach_rev_complete")
+    })
     
     # Development mode flag (set to FALSE for production)
     dev_mode <- TRUE
+    
+    setup_imres_resources()
     
     # Reactive values to store session state
     values <- reactiveValues(
@@ -26,6 +50,11 @@ server <- function(input, output, session) {
         ilp_previous = NULL,
         ccc = NULL,
         scholarship = NULL
+    )
+    
+    milestone_data <- reactiveValues(
+        current_data = NULL,
+        submission_status = NULL
     )
     
     # Show loading notification
@@ -314,30 +343,26 @@ server <- function(input, output, session) {
         current_period <- get_current_period()
         message("Current period: ", current_period)
         
-        # Debug: Check if we have s_e columns at all
-        se_cols <- names(resident_data)[grepl("^s_e_", names(resident_data))]
-        message("Found these s_e columns: ", paste(head(se_cols, 5), collapse=", "))
-        
-        # Debug: Look for alpha test resident
-        alpha_rows <- which(resident_data$name == "alpha test")
-        if (length(alpha_rows) > 0) {
-            message("Found alpha test in rows: ", paste(alpha_rows, collapse=", "))
+        # Debug: Check if we have coach_rev fields for alpha test
+        if (any(resident_data$name == "alpha test")) {
+            alpha_rows <- which(resident_data$name == "alpha test")
+            message("Found alpha test rows: ", length(alpha_rows))
             
-            # Check if s_e_period exists for alpha
-            if ("s_e_period" %in% names(resident_data)) {
-                alpha_periods <- resident_data$s_e_period[alpha_rows]
-                message("Alpha test s_e_period values: ", paste(alpha_periods, collapse=", "))
+            # Check for coach_rev fields
+            if ("coach_rev_complete" %in% names(resident_data)) {
+                message("Sample coach_rev_complete values for alpha test: ", 
+                        paste(head(resident_data$coach_rev_complete[alpha_rows], 3), collapse=", "))
             }
             
-            # Check key fields for alpha
-            for (field in c("s_e_plus", "s_e_delta", "s_eval_complete")) {
-                if (field %in% names(resident_data)) {
-                    alpha_values <- resident_data[[field]][alpha_rows]
-                    message("Alpha test ", field, " values: ", paste(alpha_values, collapse=", "))
+            if ("coach_ilp_final" %in% names(resident_data)) {
+                for (row in alpha_rows) {
+                    if (!is.na(resident_data$coach_ilp_final[row]) && 
+                        resident_data$coach_ilp_final[row] != "") {
+                        message("Found coach_ilp_final for alpha test in row ", row, ": ", 
+                                substr(resident_data$coach_ilp_final[row], 1, 30), "...")
+                    }
                 }
             }
-        } else {
-            message("Did not find alpha test in resident_data")
         }
         
         # Check if we have resident data with the required columns
@@ -352,67 +377,80 @@ server <- function(input, output, session) {
                         coach == input$coach_name ~ "Primary",
                         second_rev == input$coach_name ~ "Secondary",
                         TRUE ~ NA_character_
-                    ),
-                    # Add current period column
-                    current_period = current_period
+                    )
                 )
+            
+            # Create empty vector to store REDCap periods
+            redcap_periods <- character(nrow(coach_residents))
             
             message("Found ", nrow(coach_residents), " residents for coach ", input$coach_name)
             
             # Process each resident to determine self-eval status
             self_eval_statuses <- character(nrow(coach_residents))
+            primary_review_statuses <- character(nrow(coach_residents))
+            secondary_review_statuses <- character(nrow(coach_residents))
             
             for (i in 1:nrow(coach_residents)) {
                 res_name <- coach_residents$name[i]
-                message("\nChecking self-eval for: ", res_name)
+                res_role <- coach_residents$review_role[i]
+                res_level <- coach_residents$Level[i]
                 
-                # Default to incomplete
+                message("\nProcessing completion statuses for: ", res_name, " (Role: ", res_role, ")")
+                
+                # Map the period to REDCap format
+                redcap_period <- map_to_milestone_period(res_level, current_period)
+                redcap_periods[i] <- redcap_period
+                
+                # Convert period to REDCap instance
+                coach_period <- map_period_format(
+                    level = res_level,
+                    period = current_period,
+                    return_type = "instance"
+                )
+                
+                message("Mapped period: ", current_period, " -> ", redcap_period, " (instance: ", coach_period, ")")
+                
+                # Check self-evaluation status (for beta test we still hardcode)
                 has_self_eval <- FALSE
                 
-                # Hard-code alpha and beta test to have complete self-evaluations
-                if (res_name %in% c("alpha test", "beta test")) {
-                    message("Setting test account self-eval to complete: ", res_name)
+                # Hard-code beta test only to have complete self-evaluations
+                if (res_name == "beta test") {
+                    message("Setting beta test account self-eval to complete: ", res_name)
                     has_self_eval <- TRUE
                 } else {
-                    # For all other residents, do a thorough check
+                    # For all other residents including alpha test, do a thorough check
                     resident_rows <- which(resident_data$name == res_name)
                     
                     if (length(resident_rows) > 0) {
                         message("Found ", length(resident_rows), " rows for ", res_name)
-                        
-                        # Debug: Print the first row index
-                        message("First row index: ", resident_rows[1])
                         
                         # Check for any completion indicators
                         for (row_idx in resident_rows) {
                             # Check all potential completion indicators
                             if ("s_eval_complete" %in% names(resident_data)) {
                                 val <- resident_data$s_eval_complete[row_idx]
-                                message("s_eval_complete value: ", ifelse(is.na(val), "NA", val))
                                 if (!is.na(val) && val == "Complete") {
                                     has_self_eval <- TRUE
-                                    message("Found s_eval_complete = Complete")
+                                    message("Found s_eval_complete = Complete in row ", row_idx)
                                     break
                                 }
                             }
                             
                             if ("s_e_period" %in% names(resident_data)) {
                                 period_val <- resident_data$s_e_period[row_idx]
-                                message("s_e_period value: ", ifelse(is.na(period_val), "NA", period_val))
                                 
                                 # If period matches and key fields have content
-                                if (!is.na(period_val) && period_val == current_period) {
-                                    message("Period matches current_period")
+                                if (!is.na(period_val) && period_val == redcap_period) {
+                                    message("Period matches redcap_period in row ", row_idx)
                                     
                                     # Check key fields
                                     for (field in c("s_e_plus", "s_e_delta")) {
                                         if (field %in% names(resident_data)) {
                                             field_val <- resident_data[[field]][row_idx]
-                                            message(field, " value length: ", ifelse(is.na(field_val), "NA", nchar(field_val)))
                                             
                                             if (!is.na(field_val) && nchar(field_val) > 0) {
                                                 has_self_eval <- TRUE
-                                                message("Found content in ", field)
+                                                message("Found content in ", field, " in row ", row_idx)
                                                 break
                                             }
                                         }
@@ -422,31 +460,219 @@ server <- function(input, output, session) {
                             
                             if (has_self_eval) break
                         }
-                    } else {
-                        message("No rows found for ", res_name)
                     }
                 }
                 
-                # Set the status
+                # Set the self-eval status
                 self_eval_statuses[i] <- if(has_self_eval) "✅" else "❌"
                 message("Final self-eval status for ", res_name, ": ", self_eval_statuses[i])
+                
+                # Now check primary review completion status for ALL residents including alpha test
+                has_primary_review <- FALSE
+                
+                # Look for coach_rev fields in the resident data
+                resident_rows <- which(resident_data$name == res_name)
+                
+                if (length(resident_rows) > 0) {
+                    message("Checking primary review for ", res_name, " with ", length(resident_rows), " rows")
+                    
+                    for (row_idx in resident_rows) {
+                        # First check: Any coach_rev fields have content regardless of period
+                        if (res_name == "alpha test") {
+                            # Special debugging for alpha test
+                            message("Checking alpha test row ", row_idx, " for any coach_rev content")
+                            
+                            # Check key fields directly without period filter for alpha test
+                            for (field in c("coach_pre_rev", "coach_summary", "coach_ilp_final")) {
+                                if (field %in% names(resident_data)) {
+                                    field_val <- resident_data[[field]][row_idx]
+                                    if (!is.na(field_val) && nchar(field_val) > 0) {
+                                        has_primary_review <- TRUE
+                                        message("FOUND! ", field, " has content in row ", row_idx, ": ", 
+                                                substr(field_val, 1, 30), "...")
+                                        break
+                                    } else {
+                                        message("No content in ", field, " in row ", row_idx)
+                                    }
+                                }
+                            }
+                            
+                            # Check completion status field directly
+                            if ("coach_rev_complete" %in% names(resident_data)) {
+                                val <- resident_data$coach_rev_complete[row_idx]
+                                if (!is.na(val) && val == "2") {  # 2 = Complete in REDCap
+                                    has_primary_review <- TRUE
+                                    message("FOUND! coach_rev_complete = 2 in row ", row_idx)
+                                    break
+                                } else {
+                                    message("coach_rev_complete value: ", ifelse(is.na(val), "NA", val))
+                                }
+                            }
+                        } else {
+                            # Regular period check for normal residents
+                            # Check for coach_period field and match with instance
+                            if ("coach_period" %in% names(resident_data) && 
+                                !is.na(resident_data$coach_period[row_idx]) && 
+                                resident_data$coach_period[row_idx] == as.character(coach_period)) {
+                                
+                                message("Found matching coach_period: ", resident_data$coach_period[row_idx])
+                                
+                                # Check if any key coach_rev fields have content
+                                for (field in c("coach_pre_rev", "coach_summary", "coach_ilp_final")) {
+                                    if (field %in% names(resident_data)) {
+                                        field_val <- resident_data[[field]][row_idx]
+                                        if (!is.na(field_val) && nchar(field_val) > 0) {
+                                            message("Found content in field: ", field)
+                                            has_primary_review <- TRUE
+                                            break
+                                        }
+                                    }
+                                }
+                                
+                                # Check completion status field
+                                if ("coach_rev_complete" %in% names(resident_data)) {
+                                    val <- resident_data$coach_rev_complete[row_idx]
+                                    if (!is.na(val) && val == "2") {  # 2 = Complete in REDCap
+                                        message("Found coach_rev_complete = 2")
+                                        has_primary_review <- TRUE
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (has_primary_review) break
+                    }
+                }
+                
+                # Set primary review status for all residents
+                primary_review_statuses[i] <- if(has_primary_review) "✅" else "❌"
+                message("Primary review status for ", res_name, ": ", primary_review_statuses[i])
+                
+                # Check secondary review completion status for ALL residents
+                has_secondary_review <- FALSE
+                
+                # Use the same resident rows
+                if (length(resident_rows) > 0) {
+                    message("Checking secondary review for ", res_name, " with ", length(resident_rows), " rows")
+                    
+                    for (row_idx in resident_rows) {
+                        # For alpha test, check any secondary review content regardless of period
+                        if (res_name == "alpha test") {
+                            # Special debugging for alpha test
+                            message("Checking alpha test row ", row_idx, " for any secondary review content")
+                            
+                            # Check key fields directly without period filter for alpha test
+                            for (field in c("second_comments", "second_approve")) {
+                                if (field %in% names(resident_data)) {
+                                    field_val <- resident_data[[field]][row_idx]
+                                    if (!is.na(field_val) && nchar(field_val) > 0) {
+                                        has_secondary_review <- TRUE
+                                        message("FOUND! ", field, " has content in row ", row_idx, ": ", 
+                                                substr(field_val, 1, 30), "...")
+                                        break
+                                    } else {
+                                        message("No content in ", field, " in row ", row_idx)
+                                    }
+                                }
+                            }
+                            
+                            # Check completion status field directly
+                            if ("second_rev_complete" %in% names(resident_data)) {
+                                val <- resident_data$second_rev_complete[row_idx]
+                                if (!is.na(val) && val == "2") {  # 2 = Complete in REDCap
+                                    has_secondary_review <- TRUE
+                                    message("FOUND! second_rev_complete = 2 in row ", row_idx)
+                                    break
+                                } else {
+                                    message("second_rev_complete value: ", ifelse(is.na(val), "NA", val))
+                                }
+                            }
+                        } else {
+                            # Regular period check for other residents
+                            # Check for second_period field and match with instance
+                            if ("second_period" %in% names(resident_data) && 
+                                !is.na(resident_data$second_period[row_idx]) && 
+                                resident_data$second_period[row_idx] == as.character(coach_period)) {
+                                
+                                message("Found matching second_period: ", resident_data$second_period[row_idx])
+                                
+                                # Check if any key second_review fields have content
+                                for (field in c("second_comments", "second_approve")) {
+                                    if (field %in% names(resident_data)) {
+                                        field_val <- resident_data[[field]][row_idx]
+                                        if (!is.na(field_val) && nchar(field_val) > 0) {
+                                            message("Found content in field: ", field)
+                                            has_secondary_review <- TRUE
+                                            break
+                                        }
+                                    }
+                                }
+                                
+                                # Check completion status field
+                                if ("second_rev_complete" %in% names(resident_data)) {
+                                    val <- resident_data$second_rev_complete[row_idx]
+                                    if (!is.na(val) && val == "2") {  # 2 = Complete in REDCap
+                                        message("Found second_rev_complete = 2")
+                                        has_secondary_review <- TRUE
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (has_secondary_review) break
+                    }
+                }
+                
+                # Set secondary review status for all residents
+                secondary_review_statuses[i] <- if(has_secondary_review) "✅" else "❌"
+                message("Secondary review status for ", res_name, ": ", secondary_review_statuses[i])
             }
             
-            # Add self-evaluation status
+            # Add all status columns to the data frame
             coach_residents$self_eval_status <- self_eval_statuses
+            coach_residents$primary_review_status <- primary_review_statuses
+            coach_residents$secondary_review_status <- secondary_review_statuses
+            coach_residents$redcap_period <- redcap_periods  # Add the REDCap period
             
             # Select columns for display
             coach_residents <- coach_residents %>%
-                select(name, Level, access_code, review_role, current_period, self_eval_status) %>%
+                select(name, Level, access_code, review_role, redcap_period, 
+                       self_eval_status, primary_review_status, secondary_review_status) %>%
                 arrange(review_role, Level, name) %>%
-                setNames(c("Resident Name", "Level", "Access Code", "Review Role", "Review Period", "Self-Eval"))
+                setNames(c("Resident Name", "Level", "Access Code", "Review Role", "Review Period", 
+                           "Self-Eval", "Primary Review", "Secondary Review"))
             
             if (nrow(coach_residents) > 0) {
-                # Create table with click handling
+                # Create table with click handling and formatted columns
                 return(datatable_with_click(
                     coach_residents, 
                     caption = paste0("Residents Assigned to ", input$coach_name)
-                ))
+                ) %>%
+                    # Apply styling to status columns
+                    DT::formatStyle(
+                        'Self-Eval',
+                        color = styleEqual(c("✅", "❌"), c('#155724', '#721c24')),
+                        backgroundColor = styleEqual(c("✅", "❌"), c('#d4edda', '#f8d7da')),
+                        fontWeight = 'bold',
+                        textAlign = 'center'
+                    ) %>%
+                    DT::formatStyle(
+                        'Primary Review',
+                        color = styleEqual(c("✅", "❌"), c('#155724', '#721c24')),
+                        backgroundColor = styleEqual(c("✅", "❌"), c('#d4edda', '#f8d7da')),
+                        fontWeight = 'bold',
+                        textAlign = 'center'
+                    ) %>%
+                    DT::formatStyle(
+                        'Secondary Review',
+                        color = styleEqual(c("✅", "❌"), c('#155724', '#721c24')),
+                        backgroundColor = styleEqual(c("✅", "❌"), c('#d4edda', '#f8d7da')),
+                        fontWeight = 'bold',
+                        textAlign = 'center'
+                    )
+                )
             }
         } else {
             # Error messages for debugging
@@ -469,11 +695,84 @@ server <- function(input, output, session) {
                 `Access Code` = character(0),
                 `Review Role` = character(0), 
                 `Review Period` = character(0),
-                `Self-Eval` = character(0)
+                `Self-Eval` = character(0),
+                `Primary Review` = character(0),
+                `Secondary Review` = character(0)
             ),
             caption = paste0("No residents found for ", input$coach_name)
         ))
     })
+    
+    # Updated datatable_with_click helper function to include the status columns
+    datatable_with_click <- function(data, caption = NULL) {
+        # Base DT with click handling
+        dt <- DT::datatable(
+            data,
+            options = list(
+                pageLength = 10,
+                dom = 'ftp',
+                scrollX = TRUE,
+                columnDefs = list(
+                    # Make status columns narrower
+                    list(width = "80px", targets = c(5, 6, 7)),  # Targets the status columns
+                    list(
+                        targets = "_all",
+                        render = DT::JS(
+                            "function(data, type, row) {
+              if (data === null || data === '') {
+                  return '<span style=\"color: #999; font-style: italic;\">Not provided</span>';
+              }
+              return data;
+            }"
+                        )
+                    )
+                )
+            ),
+            caption = caption,
+            rownames = FALSE,
+            class = 'cell-border stripe hover',
+            selection = 'single',
+            callback = JS("
+      table.on('click', 'tbody tr', function() {
+          // Clear previously selected rows
+          table.$('tr.selected').removeClass('selected');
+          
+          // Select this row
+          $(this).addClass('selected');
+          
+          // Get the row data
+          var rowData = table.row(this).data();
+          var residentName = rowData[0];
+          var residentLevel = rowData[1];
+          var accessCode = rowData[2];
+          var reviewRole = rowData[3];
+          var reviewPeriod = rowData[4];
+          
+          console.log('Selected resident: ' + residentName + ', Level: ' + residentLevel + 
+                      ', Access code: ' + accessCode + ', Review role: ' + reviewRole + 
+                      ', Period: ' + reviewPeriod);
+          
+          // Set input value for Shiny with Level, review role and period
+          Shiny.setInputValue('selected_resident_in_table', 
+              {
+                  name: residentName, 
+                  level: residentLevel,
+                  access_code: accessCode, 
+                  review_role: reviewRole, 
+                  review_period: reviewPeriod
+              }, 
+              {priority: 'event'});
+      });
+    ")
+        ) %>%
+            DT::formatStyle(
+                columns = names(data)[1:5],  # Base formatting for non-status columns
+                backgroundColor = '#f8f9fa',
+                borderColor = '#dfe2e5'
+            )
+        
+        return(dt)
+    }
     
     # Handle resident selection in the coach residents table
     observeEvent(input$selected_resident_in_table, {
@@ -1153,7 +1452,29 @@ server <- function(input, output, session) {
         # Use create_styled_dt to format the table
         create_styled_dt(plus_delta_data, caption = paste0("Plus/Delta Feedback for ", values$selected_resident$name))
     })
-    #Modal handlers to open p_d table   
+    
+    
+    #Modal handlers to open p_d table  
+    # Function to show the evaluation modal with plus/delta table
+    show_evaluation_modal <- function() {
+        # Create modal with large size
+        showModal(modalDialog(
+            title = "Plus/Delta Feedback",
+            size = "l", # Large modal
+            easyClose = TRUE,
+            
+            # Add class for styling
+            class = "big-modal",
+            
+            # The plus/delta table
+            DT::DTOutput("plus_delta_table"),
+            
+            # Footer buttons
+            footer = tagList(
+                modalButton("Close")
+            )
+        ))
+    } 
     observeEvent(input$open_eval_modal, {
         show_evaluation_modal()
     })
@@ -2072,19 +2393,22 @@ server <- function(input, output, session) {
     #---------------------
     # Career Planning
     # ------------------
-    # Career Planning UI
     output$career_data_ui <- renderUI({
         req(values$selected_resident)
-        req(values$current_period)
+        req(values$redcap_period)  # Use redcap_period which is already properly mapped
         
         # Get app data
         data <- app_data()
         resident_data <- data$resident_data
         
-        # Get career data using our helper function
+        # Debug - print resident information
+        message("Rendering career data for: ", values$selected_resident$name)
+        message("Using period: ", values$redcap_period, " for data lookup")
+        
+        # Get career data using our helper function with the already mapped period
         career_data <- process_career_data(
             resident_name = values$selected_resident$name,
-            current_period = values$current_period,
+            current_period = values$redcap_period,  # Use redcap_period directly
             resident_data = resident_data,
             rdm_dict = data$rdm_dict
         )
@@ -2096,10 +2420,12 @@ server <- function(input, output, session) {
                     class = "alert alert-info",
                     icon("info-circle"), 
                     paste("No career planning data is available for", values$selected_resident$name, 
-                          "in the", values$current_period, "period.")
+                          "in the", values$redcap_period, "period.")
                 )
             )
         }
+        
+        message("Found career data - is_graduating: ", career_data$is_graduating)
         
         # Create UI based on whether resident is graduating or not
         if (career_data$is_graduating) {
@@ -2156,7 +2482,7 @@ server <- function(input, output, session) {
                 },
                 
                 # Fellowship section for graduating residents
-                if (length(career_data$fellowship) > 0) {
+                if (!is.null(career_data$fellowship) && length(career_data$fellowship) > 0) {
                     div(
                         class = "career-section",
                         h5("Fellowship Plans", class = "text-primary"),
@@ -2177,18 +2503,21 @@ server <- function(input, output, session) {
             # UI for non-graduating residents
             tagList(
                 # Career path interests section
-                if (length(career_data$career_path) > 0) {
+                if (!is.null(career_data$career_path) && length(career_data$career_path) > 0) {
                     div(
                         class = "career-section",
                         h5("Career Path Interests", class = "text-primary"),
                         tags$ul(
                             class = "list-group list-group-flush",
-                            lapply(career_data$career_path, function(career) {
-                                tags$li(
-                                    class = "list-group-item",
-                                    icon("briefcase", class = "text-primary me-2"),
-                                    career
-                                )
+                            lapply(names(career_data$career_path), function(key) {
+                                value <- career_data$career_path[[key]]
+                                if (is.character(value) && !grepl("fellow", key, ignore.case = TRUE)) {
+                                    tags$li(
+                                        class = "list-group-item",
+                                        icon("briefcase", class = "text-primary me-2"),
+                                        value
+                                    )
+                                }
                             })
                         )
                     )
@@ -2201,13 +2530,25 @@ server <- function(input, output, session) {
                 },
                 
                 # Fellowship interests section
-                if (length(career_data$fellowship) > 0) {
+                if ((!is.null(career_data$fellowship_interest) && career_data$fellowship_interest) || 
+                    any(grepl("fellow", names(career_data$career_path), ignore.case = TRUE))) {
+                    # Collect fellowship interests
+                    fellowship_items <- c()
+                    
+                    # Check career path for fellowship items
+                    if (!is.null(career_data$career_path)) {
+                        fellowship_keys <- grep("fellow", names(career_data$career_path), ignore.case = TRUE, value = TRUE)
+                        for (key in fellowship_keys) {
+                            fellowship_items <- c(fellowship_items, career_data$career_path[[key]])
+                        }
+                    }
+                    
                     div(
                         class = "career-section mt-4",
                         h5("Fellowship Interests", class = "text-primary"),
                         tags$ul(
                             class = "list-group list-group-flush",
-                            lapply(career_data$fellowship, function(fellow) {
+                            lapply(fellowship_items, function(fellow) {
                                 tags$li(
                                     class = "list-group-item",
                                     icon("award", class = "text-primary me-2"),
@@ -2219,17 +2560,34 @@ server <- function(input, output, session) {
                 },
                 
                 # Track information section
-                if (!is.null(career_data$track_info) && career_data$track_info$has_track == "Yes") {
+                if (!is.null(career_data$track_info) && !is.null(career_data$track_info$has_track) && 
+                    career_data$track_info$has_track == "Yes") {
+                    
+                    # Collect track types
+                    track_types <- c()
+                    
+                    # Check for track_name
+                    if (!is.null(career_data$track_info$track_name)) {
+                        track_types <- c(track_types, career_data$track_info$track_name)
+                    }
+                    
+                    # Check for track_types as a list
+                    if (!is.null(career_data$track_info$track_types) && is.list(career_data$track_info$track_types)) {
+                        for (key in names(career_data$track_info$track_types)) {
+                            track_types <- c(track_types, career_data$track_info$track_types[[key]])
+                        }
+                    }
+                    
                     div(
                         class = "career-section mt-4",
                         h5("Interest in Special Tracks", class = "text-primary"),
                         p(strong("Interested in a Track: "), "Yes"),
                         
-                        if (length(career_data$track_info$track_types) > 0) {
+                        if (length(track_types) > 0) {
                             tagList(
                                 p(strong("Track Types:")),
                                 tags$ul(
-                                    lapply(career_data$track_info$track_types, function(track) {
+                                    lapply(track_types, function(track) {
                                         tags$li(track)
                                     })
                                 )
@@ -2262,55 +2620,620 @@ server <- function(input, output, session) {
     # Add this to your server.R file
     # 
     # Render the discussion topics UI
-    output$discussion_topics_ui <- renderUI({
-        req(values$selected_resident)
-        req(values$current_period)
-        
-        # Get app data
-        data <- app_data()
-        resident_data <- data$resident_data
-        
-        # Debug
-        message("Rendering discussion topics UI for: ", values$selected_resident$name)
-        
-        # Get discussion topics using our fixed function
-        discussion_topics <- get_discussion_topics(
-            resident_name = values$selected_resident$name,
-            current_period = values$current_period,
-            resident_data = resident_data
+    output$discussion_topics_display <- renderUI({
+      req(values$selected_resident)
+      req(values$current_period)
+      
+      # Get app data
+      data <- app_data()
+      resident_data <- data$resident_data
+      
+      # Debug
+      message("Rendering discussion topics display for: ", values$selected_resident$name)
+      
+      # Get discussion topics using the fixed function
+      discussion_topics <- get_discussion_topics(
+        resident_name = values$selected_resident$name,
+        current_period = values$current_period,
+        resident_data = resident_data
+      )
+      
+      # Display the topics if available
+      if (!is.null(discussion_topics) && discussion_topics != "") {
+        message("Displaying discussion topics: ", substr(discussion_topics, 1, 50), "...")
+        return(
+          div(
+            class = "p-3 bg-light border rounded mb-4",
+            style = "white-space: pre-wrap;",
+            discussion_topics
+          )
         )
-        
-        # Only display if there are discussion topics
-        if (!is.null(discussion_topics) && discussion_topics != "") {
-            message("Creating discussion topics UI")
-            
-            return(card(
-                card_header("Additional Concerns from Self-Evaluation"),
-                card_body(
-                    # Display the discussion topics
-                    div(
-                        class = "p-3 bg-light border rounded mb-4",
-                        style = "white-space: pre-wrap;",
-                        discussion_topics
-                    ),
-                    
-                    # Add comments input
-                    textAreaInput(
-                        "discussion_topics_comments", 
-                        label = "Comments on Discussion Topics:",
-                        rows = 4,
-                        width = "100%",
-                        placeholder = "Add your comments about these discussion topics..."
-                    )
-                )
-            ))
-        } else {
-            message("No discussion topics found, returning NULL")
-            return(NULL)
-        }
+      } else {
+        # Show a message if no topics found
+        message("No discussion topics found")
+        return(
+          div(
+            class = "alert alert-info",
+            icon("info-circle"),
+            "No additional concerns or discussion topics found in the resident's self-evaluation."
+          )
+        )
+      }
     })
     
     
+    
+    #==================================
+    # Milestones card functions
+    # ==================================
+    # Re-render the current self-assessment plot for milestone review
+    output$self_milestones_plot_m <- renderPlot({
+      req(values$selected_resident)
+      req(values$redcap_period)  # <-- CHANGE: Use redcap_period instead
+      
+      data <- app_data()
+      
+      # REMOVE: No longer need to map the period here
+      # mile_period <- map_to_milestone_period(values$selected_resident$Level, values$current_period)
+      
+      # Use the centrally mapped period directly
+      mile_period <- values$redcap_period  # <-- CHANGE: Use redcap_period
+      
+      if (!is.null(data$s_miles) && !is.na(mile_period)) {
+        tryCatch({
+          message(paste("Attempting to render self milestone plot for period:", mile_period))
+          
+          # Debug: check if there's any data for this resident and period
+          has_data <- any(data$s_miles$name == values$selected_resident$name & 
+                            data$s_miles$period == mile_period, na.rm = TRUE)
+          message("Data exists for this resident and period: ", has_data)
+          
+          # Call miles_plot with the correct parameters
+          miles_plot(data$s_miles, values$selected_resident$name, mile_period)
+        }, error = function(e) {
+          message(paste("Error rendering self milestone plot:", e$message))
+          ggplot() +
+            annotate("text", x = 0.5, y = 0.5,
+                     label = paste("Error rendering milestone plot:", e$message),
+                     color = "red", size = 4) +
+            theme_void()
+        })
+      } else {
+        ggplot() +
+          annotate("text", x = 0.5, y = 0.5,
+                   label = paste("No self-assessment data available for period:", 
+                                 ifelse(is.na(mile_period), "Unknown", mile_period)),
+                   color = "darkgray", size = 5) +
+          theme_void()
+      }
+    })
+    
+    # Re-render the previous program assessment plot for milestone review
+    output$program_milestones_plot_m <- renderPlot({
+      req(values$selected_resident)
+      # Require the previously mapped period instead of calculating it again
+      req(values$redcap_prev_period)  
+      
+      data <- app_data()
+      
+      # Debugging
+      message("In program_milestones_plot - Using mapped previous period")
+      message("Current period: ", values$current_period)
+      message("Current mapped period: ", values$redcap_period)
+      message("Previous mapped period: ", values$redcap_prev_period)
+      
+      # Use the centrally calculated previous period directly
+      prev_mile_period <- values$redcap_prev_period
+      
+      # Only attempt to render if previous period exists and should have program data
+      if (!is.na(prev_mile_period) && !is.null(data$p_miles)) {
+        tryCatch({
+          message(paste("Attempting to render program milestone plot for period:", prev_mile_period))
+          
+          # Debug: check if there's any data for this resident and period
+          if (!is.null(data$p_miles)) {
+            has_data <- any(data$p_miles$name == values$selected_resident$name & 
+                              data$p_miles$period == prev_mile_period, na.rm = TRUE)
+            message("Data exists for this resident and previous period: ", has_data)
+            
+            if (has_data) {
+              # Call miles_plot with the correct parameters
+              p <- miles_plot(data$p_miles, values$selected_resident$name, prev_mile_period)
+              return(p)
+            }
+          }
+          
+          # If we get here, no data was found
+          ggplot() +
+            annotate("text", x = 0.5, y = 0.5,
+                     label = paste("No milestone data found for", values$selected_resident$name, 
+                                   "in period", prev_mile_period),
+                     color = "darkgray", size = 5) +
+            theme_void()
+          
+        }, error = function(e) {
+          message(paste("Error rendering previous program plot:", e$message))
+          ggplot() +
+            annotate("text", x = 0.5, y = 0.5,
+                     label = paste("Error rendering milestone plot:", e$message),
+                     color = "red", size = 4) +
+            theme_void()
+        })
+      } else {
+        # Create an empty plot when no previous program data exists or is expected
+        reason <- if(is.na(prev_mile_period)) {
+          "No previous assessment period"
+        } else if (is.null(data$p_miles)) {
+          "No milestone data available"
+        } else {
+          "No program assessment for the previous period"
+        }
+        
+        ggplot() +
+          annotate("text", x = 0.5, y = 0.5,
+                   label = reason,
+                   color = "darkgray", size = 5) +
+          theme_void()
+      }
+    })
+    
+    # Re-render milestone goals for milestone review
+    output$pc_mk_goal_ui_m <- renderUI({
+      req(values$selected_resident)
+      req(values$redcap_period)
+      
+      # Get app data
+      data <- app_data()
+      
+      # Get milestone goals
+      milestone_goals <- get_milestone_goals(
+        resident_name = values$selected_resident$name,
+        current_period = values$redcap_period,
+        resident_data = data$resident_data,
+        rdm_dict = data$rdm_dict
+      )
+      
+      # Format PC/MK goal
+      pc_mk_goal <- milestone_goals$pc_mk_goal
+      pc_mk_action <- milestone_goals$pc_mk_action
+      
+      if (is.null(pc_mk_goal)) {
+        goal_content <- div(
+          class = "alert alert-warning",
+          tags$i(class = "fas fa-exclamation-triangle me-2"),
+          "No Patient Care / Medical Knowledge milestone goal specified"
+        )
+      } else {
+        # Format the goal with milestone ID
+        goal_content <- div(
+          div(
+            class = "card mb-3",
+            div(
+              class = "card-body",
+              tags$p(
+                tags$strong(paste0("Goal (", pc_mk_goal$column, "): ")),
+                pc_mk_goal$value
+              )
+            )
+          )
+        )
+      }
+      
+      # Format action plan
+      if (is.null(pc_mk_action) || is.na(pc_mk_action) || pc_mk_action == "") {
+        action_content <- div(
+          class = "alert alert-warning",
+          tags$i(class = "fas fa-exclamation-triangle me-2"),
+          "No action plan specified for this goal"
+        )
+      } else {
+        action_content <- div(
+          div(
+            class = "card",
+            div(
+              class = "card-header bg-light",
+              "Action Plan"
+            ),
+            div(
+              class = "card-body",
+              tags$p(pc_mk_action)
+            )
+          )
+        )
+      }
+      
+      # Combine goal and action plan
+      tagList(
+        goal_content,
+        action_content
+      )
+    })
+    output$sbp_pbl_goal_ui_m <- renderUI({
+      req(values$selected_resident)
+      req(values$redcap_period)
+      
+      # Get app data
+      data <- app_data()
+      
+      # Get milestone goals
+      milestone_goals <- get_milestone_goals(
+        resident_name = values$selected_resident$name,
+        current_period = values$redcap_period,
+        resident_data = data$resident_data,
+        rdm_dict = data$rdm_dict
+      )
+      
+      # Format SBP/PBL goal
+      sbp_pbl_goal <- milestone_goals$sbp_pbl_goal
+      sbp_pbl_action <- milestone_goals$sbp_pbl_action
+      
+      if (is.null(sbp_pbl_goal)) {
+        goal_content <- div(
+          class = "alert alert-warning",
+          tags$i(class = "fas fa-exclamation-triangle me-2"),
+          "No Systems-Based Practice / Practice-Based Learning milestone goal specified"
+        )
+      } else {
+        # Format the goal with milestone ID
+        goal_content <- div(
+          div(
+            class = "card mb-3",
+            div(
+              class = "card-body",
+              tags$p(
+                tags$strong(paste0("Goal (", sbp_pbl_goal$column, "): ")),
+                sbp_pbl_goal$value
+              )
+            )
+          )
+        )
+      }
+      
+      # Format action plan
+      if (is.null(sbp_pbl_action) || is.na(sbp_pbl_action) || sbp_pbl_action == "") {
+        action_content <- div(
+          class = "alert alert-warning",
+          tags$i(class = "fas fa-exclamation-triangle me-2"),
+          "No action plan specified for this goal"
+        )
+      } else {
+        action_content <- div(
+          div(
+            class = "card",
+            div(
+              class = "card-header bg-light",
+              "Action Plan"
+            ),
+            div(
+              class = "card-body",
+              tags$p(sbp_pbl_action)
+            )
+          )
+        )
+      }
+      
+      # Combine goal and action plan
+      tagList(
+        goal_content,
+        action_content
+      )
+    })
+    output$prof_ics_goal_ui_m <- renderUI({
+      req(values$selected_resident)
+      req(values$redcap_period)
+      
+      # Get app data
+      data <- app_data()
+      
+      # Get milestone goals
+      milestone_goals <- get_milestone_goals(
+        resident_name = values$selected_resident$name,
+        current_period = values$redcap_period,
+        resident_data = data$resident_data,
+        rdm_dict = data$rdm_dict
+      )
+      
+      # Format Prof/ICS goal
+      prof_ics_goal <- milestone_goals$prof_ics_goal
+      prof_ics_action <- milestone_goals$prof_ics_action
+      
+      if (is.null(prof_ics_goal)) {
+        goal_content <- div(
+          class = "alert alert-warning",
+          tags$i(class = "fas fa-exclamation-triangle me-2"),
+          "No Professionalism / Interpersonal Communication Skills milestone goal specified"
+        )
+      } else {
+        # Format the goal with milestone ID
+        goal_content <- div(
+          div(
+            class = "card mb-3",
+            div(
+              class = "card-body",
+              tags$p(
+                tags$strong(paste0("Goal (", prof_ics_goal$column, "): ")),
+                prof_ics_goal$value
+              )
+            )
+          )
+        )
+      }
+      
+      # Format action plan
+      if (is.null(prof_ics_action) || is.na(prof_ics_action) || prof_ics_action == "") {
+        action_content <- div(
+          class = "alert alert-warning",
+          tags$i(class = "fas fa-exclamation-triangle me-2"),
+          "No action plan specified for this goal"
+        )
+      } else {
+        action_content <- div(
+          div(
+            class = "card",
+            div(
+              class = "card-header bg-light",
+              "Action Plan"
+            ),
+            div(
+              class = "card-body",
+              tags$p(prof_ics_action)
+            )
+          )
+        )
+      }
+      
+      # Combine goal and action plan
+      tagList(
+        goal_content,
+        action_content
+      )
+    })
+    
+    # Milestone module UI output
+    output$milestone_module_ui <- renderUI({
+      req(values$selected_resident)
+      req(values$redcap_period)
+      
+      mod_miles_rating_ui("miles")
+    })
+    
+    # Initialize milestone module
+    miles_mod <- mod_miles_rating_server(
+      id = "miles",
+      period = reactive({
+        req(values$redcap_period)
+        values$redcap_period
+      })
+    )
+    
+    # -------------------------------
+    # Secondary Review Functionality
+    # -------------------------------
+    
+    # Display resident info for secondary review
+    output$secondary_review_resident_name <- renderText({
+      req(values$selected_resident)
+      values$selected_resident$name
+    })
+    
+    output$secondary_review_period <- renderText({
+      req(values$current_period)
+      values$current_period
+    })
+    
+    output$secondary_review_primary_coach <- renderText({
+      req(values$selected_resident)
+      
+      # Get primary coach name
+      primary_coach <- NULL
+      
+      # Use resident data to find primary coach
+      resident_data <- processed_resident_data()
+      if (!is.null(resident_data)) {
+        coach_row <- resident_data %>%
+          filter(name == values$selected_resident$name) %>%
+          select(coach) %>%
+          slice(1)
+        
+        if (nrow(coach_row) > 0 && !is.na(coach_row$coach)) {
+          primary_coach <- coach_row$coach
+        }
+      }
+      
+      # Return primary coach name or placeholder
+      return(primary_coach %||% "Not specified")
+    })
+    
+    # Current Milestone Plot for secondary review
+    output$secondary_current_milestones_plot <- renderPlot({
+      req(values$selected_resident)
+      req(values$redcap_period)
+      
+      data <- app_data()
+      
+      # Use the centrally mapped period directly
+      mile_period <- values$redcap_period
+      
+      if (!is.null(data$p_miles) && !is.na(mile_period)) {
+        tryCatch({
+          message(paste("Attempting to render current program milestone plot for period:", mile_period))
+          
+          # Debug: check if there's any data for this resident and period
+          has_data <- any(data$p_miles$name == values$selected_resident$name & 
+                            data$p_miles$period == mile_period, na.rm = TRUE)
+          message("Data exists for this resident and period: ", has_data)
+          
+          if (has_data) {
+            # Call miles_plot with the correct parameters
+            p <- miles_plot(data$p_miles, values$selected_resident$name, mile_period)
+            return(p)
+          } else {
+            # If no data in p_miles, try to find data in s_miles
+            message("No program milestone data found, checking self-milestone data")
+            
+            if (!is.null(data$s_miles)) {
+              has_self_data <- any(data$s_miles$name == values$selected_resident$name & 
+                                     data$s_miles$period == mile_period, na.rm = TRUE)
+              
+              if (has_self_data) {
+                message("Using self-milestone data instead")
+                p <- miles_plot(data$s_miles, values$selected_resident$name, mile_period)
+                return(p)
+              }
+            }
+          }
+          
+          # If we get here, no data was found in either data set
+          ggplot() +
+            annotate("text", x = 0.5, y = 0.5,
+                     label = paste("No milestone data found for", values$selected_resident$name, 
+                                   "in period", mile_period),
+                     color = "darkgray", size = 5) +
+            theme_void()
+          
+        }, error = function(e) {
+          message(paste("Error rendering milestone plot:", e$message))
+          ggplot() +
+            annotate("text", x = 0.5, y = 0.5,
+                     label = paste("Error rendering milestone plot:", e$message),
+                     color = "red", size = 4) +
+            theme_void()
+        })
+      } else {
+        ggplot() +
+          annotate("text", x = 0.5, y = 0.5,
+                   label = paste("No milestone data available for period:", 
+                                 ifelse(is.na(mile_period), "Unknown", mile_period)),
+                   color = "darkgray", size = 5) +
+          theme_void()
+      }
+    })
+    
+    # Fetch and display primary coach's ILP final comments
+    output$primary_coach_comments <- renderText({
+      req(values$selected_resident)
+      req(values$redcap_period)
+      
+      # Get resident data
+      data <- app_data()
+      resident_data <- data$resident_data
+      
+      # Get REDCap instance number
+      instance <- map_period_format(
+        level = values$selected_resident$Level,
+        period = values$current_period,
+        return_type = "instance"
+      )
+      
+      # Try to find coach_ilp_final for this resident and period
+      filtered_data <- resident_data %>%
+        filter(name == values$selected_resident$name)
+      
+      # Check for coach_ilp_final
+      ilp_final <- NULL
+      
+      if ("coach_ilp_final" %in% names(filtered_data)) {
+        # Try to match the specific period if coach_period exists
+        if ("coach_period" %in% names(filtered_data)) {
+          period_rows <- filtered_data %>%
+            filter(coach_period == as.character(instance))
+          
+          if (nrow(period_rows) > 0) {
+            for (i in 1:nrow(period_rows)) {
+              if (!is.na(period_rows$coach_ilp_final[i]) && period_rows$coach_ilp_final[i] != "") {
+                ilp_final <- period_rows$coach_ilp_final[i]
+                break
+              }
+            }
+          }
+        }
+        
+        # If still not found, try any non-NA coach_ilp_final
+        if (is.null(ilp_final)) {
+          for (i in 1:nrow(filtered_data)) {
+            if (!is.na(filtered_data$coach_ilp_final[i]) && filtered_data$coach_ilp_final[i] != "") {
+              ilp_final <- filtered_data$coach_ilp_final[i]
+              break
+            }
+          }
+        }
+      }
+      
+      # Try alternative fields if coach_ilp_final not found
+      if (is.null(ilp_final)) {
+        # Try coach_summary
+        if ("coach_summary" %in% names(filtered_data)) {
+          for (i in 1:nrow(filtered_data)) {
+            if (!is.na(filtered_data$coach_summary[i]) && filtered_data$coach_summary[i] != "") {
+              ilp_final <- filtered_data$coach_summary[i]
+              break
+            }
+          }
+        }
+        
+        # Try other coach review fields
+        alt_fields <- c("coach_pre_rev", "coach_miles", "coach_rev_notes", "coach_anyelse")
+        for (field in alt_fields) {
+          if (is.null(ilp_final) && field %in% names(filtered_data)) {
+            for (i in 1:nrow(filtered_data)) {
+              if (!is.na(filtered_data[[field]][i]) && filtered_data[[field]][i] != "") {
+                ilp_final <- filtered_data[[field]][i]
+                break
+              }
+            }
+          }
+        }
+      }
+      
+      # Return the comments or a default message
+      return(ilp_final %||% "No primary coach ILP summary available for this resident.")
+    })
+    
+    # Validation UI for secondary review
+    output$secondary_review_validation_ui <- renderUI({
+      # Check if all required fields are filled
+      ready_to_submit <- FALSE
+      missing_items <- character(0)
+      
+      # Check comments field
+      if (is.null(input$secondary_coach_comments) || trimws(input$secondary_coach_comments) == "") {
+        missing_items <- c(missing_items, "Your comments on the ILP")
+      }
+      
+      # Check milestone approval
+      if (is.null(input$approve_milestones) || input$approve_milestones == "") {
+        missing_items <- c(missing_items, "Milestone assessment approval")
+      } else if (input$approve_milestones == "no") {
+        # If "No" is selected, check for concerns input
+        if (is.null(input$milestone_concerns) || trimws(input$milestone_concerns) == "") {
+          missing_items <- c(missing_items, "Explanation of milestone concerns")
+        }
+      }
+      
+      # Determine if ready to submit
+      ready_to_submit <- length(missing_items) == 0
+      
+      # Render appropriate UI
+      if (ready_to_submit) {
+        div(
+          class = "validation-success",
+          icon("check-circle"), 
+          "All required fields are complete. You can submit the review."
+        )
+      } else {
+        div(
+          class = "validation-error",
+          icon("exclamation-triangle"),
+          p("Please complete the following required items:"),
+          tags$ul(
+            lapply(missing_items, function(item) {
+              tags$li(item)
+            })
+          ),
+          p("Please complete all required fields before submitting.")
+        )
+      }
+    })
     
     # ----------------------
     # Tab navigation
@@ -2373,17 +3296,597 @@ server <- function(input, output, session) {
         }
     })
     
-    # Second Review back button handler
-    observeEvent(input$second_review_back, {
-        # Hide review pages and show coach selection page
+    #--------------------------------
+    # Submission of coach_rev data to redcap
+    # ------------------------------------
+    # 
+
+    show_done_page <- function() {
+        # Hide review pages and show done page
         shinyjs::hide("review-pages")
+        shinyjs::show("done-page")
+    }
+    # Get list of valid coach_rev fields from the data dictionary
+    coach_rev_fields <- reactive({
+        req(app_data())
+        
+        # Extract fields for coach_rev form
+        if (!is.null(app_data()$rdm_dict)) {
+            fields <- app_data()$rdm_dict %>%
+                filter(form_name == "coach_rev") %>%
+                pull(field_name)
+            
+            if (length(fields) > 0) {
+                message("Found ", length(fields), " coach_rev fields in data dictionary")
+                return(fields)
+            }
+        }
+        
+        # Fallback list if dictionary doesn't have coach_rev fields
+        message("Using fallback list for coach_rev fields")
+        c("coach_date", "coach_period", "coach_pre_rev", "coach_intro_back", 
+          "coach_coping", "coach_wellness", "coach_evaluations", "coach_p_d_comments", 
+          "coach_ls_and_topic", "coach_step_board", "coach_scholarship", "coach_mile_goal", 
+          "coach_career", "coach_anyelse", "coach_summary", "coach_rev_complete")
+    })
+    
+    # Reactive to check if all required fields are filled
+    review_is_complete <- reactive({
+        # Get all inputs
+        all_inputs <- reactiveValuesToList(input)
+        
+        # Create mapped inputs for coach_rev
+        mapped_inputs <- map_inputs_to_coach_rev(
+            all_inputs, 
+            is_intern_intro = (values$selected_resident$Level == "Intern" && values$current_period == "Intern Intro")
+        )
+        
+        # Validate inputs
+        validation <- validate_coach_review_inputs(mapped_inputs, values$tab_order)
+        
+        # Also require the confirmation checkbox for the summary
+        if (validation$valid && (is.null(input$summary_complete) || !input$summary_complete)) {
+            validation$valid <- FALSE
+            validation$message <- paste(validation$message, "Please check the confirmation box on the Summary tab.")
+            validation$missing_tabs <- c(validation$missing_tabs, match("summary", values$tab_order))
+        }
+        
+        return(validation)
+    })
+    
+    # Output for validation UI in summary tab - revised to properly check summary_comments
+    output$summary_validation_ui <- renderUI({
+        req(values$current_tab == "summary")
+        
+        # Check if summary is filled out directly
+        summary_filled <- !is.null(input$summary_comments) && 
+            nchar(trimws(input$summary_comments)) > 0
+        
+        # Check if summary_complete checkbox is checked
+        summary_confirmed <- !is.null(input$summary_complete) && input$summary_complete
+        
+        if(summary_filled && summary_confirmed) {
+            # All good - show success message
+            div(
+                class = "validation-success",
+                icon("check-circle"), 
+                "All required fields are complete. You can submit the review."
+            )
+        } else {
+            # Missing fields - show warning with specific message
+            missing_items <- c()
+            if(!summary_filled) {
+                missing_items <- c(missing_items, "Summary content")
+            }
+            if(!summary_confirmed) {
+                missing_items <- c(missing_items, "Confirmation checkbox")
+            }
+            
+            div(
+                class = "validation-error",
+                icon("exclamation-triangle"),
+                p("Please complete the following required items:"),
+                tags$ul(
+                    lapply(missing_items, function(item) {
+                        tags$li(item)
+                    })
+                ),
+                p("Please complete all required fields before submitting.")
+            )
+        }
+    })
+    
+    # Update the submit button based on completion status - revised to check summary_comments directly
+    observe({
+        req(values$current_tab)
+        
+        # Only show submit button on the last tab
+        if (values$current_tab == "summary") {
+            # Show the submit button
+            shinyjs::show("submit_primary_review")
+            
+            # Directly check if summary is complete
+            summary_filled <- !is.null(input$summary_comments) && 
+                nchar(trimws(input$summary_comments)) > 0
+            summary_confirmed <- !is.null(input$summary_complete) && input$summary_complete
+            
+            if (summary_filled && summary_confirmed) {
+                # Enable submit button with success class
+                shinyjs::removeClass("submit_primary_review", "btn-secondary")
+                shinyjs::addClass("submit_primary_review", "btn-success")
+            } else {
+                # Keep enabled but use secondary style
+                shinyjs::removeClass("submit_primary_review", "btn-success")
+                shinyjs::addClass("submit_primary_review", "btn-secondary")
+            }
+        } else {
+            # Hide submit button if not on summary tab
+            shinyjs::hide("submit_primary_review")
+        }
+    })
+    
+    observeEvent(input$submit_summary, {
+        # Check if summary is complete
+        summary_filled <- !is.null(input$summary_comments) && 
+            nchar(trimws(input$summary_comments)) > 0
+        summary_confirmed <- !is.null(input$summary_complete) && input$summary_complete
+        
+        if(!summary_filled || !summary_confirmed) {
+            # Show validation error
+            showNotification("Please complete the summary and check the confirmation box before submitting.", 
+                             type = "error", duration = 5)
+            return()
+        }
+        
+        # Show confirmation modal
+        showModal(modalDialog(
+            title = "Confirm Submission",
+            "Are you sure you want to submit this coach review? After submission, you'll proceed to the milestone assessment.",
+            footer = tagList(
+                modalButton("Cancel"),
+                actionButton("confirm_submit", "Submit Review", class = "btn-success")
+            ),
+            easyClose = TRUE
+        ))
+    })
+    
+    
+    # Add observers for tab navigation via validation links
+    observe({
+        for (i in seq_along(values$tab_order)) {
+            local({
+                local_i <- i
+                observeEvent(input[[paste0("goto_tab_", local_i)]], {
+                    # Navigate to the specified tab
+                    tab_name <- values$tab_order[local_i]
+                    values$current_tab <- tab_name
+                    updateTabsetPanel(session, "primary_review_tabs", selected = tab_name)
+                })
+            })
+        }
+    })
+
+     # Testing for milestones
+    observeEvent(input$test_milestone_tab, {
+        values$current_tab <- "milestones"
+        updateTabsetPanel(session, "primary_review_tabs", selected = "milestones")
+    })
+    
+    # Listen for the module's done button click
+    observeEvent(miles_mod$done(), {
+        req(values$selected_resident)
+        req(values$redcap_period)
+        req(miles_mod$scores())
+        
+        # Show confirmation modal
+        showModal(modalDialog(
+            title = "Confirm Milestone Submission",
+            "Are you sure you want to submit the milestone assessment? This will complete the entire review process.",
+            footer = tagList(
+                modalButton("Cancel"),
+                actionButton("confirm_submit_milestones", "Submit Milestones", class = "btn-success")
+            ),
+            easyClose = TRUE
+        ))
+    })
+    
+
+    # Handle secondary review submission
+    observeEvent(input$submit_secondary_review, {
+        # Validate required fields
+        if (is.null(input$secondary_coach_comments) || trimws(input$secondary_coach_comments) == "" ||
+            is.null(input$approve_milestones) || input$approve_milestones == "" ||
+            (input$approve_milestones == "no" && 
+             (is.null(input$milestone_concerns) || trimws(input$milestone_concerns) == ""))) {
+            
+            showNotification("Please complete all required fields before submitting.", 
+                             type = "error", duration = 5)
+            return()
+        }
+        
+        # Show confirmation modal
+        showModal(modalDialog(
+            title = "Confirm Submission",
+            "Are you sure you want to submit this secondary coach review?",
+            footer = tagList(
+                modalButton("Cancel"),
+                actionButton("confirm_submit_secondary", "Submit Review", class = "btn-success")
+            ),
+            easyClose = TRUE
+        ))
+    })
+    
+    # =============================================================================
+    # Primary Review Submission
+    # =============================================================================
+    
+    observeEvent(input$confirm_submit, {
+      # Show processing notification
+      withProgress(message = "Submitting review...", {
+        # Get REDCap info
+        redcap_url <- app_data()$redcap_url %||% "https://redcapsurvey.slu.edu/api/"
+        token <- app_data()$rdm_token
+        
+        # Try to safely get the record_id
+        rec_id <- tryCatch({
+          find_record_id(app_data(), values$selected_resident$name)
+        }, error = function(e) {
+          message("Error finding record_id: ", e$message)
+          return(NULL)
+        })
+        
+        # Check if record_id was found
+        if (is.null(rec_id)) {
+          showNotification("Error: Could not find record ID for resident", type = "error", duration = 5)
+          return()
+        }
+        
+        # Get all inputs
+        all_inputs <- reactiveValuesToList(input)
+        
+        # Determine REDCap instance from level and period
+        instance <- as.character(get_redcap_instance(
+          level = values$selected_resident$Level,
+          period = values$current_period
+        ))
+        
+        message("Attempting to submit coach review for resident: ", values$selected_resident$name)
+        message("Using record_id: ", rec_id)
+        message("Using instance: ", instance)
+        
+        # Map inputs to REDCap fields
+        mapped_inputs <- map_inputs_to_coach_rev(
+          all_inputs, 
+          is_intern_intro = (values$selected_resident$Level == "Intern" && 
+                               values$current_period == "Intern Intro")
+        )
+        
+        # Set the instance number
+        mapped_inputs$coach_period <- instance
+        
+        # Build direct JSON string with required repeating instrument fields
+        json_data <- paste0(
+          '[{"record_id":"', escape_json_string(rec_id),
+          '","redcap_repeat_instrument":"coach_rev",',
+          '"redcap_repeat_instance":"', escape_json_string(instance), '"',
+          ',"coach_date":"', format(Sys.Date(), "%Y-%m-%d"), '"',
+          ',"coach_period":"', escape_json_string(instance), '"'
+        )
+        
+        # Add all mapped fields
+        for (field in names(mapped_inputs)) {
+          # Skip record_id, coach_date, and coach_period (already added)
+          if (field %in% c("record_id", "coach_date", "coach_period")) next
+          
+          # Only add non-NULL, non-NA values
+          if (!is.null(mapped_inputs[[field]]) && !is.na(mapped_inputs[[field]])) {
+            # Escape double quotes and encode properly
+            value <- gsub('"', '\\\\"', mapped_inputs[[field]])
+            # Replace newlines with \n for JSON
+            value <- gsub("\r?\n", "\\\\n", value)
+            json_data <- paste0(json_data, ',"', field, '":"', value, '"')
+          }
+        }
+        
+        # Close the JSON
+        json_data <- paste0(json_data, "}]")
+        
+        message("Submission JSON (first 150 chars): ", substr(json_data, 1, 150))
+        
+        # IMPORTANT: Always submit to REDCap even in dev_mode for testing
+        # This is key to verify if submissions work correctly
+        message("Submitting to REDCap")
+        response <- httr::POST(
+          url = redcap_url,
+          body = list(
+            token = token,
+            content = "record",
+            format = "json",
+            type = "flat",
+            overwriteBehavior = "normal",
+            forceAutoNumber = "false",
+            data = json_data,
+            returnContent = "count",
+            returnFormat = "json"
+          ),
+          encode = "form"
+        )
+        
+        # Process response
+        status_code <- httr::status_code(response)
+        content_text <- httr::content(response, "text", encoding = "UTF-8")
+        
+        message("REDCap response status: ", status_code)
+        message("REDCap response content: ", content_text)
+        
+        if (status_code == 200) {
+          # Show success notification
+          showNotification("Review successfully submitted! Moving to milestone assessment.", 
+                           type = "message", duration = 5)
+          
+          # Navigate to milestone tab
+          values$current_tab <- "milestones"
+          updateTabsetPanel(session, "primary_review_tabs", selected = "milestones")
+        } else {
+          # Show error notification
+          showNotification(paste("Error submitting review to REDCap:", content_text), 
+                           type = "error", duration = 10)
+        }
+      })
+    })
+
+    # =============================================================================
+    # Milestone Assessment Submission
+    # =============================================================================
+    
+    # Handle confirmation of milestone submission
+    observeEvent(input$confirm_submit_milestones, {
+      req(values$selected_resident)
+      req(values$redcap_period)
+      req(miles_mod$scores())
+      
+      # Show processing notification
+      withProgress(message = "Submitting milestone assessment...", {
+        # Get REDCap info
+        redcap_url <- app_data()$redcap_url %||% "https://redcapsurvey.slu.edu/api/"
+        token <- app_data()$rdm_token
+        
+        # Get record ID for the selected resident
+        record_id <- find_record_id(app_data(), values$selected_resident$name)
+        
+        # Determine instance number for the period
+        instance_number <- get_redcap_instance(
+          level = values$selected_resident$Level,
+          period = values$current_period
+        )
+        
+        message("Using record_id: ", record_id)
+        message("Using instance number: ", instance_number)
+        
+        # Format today's date
+        today_date <- format(Sys.Date(), "%Y-%m-%d")
+        
+        # Get milestone field mappings
+        mile_key2field <- get_milestone_field_mapping()
+        desc_enabled_fields <- get_milestone_desc_fields()
+        
+        # Build JSON directly with required repeating instrument fields
+        json_data <- paste0(
+          '[{"record_id":"', escape_json_string(record_id),
+          '","redcap_repeat_instrument":"milestone_selfevaluation_c33c",',
+          '"redcap_repeat_instance":"', escape_json_string(as.character(instance_number)), '"',
+          ',"prog_mile_date":"', today_date, '"',
+          ',"prog_mile_period":"', escape_json_string(as.character(instance_number)), '"'
+        )
+        
+        # Add milestone scores
+        scores <- miles_mod$scores()
+        for(key in names(scores)) {
+          field_name <- mile_key2field[key]
+          if (!is.null(field_name)) {
+            # Add score
+            json_data <- paste0(json_data, ',"', field_name, '":"', 
+                                escape_json_string(as.character(scores[[key]])), '"')
+            
+            # Add description if available
+            if (key %in% desc_enabled_fields) {
+              desc <- miles_mod$desc()[[key]]
+              if (!is.null(desc) && !is.na(desc) && desc != "") {
+                desc_field <- paste0(field_name, "_desc")
+                json_data <- paste0(json_data, ',"', desc_field, '":"', 
+                                    escape_json_string(as.character(desc)), '"')
+              }
+            }
+          }
+        }
+        
+        # Close the JSON
+        json_data <- paste0(json_data, "}]")
+        
+        message("Submission JSON (first 150 chars): ", substr(json_data, 1, 150))
+        
+        # Submit to REDCap
+        response <- httr::POST(
+          url = redcap_url,
+          body = list(
+            token = token,
+            content = "record",
+            format = "json",
+            type = "flat",
+            overwriteBehavior = "normal",
+            forceAutoNumber = "false",
+            data = json_data,
+            returnContent = "count",
+            returnFormat = "json"
+          ),
+          encode = "form"
+        )
+        
+        # Process response
+        status_code <- httr::status_code(response)
+        content_text <- httr::content(response, "text", encoding = "UTF-8")
+        
+        message("REDCap response status: ", status_code)
+        message("REDCap response content: ", content_text)
+        
+        if (status_code == 200) {
+          # Close the modal
+          removeModal()
+          
+          # Save the data for possible display
+          milestone_data$current_data <- process_current_milestone(
+            milestone_scores = miles_mod,
+            resident_name = values$selected_resident$name,
+            current_period = values$redcap_period
+          )
+          
+          milestone_data$submission_status <- "complete"
+          
+          # Show success notification
+          showNotification("Milestone assessment successfully submitted!", 
+                           type = "message", duration = 5)
+          
+          # Navigate to done page
+          show_done_page()
+        } else {
+          # Show error notification
+          showNotification(paste("Error submitting milestone assessment:", content_text), 
+                           type = "error", duration = 10)
+        }
+      })
+    })
+    
+    # =============================================================================
+    # Secondary Review Submission
+    # =============================================================================
+    
+    # Handle confirmation of secondary review submission
+    observeEvent(input$confirm_submit_secondary, {
+      req(values$selected_resident)
+      req(values$current_period)
+      
+      # Show processing notification
+      withProgress(message = "Submitting secondary review...", {
+        # Get REDCap info
+        redcap_url <- app_data()$redcap_url %||% "https://redcapsurvey.slu.edu/api/"
+        token <- app_data()$rdm_token
+        
+        # Get record ID
+        record_id <- find_record_id(app_data(), values$selected_resident$name)
+        
+        # Get instance number for the period
+        instance_number <- get_redcap_instance(
+          level = values$selected_resident$Level,
+          period = values$current_period
+        )
+        
+        # Collect the review data
+        secondary_review_data <- list(
+          second_date = format(Sys.Date(), "%Y-%m-%d"),
+          second_period = as.character(instance_number),
+          second_comments = input$secondary_coach_comments,
+          second_approve = ifelse(input$approve_milestones == "yes", "Yes", "No"),
+          second_miles_comment = ifelse(input$approve_milestones == "no", 
+                                        input$milestone_concerns, ""),
+          second_rev_complete = "2"  # Complete
+        )
+        
+        # Build JSON directly with required repeating instrument fields
+        json_data <- paste0(
+          '[{"record_id":"', escape_json_string(record_id),
+          '","redcap_repeat_instrument":"second_review",',
+          '"redcap_repeat_instance":"', escape_json_string(as.character(instance_number)), '"'
+        )
+        
+        # Add all fields
+        for (field in names(secondary_review_data)) {
+          if (!is.null(secondary_review_data[[field]]) && !is.na(secondary_review_data[[field]])) {
+            value <- escape_json_string(secondary_review_data[[field]])
+            json_data <- paste0(json_data, ',"', field, '":"', value, '"')
+          }
+        }
+        
+        # Close the JSON
+        json_data <- paste0(json_data, "}]")
+        
+        message("Submission JSON (first 150 chars): ", substr(json_data, 1, 150))
+        
+        # Submit to REDCap
+        response <- httr::POST(
+          url = redcap_url,
+          body = list(
+            token = token,
+            content = "record",
+            format = "json",
+            type = "flat",
+            overwriteBehavior = "normal",
+            forceAutoNumber = "false",
+            data = json_data,
+            returnContent = "count",
+            returnFormat = "json"
+          ),
+          encode = "form"
+        )
+        
+        # Process response
+        status_code <- httr::status_code(response)
+        content_text <- httr::content(response, "text", encoding = "UTF-8")
+        
+        message("REDCap response status: ", status_code)
+        message("REDCap response content: ", content_text)
+        
+        if (status_code == 200) {
+          # Close the modal
+          removeModal()
+          
+          # Show success notification
+          showNotification("Secondary review successfully submitted!", 
+                           type = "message", duration = 5)
+          
+          # Navigate to done page
+          show_done_page()
+        } else {
+          # Show error notification
+          showNotification(paste("Error submitting secondary review:", content_text), 
+                           type = "error", duration = 10)
+        }
+      })
+    })
+    
+    
+    
+    
+    # Handle the "Start New Review" button on the done page
+    observeEvent(input$start_new_review, {
+        # Reset selection values
+        values$selected_resident <- NULL
+        values$selected_coach <- NULL
+        values$current_period <- NULL
+        values$review_type <- NULL
+        values$current_tab <- "pre_review"
+        
+        # Reset any form inputs if needed
+        updateTextAreaInput(session, "discussion_points", value = "")
+        updateTextAreaInput(session, "resident_background", value = "")
+        updateTextAreaInput(session, "dealing_with_residency", value = "")
+        updateTextAreaInput(session, "resident_wellbeing", value = "")
+        updateTextAreaInput(session, "evaluations_assessment", value = "")
+        updateTextAreaInput(session, "evaluations_comments", value = "")
+        updateTextAreaInput(session, "knowledge_topics_comments", value = "")
+        updateTextAreaInput(session, "board_prep_comments", value = "")
+        updateTextAreaInput(session, "knowledge_overall_comments", value = "")
+        updateTextAreaInput(session, "scholarship_comments", value = "")
+        updateTextAreaInput(session, "milestone_goals_comments", value = "")
+        updateTextAreaInput(session, "career_comments", value = "")
+        updateTextAreaInput(session, "summary_comments", value = "")
+        updateCheckboxInput(session, "summary_complete", value = FALSE)
+        
+        # Navigate back to coach selection
+        shinyjs::hide("done-page")
         shinyjs::show("coach-selection-page")
         
-        # Reset resident selection
-        values$selected_resident <- NULL
-        values$review_type <- NULL
-        
-        # Add notification
-        showNotification("Returned to coach dashboard", type = "message")
+        # Reset the tab panel
+        updateTabsetPanel(session, "primary_review_tabs", selected = "pre_review")
     })
+    
 }

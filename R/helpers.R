@@ -124,6 +124,9 @@ get_current_period <- function(current_date = Sys.Date()) {
 #' @return The mapped value in the requested format
 #' @export
 map_period_format <- function(level, period, return_type = "instance") {
+  # Debug output
+  message(paste("map_period_format called with level:", level, "period:", period, "return_type:", return_type))
+  
   # Handle NA or missing values
   if (is.null(level) || is.na(level)) {
     level <- "Intern"  # Default to Intern if level is missing
@@ -135,9 +138,10 @@ map_period_format <- function(level, period, return_type = "instance") {
     if (return_type == "milestone" || return_type == "readable") return(NA)
   }
   
-  # Define mappings
+  # Define mappings - EXPANDED to include both app format and readable format
   mappings <- list(
     "Intern" = list(
+      # App format periods
       "Intern Intro" = list(
         instance = 7,
         milestone = "Intern Intro",
@@ -152,9 +156,26 @@ map_period_format <- function(level, period, return_type = "instance") {
         instance = 2,
         milestone = "End Intern",
         readable = "End Intern"
+      ),
+      # Milestone/readable format periods
+      "Intern Intro" = list(
+        instance = 7,
+        milestone = "Intern Intro",
+        readable = "Intern Intro"
+      ),
+      "Mid Intern" = list(
+        instance = 1,
+        milestone = "Mid Intern",
+        readable = "Mid Intern"
+      ),
+      "End Intern" = list(
+        instance = 2,
+        milestone = "End Intern",
+        readable = "End Intern"
       )
     ),
     "PGY2" = list(
+      # App format periods
       "Intern Intro" = list(  # This combination doesn't make logical sense, but included for completeness
         instance = 8,
         milestone = NA,
@@ -169,9 +190,21 @@ map_period_format <- function(level, period, return_type = "instance") {
         instance = 4,
         milestone = "End PGY2",
         readable = "End PGY2"
+      ),
+      # Milestone/readable format periods
+      "Mid PGY2" = list(
+        instance = 3,
+        milestone = "Mid PGY2",
+        readable = "Mid PGY2"
+      ),
+      "End PGY2" = list(
+        instance = 4,
+        milestone = "End PGY2",
+        readable = "End PGY2"
       )
     ),
     "PGY3" = list(
+      # App format periods
       "Intern Intro" = list(  # This combination doesn't make logical sense, but included for completeness
         instance = 8,
         milestone = NA,
@@ -186,17 +219,56 @@ map_period_format <- function(level, period, return_type = "instance") {
         instance = 6,
         milestone = "Graduation",
         readable = "Graduation"
+      ),
+      # Milestone/readable format periods
+      "Mid PGY3" = list(
+        instance = 5,
+        milestone = "Mid PGY3",
+        readable = "Mid PGY3"
+      ),
+      "Graduation" = list(
+        instance = 6,
+        milestone = "Graduation",
+        readable = "Graduation"
       )
     )
   )
   
   # Look up the mapping
   if (level %in% names(mappings) && period %in% names(mappings[[level]])) {
-    return(mappings[[level]][[period]][[return_type]])
+    result <- mappings[[level]][[period]][[return_type]]
+    message(paste("Found mapping:", result))
+    return(result)
   } else {
-    # Default case
+    # Special case handling for periods in a different format
+    # If period ends with a level name (e.g., "End PGY2"), try to extract the period type
+    period_components <- strsplit(period, " ")[[1]]
+    if (length(period_components) >= 2) {
+      period_type <- period_components[1]  # e.g., "End" or "Mid"
+      
+      # Try with the standard app format period
+      if (period_type %in% c("End", "Mid")) {
+        app_period <- paste0(period_type, " Review")
+        if (level %in% names(mappings) && app_period %in% names(mappings[[level]])) {
+          result <- mappings[[level]][[app_period]][[return_type]]
+          message(paste("Found mapping via period type conversion:", result))
+          return(result)
+        }
+      }
+    }
+    
+    # Handle numeric instance directly
+    if (is.numeric(period) || (is.character(period) && !is.na(as.numeric(period)))) {
+      num_period <- as.numeric(period)
+      if (num_period >= 1 && num_period <= 7) {
+        message(paste("Using numeric period directly:", num_period))
+        return(num_period)  # If period is a valid REDCap instance number, return it directly
+      }
+    }
+    
+    # Default case - with warning
     warning(paste("No mapping found for level:", level, "and period:", period))
-    if (return_type == "instance") return(8)  # Default to Interim
+    if (return_type == "instance") return(8)  # Default to Interim (8)
     return(NA)
   }
 }
@@ -454,6 +526,67 @@ map_to_milestone_period <- function(level, period) {
   # If we can't map, return NA
   message(paste("WARNING: Could not map period", period, "for level", level))
   return(NA)
+}
+
+map_app_period_to_coach_period <- function(app_period, resident_level) {
+  # Direct mapping table
+  period_mapping <- list(
+    # Intern level
+    "Intern" = list(
+      "Intern Intro" = "7",
+      "Mid Review" = "1",
+      "End Review" = "2"
+    ),
+    # PGY2 level
+    "PGY2" = list(
+      "Intern Intro" = "7",  # Fallback mapping
+      "Mid Review" = "3",
+      "End Review" = "4"
+    ),
+    # PGY3 level
+    "PGY3" = list(
+      "Intern Intro" = "7",  # Fallback mapping
+      "Mid Review" = "5",
+      "End Review" = "6"
+    )
+  )
+  
+  # Try direct mapping first
+  if (resident_level %in% names(period_mapping) && 
+      app_period %in% names(period_mapping[[resident_level]])) {
+    return(period_mapping[[resident_level]][[app_period]])
+  }
+  
+  # For readability - specific mappings that match REDCap instance numbers
+  coach_period_map <- c(
+    "Mid Intern" = "1",
+    "End Intern" = "2",
+    "Mid PGY2" = "3",
+    "End PGY2" = "4",
+    "Mid PGY3" = "5",
+    "Graduation" = "6",
+    "Intern Intro" = "7",
+    "Entering Residency" = "7"  # Alternative name for Intern Intro
+  )
+  
+  # Check if readable period is in the map
+  if (app_period %in% names(coach_period_map)) {
+    return(coach_period_map[app_period])
+  }
+  
+  # If not found with any mapping, use your existing mapping function
+  # First try to map to milestone period
+  milestone_period <- map_to_milestone_period(resident_level, app_period)
+  
+  # Then map the milestone period to REDCap coach_period
+  if (!is.na(milestone_period) && milestone_period %in% names(coach_period_map)) {
+    return(coach_period_map[milestone_period])
+  }
+  
+  # Default fallback to interim/entering residency
+  warning(paste("Couldn't map period", app_period, "with level", resident_level, 
+                "to a coach_period - using '7' (Entering Residency) as fallback"))
+  return("7")
 }
 
 extract_non_na_values <- function(data, resident_identifier, column_names, period = NULL) {

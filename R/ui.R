@@ -1,5 +1,3 @@
-# Complete Fixed UI Code with Reorganized Tabs and Progress Bar
-
 # Use bslib for a modern look with Bootstrap 5
 ui <- page_fluid(
   theme = bs_theme(
@@ -16,229 +14,15 @@ ui <- page_fluid(
   # Enable shinyjs
   useShinyjs(),
   
+  # Load CSS from separate file
+  includeCSS("www/styles.css"),
+  
+  # Load JavaScript from separate file
+  includeScript("www/app.js"),
+  
   # Page title
   tags$head(
-    tags$title("IMSLU Coaching"),
-    # Add custom CSS
-    tags$style(HTML("
-      .card-header {
-        background-color: #0072B2;
-        color: white;
-      }
-      .nav-tabs .nav-link.active {
-        background-color: #56B4E9;
-        color: white;
-      }
-      .resident-info-panel {
-        background-color: #f8f9fa;
-        border-left: 4px solid #0072B2;
-        padding: 15px;
-        margin-bottom: 20px;
-      }
-      /* New styles for the coach dashboard */
-    .coach-dashboard-header {
-        background-color: #0072B2;
-        color: white;
-        padding: 15px;
-        margin-bottom: 20px;
-        border-radius: 5px;
-    }
-    
-    /* Table row hover effect */
-    .dataTable tbody tr:hover {
-        background-color: rgba(86, 180, 233, 0.2) !important;
-        cursor: pointer;
-    }
-    
-    /* Selected row style */
-    .dataTable tbody tr.selected {
-        background-color: rgba(86, 180, 233, 0.4) !important;
-    }
-    
-    /* Resident details section */
-    .resident-details {
-        background-color: #f8f9fa;
-        border-left: 4px solid #56B4E9;
-        margin-top: 10px;
-        margin-bottom: 20px;
-        padding: 15px;
-        border-radius: 0 5px 5px 0;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    
-    /* Hide resident details section initially */
-    #resident_details_section {
-        display: none;
-    }
-    
-        /* Make table rows more obviously clickable */
-        #coach_residents_table .dataTables_wrapper tbody tr {
-            cursor: pointer;
-        }
-        
-        #coach_residents_table .dataTables_wrapper tbody tr:hover {
-            background-color: rgba(0, 114, 178, 0.15) !important; 
-        }
-        
-        #coach_residents_table .dataTables_wrapper tbody tr.selected {
-            background-color: rgba(0, 114, 178, 0.3) !important;
-        }
-        
-        /* Clear button for coach selection */
-        .selectize-control.single .selectize-input:after {
-            content: '×';
-            font-size: 16px;
-            opacity: 0.5;
-            border: none;
-            right: 8px;
-        }
-        
-        /* Emphasize table instruction */
-        .table-instruction {
-            color: #0072B2;
-            border-bottom: 1px solid #0072B2;
-            padding-bottom: 8px;
-            margin-bottom: 16px;
-        }
-          /* Make text areas wider and more prominent */
-        .form-control.shiny-bound-input[type='textarea'] {
-          width: 100%;
-          border: 1px solid #ddd;
-          padding: 10px;
-          font-size: 14px;
-          border-radius: 4px;
-        }
-        
-        /* Add focus style */
-        .form-control.shiny-bound-input[type='textarea']:focus {
-          border-color: #0072B2;
-          box-shadow: 0 0 0 0.2rem rgba(0, 114, 178, 0.25);
-        }
-    /* Career plan section styling */
-  .career-section {
-    margin-bottom: 20px;
-    padding: 15px;
-    border-radius: 5px;
-    background-color: #f8f9fa;
-  }
-  
-  .career-section h5 {
-    color: #0072B2;
-    border-bottom: 1px solid #0072B2;
-    padding-bottom: 8px;
-    margin-bottom: 15px;
-  }
-  
-  .career-section ul {
-    padding-left: 20px;
-  }
-  
-  .career-section li {
-    margin-bottom: 5px;
-  }
-  
-  .discussion-topics {
-    background-color: #e9ecef;
-    padding: 15px;
-    border-radius: 5px;
-    border-left: 4px solid #0072B2;
-  }
-  
-  /* Add nice styling to the career plan comment box */
-  #career_comments {
-    border: 1px solid #ddd;
-    border-left: 3px solid #0072B2;
-  }
-  
-  #career_comments:focus {
-    border-color: #0072B2;
-    box-shadow: 0 0 0 0.2rem rgba(0, 114, 178, 0.25);
-  }
-  
-  /* Fix tab visibility with z-index and margin */
-  .nav-tabs {
-    position: relative;
-    z-index: 10;
-    margin-top: 15px;
-  }
-  
-  /* Progress bar styling */
-  .review-progress {
-    margin-bottom: 20px;
-    height: 10px;
-  }
-  
-  .review-progress .progress-bar {
-    transition: width 0.5s ease;
-  }
-  
-  /* Step indicator formatting */
-  .step-indicator {
-    font-size: 0.85rem;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #0072B2;
-  }
-  
-  /* Add this to your existing CSS */
-.big-modal .modal-dialog {
-    width: 90%;
-    max-width: 1200px;
-}
-
-/* Style for the plus/delta sections */
-#resident_plus_assessment, #resident_delta_assessment {
-    background-color: #f8f9fa;
-    border-left: 4px solid #0072B2;
-    padding: 10px 15px;
-    margin-bottom: 20px;
-    border-radius: 0 4px 4px 0;
-    white-space: pre-wrap;
-    font-size: 14px;
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-#resident_plus_assessment {
-    border-left-color: #28a745; /* Green for positive feedback */
-}
-
-#resident_delta_assessment {
-    border-left-color: #dc3545; /* Red for areas of improvement */
-}
-
-/* Table button styling */
-.btn-link.card-header-action {
-    color: white;
-    float: right;
-    padding: 0 5px;
-    margin: -5px 0;
-}
-
-.btn-link.card-header-action:hover {
-    color: #f8f9fa;
-    text-decoration: none;
-}
-
-    /* Style for board prep table warning rows */
-    .board-prep-table tr td:nth-child(2) {
-      position: relative;
-    }
-    
-    .board-prep-table tr:nth-child(1) td:nth-child(2),
-    .board-prep-table tr:nth-child(2) td:nth-child(2),
-    .board-prep-table tr:nth-child(3) td:nth-child(2) {
-      background-color: #f8d7da !important;
-      color: #721c24 !important;
-      font-weight: bold !important;
-    }
-    
-    .board-prep-table tr:nth-child(5) td:nth-child(2)[data-value='Yes'] {
-      background-color: #f8d7da !important;
-      color: #721c24 !important;
-      font-weight: bold !important;
-    }
-"))
+    tags$title("IMSLU Coaching")
   ),
   
   # Application header
@@ -283,7 +67,7 @@ ui <- page_fluid(
     # Coach selection page - initially hidden
     div(
       id = "coach-selection-page",
-      style = "display: none;",
+      style = "display: none; padding-bottom: 100px;",
       fluidRow(
         column(
           width = 10,
@@ -291,15 +75,19 @@ ui <- page_fluid(
           card(
             card_header("Select Your Profile"),
             card_body(
-              # Using selectizeInput for searchable dropdown
-              selectizeInput("coach_name", "Select Your Name", 
-                             choices = c("Loading coach names..." = ""),  # Add a placeholder option
-                             options = list(
-                               placeholder = "Select or type to search for your name",
-                               create = FALSE,
-                               openOnFocus = TRUE,
-                               onInitialize = I('function() { this.setValue(""); }')
-                             ))
+              div(
+                class = "coach-selection-container",
+                style = "min-height: 250px; padding: 30px 0;", # Make this area 2.5x taller
+                # Using selectizeInput for searchable dropdown
+                selectizeInput("coach_name", "Select Your Name", 
+                               choices = c("Loading coach names..." = ""),
+                               options = list(
+                                 placeholder = "Select or type to search for your name",
+                                 create = FALSE,
+                                 openOnFocus = TRUE,
+                                 onInitialize = I('function() { this.setValue(""); }')
+                               ))
+              )
             )
           )
         )
@@ -396,7 +184,7 @@ ui <- page_fluid(
         id = "primary-review-content",
         style = "display: none;",
         
-        navset_card_tab(  # Start of navset_card_tab
+        navset_card_tab(
           id = "primary_review_tabs",
           
           # First nav panel - Meeting Pre-review
@@ -443,11 +231,10 @@ ui <- page_fluid(
             card(
               card_header("Prior CCC Notes"),
               card_body(
-                uiOutput("prior_ccc_notes")  # Change this from verbatimTextOutput to uiOutput
+                uiOutput("prior_ccc_notes")
               )
             ),
             
-            # Prior ILP
             # Prior ILP
             card(
               card_header("Prior ILP"),
@@ -523,8 +310,7 @@ ui <- page_fluid(
             )
           ),
           
-          # Third nav panel - Evaluations Review (New Panel)
-          
+          # Third nav panel - Evaluations
           nav_panel(
             title = "3. Evaluations",
             value = "evaluations",
@@ -539,21 +325,6 @@ ui <- page_fluid(
               ),
               card_body(
                 p("Review the resident's evaluations from rotations, outpatient clinics, and other experiences."),
-                
-                # Debugging section (only visible in dev mode)
-                conditionalPanel(
-                  condition = "window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'",
-                  div(
-                    class = "alert alert-secondary mt-3 mb-4",
-                    h5("Debug Information (DEV MODE ONLY)", class = "alert-heading"),
-                    
-                    # Tabs for different debug sections
-                    tabsetPanel(
-                      tabPanel("Self-Eval", verbatimTextOutput("debug_self_eval")),
-                      tabPanel("Plus/Delta", verbatimTextOutput("debug_plus_delta"))
-                    )
-                  )
-                ),
                 
                 # Link to resident dashboard for evaluations
                 div(
@@ -587,6 +358,17 @@ ui <- page_fluid(
                   )
                 ),
                 
+                # Button to view the plus/delta table
+                div(
+                  class = "text-center mt-4",
+                  actionButton(
+                    "reopen_eval_modal", 
+                    "View Full Plus/Delta Table", 
+                    icon = icon("table"), 
+                    class = "btn-secondary"
+                  )
+                ),
+                
                 # Divider
                 hr(),
                 
@@ -607,23 +389,12 @@ ui <- page_fluid(
                   rows = 4,
                   width = "100%",
                   placeholder = "Document your discussion about the resident's evaluations. Consider: Do they have accurate self-assessment? What patterns do you see in their evaluations? What strategies would help them improve?"
-                ),
-                
-                # Button to view the plus/delta table at the bottom as well
-                div(
-                  class = "text-center mt-4",
-                  actionButton(
-                    "reopen_eval_modal", 
-                    "View Full Plus/Delta Table", 
-                    icon = icon("table"), 
-                    class = "btn-secondary"
-                  )
                 )
               )
             )
           ),
           
-          # Fourth nav panel - Exams & Knowledge (moved up)
+          # Fourth nav panel - Exams & Knowledge
           nav_panel(
             title = "4. Exams & Knowledge",
             value = "knowledge",
@@ -655,16 +426,18 @@ ui <- page_fluid(
                   column(
                     width = 6,
                     h4("Board Preparation Status"),
-                    tableOutput("board_prep_data")  # Changed back from DTOutput
+                    tableOutput("board_prep_data")
                   ),
                   
                   # Exam Scores (right column)
                   column(
                     width = 6,
                     h4("Exam Scores"),
-                    tableOutput("exam_scores_data")  # Changed back from DTOutput
+                    tableOutput("exam_scores_data")
                   )
                 ),
+                
+                # Warnings about board prep
                 fluidRow(
                   column(
                     width = 12,
@@ -681,24 +454,10 @@ ui <- page_fluid(
                   placeholder = "Enter your comments about the resident's board preparation status and exam performance..."
                 )
               )
-            ),
-            
-            # Overall knowledge assessment
-            card(
-              card_header("Overall Knowledge Assessment"),
-              card_body(
-                textAreaInput(
-                  "knowledge_overall_comments", 
-                  label = "Overall Assessment of Knowledge Development:",
-                  rows = 5,
-                  width = "100%",
-                  placeholder = "Provide an overall assessment of the resident's knowledge development, strengths, areas for improvement, and recommended resources or strategies..."
-                )
-              )
             )
           ),
           
-          # Fifth nav panel - Scholarship (moved)
+          # Fifth nav panel - Scholarship
           nav_panel(
             title = "5. Scholarship",
             value = "scholarship",
@@ -727,7 +486,8 @@ ui <- page_fluid(
               )
             )
           ),
-          # Add this after the Scholarship nav_panel in your UI code
+          
+          # Sixth nav panel - Milestone Goals
           nav_panel(
             title = "6. Milestone Goals",
             value = "ilp",
@@ -778,7 +538,7 @@ ui <- page_fluid(
             )
           ),
           
-          # Seventh nav panel - Career Plan (moved)
+          # Seventh nav panel - Career Plan
           nav_panel(
             title = "7. Career Plan",
             value = "career",
@@ -840,6 +600,7 @@ ui <- page_fluid(
             )
           ),
           
+          # Eighth nav panel - Summary
           nav_panel(
             title = "8. Summary",
             value = "summary",
@@ -857,8 +618,23 @@ ui <- page_fluid(
               )
             ),
             
-            # Discussion topics UI (if any)
-            uiOutput("discussion_topics_ui"),
+            # Additional concerns card - moved directly here from discussion_topics_ui
+            card(
+              card_header("Additional Concerns from Self-Evaluation"),
+              card_body(
+                # Display the discussion topics (use uiOutput for dynamic rendering)
+                uiOutput("discussion_topics_display"),
+                
+                # Add comments input
+                textAreaInput(
+                  "discussion_topics_comments", 
+                  label = "Comments on Discussion Topics:",
+                  rows = 4,
+                  width = "100%",
+                  placeholder = "Add your comments about these discussion topics..."
+                )
+              )
+            ),
             
             # Summary input card
             card(
@@ -874,9 +650,14 @@ ui <- page_fluid(
               )
             ),
             
-            # Confirmation checkbox
+            # Confirmation checkbox and validation UI
             card(
               card_body(
+                div(
+                  id = "summary_validation_box",
+                  class = "summary-validation",
+                  uiOutput("summary_validation_ui")
+                ),
                 checkboxInput(
                   "summary_complete", 
                   label = tags$span(
@@ -884,17 +665,77 @@ ui <- page_fluid(
                     "that I have completed a thorough review of this resident's progress and updated their Individualized Learning Plan."
                   ),
                   value = FALSE
+                ),
+                
+                # Submit button directly in the summary tab for better UX
+                div(
+                  class = "text-center mt-4",
+                  actionButton(
+                    "submit_summary", 
+                    tagList(icon("save"), "Submit Coach Review"), 
+                    class = "btn-primary btn-lg"
+                  )
                 )
               )
             )
           ),
+          
           # Ninth nav panel - Milestone Review
           nav_panel(
             title = "9. Milestone Review",
             value = "milestones",
             
-            # Milestone module will be inserted here
-            uiOutput("milestone_module_ui")
+            # Previous milestone plots (for reference)
+            card(
+              card_header("Previous Milestone Assessments"),
+              card_body(
+                fluidRow(
+                  column(6, 
+                         h5("Current Self-Assessment"),
+                         plotOutput("self_milestones_plot_m", height = "400px")
+                  ),
+                  column(6, 
+                         h5("Previous Program Assessment"),
+                         plotOutput("program_milestones_plot_m", height = "400px")
+                  )
+                )
+              )
+            ),
+            
+            # Current milestone goals
+            card(
+              card_header("Current Milestone Goals"),
+              card_body(
+                # Patient Care / Medical Knowledge Goal
+                div(
+                  class = "mb-4",
+                  h5("1. Patient Care / Medical Knowledge Milestone Goal", class = "text-primary"),
+                  uiOutput("pc_mk_goal_ui_m")
+                ),
+                
+                # Systems-Based Practice / PBLI Goal
+                div(
+                  class = "mb-4",
+                  h5("2. Systems-Based Practice / Practice-Based Learning Milestone Goal", class = "text-primary"),
+                  uiOutput("sbp_pbl_goal_ui_m")
+                ),
+                
+                # Professionalism / ICS Goal
+                div(
+                  class = "mb-4",
+                  h5("3. Professionalism / Interpersonal Communication Skills Milestone Goal", class = "text-primary"),
+                  uiOutput("prof_ics_goal_ui_m")
+                )
+              )
+            ),
+            
+            # Drop in the milestone module UI here
+            card(
+              card_header("Complete Milestone Assessment"),
+              card_body(
+                uiOutput("milestone_module_ui")
+              )
+            )
           )
         ),  # End of navset_card_tab
         
@@ -904,9 +745,16 @@ ui <- page_fluid(
                  actionButton("prev_tab", "Previous", class = "btn-secondary")
           ),
           column(6,
-                 div(style = "float: right;",
-                     actionButton("next_tab", "Next", class = "btn-primary"),
-                     actionButton("submit_primary_review", "Submit Review", class = "btn-success", style = "display: none;")
+                 div(
+                   style = "float: right;",
+                   conditionalPanel(
+                     condition = "input.primary_review_tabs != 'summary'",
+                     actionButton("next_tab", "Next", class = "btn-primary")
+                   ),
+                   actionButton("submit_primary_review", 
+                                tagList(icon("save"), "Submit Coach Review"), 
+                                class = "btn-success submit-ready",
+                                style = "display: none;")
                  )
           )
         )
@@ -918,37 +766,121 @@ ui <- page_fluid(
         style = "display: none;",
         
         card(
-          card_header("Second Review"),
+          card_header("Secondary Coach Review"),
           card_body(
             # Back button at the top
-            div(class = "mb-4",
-                actionButton("second_review_back", "← Back to Coach Dashboard", 
-                             class = "btn-secondary btn-sm")
+            div(
+              class = "mb-4",
+              actionButton("second_review_back", "← Back to Coach Dashboard", 
+                           class = "btn-secondary btn-sm")
             ),
             
-            # Display primary review data
-            verbatimTextOutput("primary_review_data"),
-            
-            # Agreement with milestones
-            radioButtons("agree_with_milestones", "Do you agree with the milestones as reported?",
-                         choices = c("Yes" = "yes", "No" = "no")),
-            
-            # Conditional comments for disagreement
-            conditionalPanel(
-              condition = "input.agree_with_milestones == 'no'",
-              textAreaInput("milestone_disagreement", "Please explain your disagreement with the milestones:", rows = 5)
+            # Resident information display
+            div(
+              class = "alert alert-info mb-4",
+              tags$h4("Review Information", class = "alert-heading"),
+              tags$p(
+                tags$strong("You are conducting a secondary review for:"),
+                textOutput("secondary_review_resident_name", inline = TRUE)
+              ),
+              tags$p(
+                tags$strong("Period:"), 
+                textOutput("secondary_review_period", inline = TRUE)
+              ),
+              tags$p(
+                tags$strong("Primary Coach:"), 
+                textOutput("secondary_review_primary_coach", inline = TRUE)
+              )
             ),
             
-            # Overall comments
-            textAreaInput("second_review_comments", "Overall Comments", rows = 5,
-                          placeholder = "Enter any additional comments about this resident..."),
+            # Current milestone assessment plot
+            card(
+              card_header("Current Milestone Assessment"),
+              card_body(
+                plotOutput("secondary_current_milestones_plot", height = "400px")
+              )
+            ),
             
-            actionButton("submit_second_review", "Submit Review", class = "btn-success")
+            # Primary coach's ILP final comments
+            card(
+              card_header("Primary Coach's ILP Summary"),
+              card_body(
+                tags$div(
+                  id = "primary_coach_comments_container",
+                  class = "p-3 bg-light rounded border",
+                  style = "white-space: pre-wrap; max-height: 300px; overflow-y: auto;",
+                  verbatimTextOutput("primary_coach_comments")
+                ),
+                
+                # Secondary coach's comments section
+                div(
+                  class = "mt-4",
+                  tags$h5("Your Comments on the ILP"),
+                  textAreaInput(
+                    "secondary_coach_comments", 
+                    label = NULL,
+                    rows = 5,
+                    width = "100%",
+                    placeholder = "Enter your comments about the resident's Individualized Learning Plan and the primary coach's assessment..."
+                  )
+                )
+              )
+            ),
+            
+            # Milestone approval section
+            card(
+              card_header("Milestone Assessment Approval"),
+              card_body(
+                div(
+                  class = "mb-3",
+                  radioButtons(
+                    "approve_milestones", 
+                    "Do you approve the milestone assessments as submitted by the primary coach?",
+                    choices = c(
+                      "Yes - I agree with the milestone assessments" = "yes",
+                      "No - I have concerns about the milestone assessments" = "no"
+                    ),
+                    selected = character(0)
+                  )
+                ),
+                
+                # Conditional panel that shows only when "No" is selected
+                conditionalPanel(
+                  condition = "input.approve_milestones == 'no'",
+                  div(
+                    class = "alert alert-warning",
+                    tags$p(
+                      tags$strong("Please explain your concerns:"),
+                      "Your comments will be shared with the CCC for review."
+                    ),
+                    textAreaInput(
+                      "milestone_concerns", 
+                      label = NULL,
+                      rows = 4,
+                      width = "100%",
+                      placeholder = "Explain which milestone assessments you disagree with and why..."
+                    )
+                  )
+                )
+              )
+            ),
+            
+            # Submit button section with validation
+            div(
+              class = "mt-4 text-center",
+              uiOutput("secondary_review_validation_ui"),
+              actionButton(
+                "submit_secondary_review", 
+                "Submit Secondary Review", 
+                class = "btn-success btn-lg mt-3",
+                icon = icon("save")
+              )
+            )
           )
         )
       )
     ),  # End of review-pages div
-    
+  
     # Done page - initially hidden
     div(
       id = "done-page",
@@ -960,14 +892,26 @@ ui <- page_fluid(
           card(
             card_header("Review Submitted"),
             card_body(
-              icon("check-circle", class = "fa-4x text-success"),
-              h3("Thank you!"),
-              p("Your review has been successfully submitted."),
-              actionButton("start_new_review", "Start New Review", class = "btn-primary")
+              div(
+                class = "text-center",
+                icon("check-circle", class = "fa-4x text-success"),
+                h3("Thank you!"),
+                p("Your review has been successfully submitted."),
+                actionButton("start_new_review", "Start New Review", class = "btn-primary")
+              )
             )
           )
         )
       )
+    ),
+    conditionalPanel(
+      condition = "window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'",
+      div(
+        class = "alert alert-secondary mt-3 mb-4",
+        h5("REDCap Debug Tools (DEV MODE ONLY)", class = "alert-heading"),
+        actionButton("test_redcap_submission", "Test REDCap Submission", 
+                     class = "btn-sm btn-warning")
+      )
     )
   )  # End of main-content div
-)  # Closing parenthesis for page_fluid
+) # End of page_fluid

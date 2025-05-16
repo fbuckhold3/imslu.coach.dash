@@ -13,3 +13,17 @@
     shiny::addResourcePath("imres-images", img_path)
   }
 }
+
+
+# Execute the function manually if not being loaded as a package
+if (!isNamespaceLoaded("imres")) {
+  tryCatch({
+    img_path <- system.file("www", package = "imres")
+    if (dir.exists(img_path)) {
+      message("Manually setting up imres-images resource path")
+      shiny::addResourcePath("imres-images", img_path)
+    }
+  }, error = function(e) {
+    message("Error setting up resource path: ", e$message)
+  })
+}

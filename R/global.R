@@ -25,6 +25,7 @@ library(ggradar)
 # Uncomment and adjust paths as needed
 source("R/helpers.R")
 source("R/modules.R")
+source("R/redcap_submission.R")
 
 
 # ---------- INITIALIZE APP CONFIG ----------
@@ -138,7 +139,7 @@ load_imres_data <- function(config) {
   
   rdm_dat <- tryCatch({
     message("Pulling forms data...")
-    result <- forms_api_pull(config$rdm_token, config$url, 'resident_data', 'faculty_evaluation', 'ilp', 's_eval', 'scholarship', 'ccc_review')
+    result <- forms_api_pull(config$rdm_token, config$url, 'resident_data', 'faculty_evaluation', 'ilp', 's_eval', 'scholarship', 'ccc_review', 'coach_rev', 'second_review')
     
     message("Forms data pulled. Structure of rdm_dat:")
     message("rdm_dat is of class: ", paste(class(result), collapse=", "))
@@ -601,4 +602,15 @@ ensure_data_loaded <- function() {
   return(app_data_store)
 }
 
+setup_imres_resources <- function() {
+  # Use shiny::addResourcePath instead of shinyjs::addResourcePath
+  if (dir.exists(system.file("www", package = "imres"))) {
+    message("Found imres www directory at: ", system.file("www", package = "imres"))
+    
+    # Use shiny namespace to call addResourcePath
+    shiny::addResourcePath("imres", system.file("www", package = "imres"))
+  } else {
+    warning("Could not find imres www directory")
+  }
+}
 
