@@ -903,15 +903,6 @@ ui <- page_fluid(
           )
         )
       )
-    ),
-    conditionalPanel(
-      condition = "window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'",
-      div(
-        class = "alert alert-secondary mt-3 mb-4",
-        h5("REDCap Debug Tools (DEV MODE ONLY)", class = "alert-heading"),
-        actionButton("test_redcap_submission", "Test REDCap Submission", 
-                     class = "btn-sm btn-warning")
-      )
     )
   )  # End of main-content div
 ) # End of page_fluid

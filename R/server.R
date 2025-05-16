@@ -168,8 +168,9 @@ server <- function(input, output, session) {
     #--------------------------------------------------
 
     
-    # 2. Now just compare inside the observer
+    # Access code validation
     observeEvent(input$submit_access, {
+      # Compare the input with the stored access code (from global.R)
       if (input$access_code == stored_access_code) {
         values$is_authenticated <- TRUE
         shinyjs::hide("login-page")
@@ -178,7 +179,6 @@ server <- function(input, output, session) {
         shinyjs::show("access_error")
       }
     })
-    
     # Coach selection
     #--------------------------------------------------
     # Populate coach dropdown immediately after app_data is loaded
@@ -3486,32 +3486,7 @@ server <- function(input, output, session) {
             easyClose = TRUE
         ))
     })
-    
 
-    # Handle secondary review submission
-    observeEvent(input$submit_secondary_review, {
-        # Validate required fields
-        if (is.null(input$secondary_coach_comments) || trimws(input$secondary_coach_comments) == "" ||
-            is.null(input$approve_milestones) || input$approve_milestones == "" ||
-            (input$approve_milestones == "no" && 
-             (is.null(input$milestone_concerns) || trimws(input$milestone_concerns) == ""))) {
-            
-            showNotification("Please complete all required fields before submitting.", 
-                             type = "error", duration = 5)
-            return()
-        }
-        
-        # Show confirmation modal
-        showModal(modalDialog(
-            title = "Confirm Submission",
-            "Are you sure you want to submit this secondary coach review?",
-            footer = tagList(
-                modalButton("Cancel"),
-                actionButton("confirm_submit_secondary", "Submit Review", class = "btn-success")
-            ),
-            easyClose = TRUE
-        ))
-    })
     
     # =============================================================================
     # Primary Review Submission
