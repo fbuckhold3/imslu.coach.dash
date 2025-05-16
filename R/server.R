@@ -24,7 +24,7 @@ server <- function(input, output, session) {
     })
     
     # Development mode flag (set to FALSE for production)
-    dev_mode <- TRUE
+    dev_mode <- FALSE
     
     setup_imres_resources()
     
