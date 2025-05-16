@@ -24,8 +24,6 @@ server <- function(input, output, session) {
     })
     
     setup_imres_resources()
-    dev_mode <- FALSE
-    
     
     # Reactive values to store session state
     values <- reactiveValues(
@@ -66,16 +64,6 @@ server <- function(input, output, session) {
         # Remove loading notification once data is loaded
         removeNotification("loading")
         
-        # For debugging - show what data was loaded
-        if (dev_mode) {
-            message("Data loaded with components: ", paste(names(data), collapse=", "))
-            if (!is.null(data$ilp)) {
-                message("ILP data loaded with ", nrow(data$ilp), " rows")
-            } else {
-                message("WARNING: ILP data is NULL!")
-            }
-        }
-        
         return(data)
     })
     
@@ -86,12 +74,6 @@ server <- function(input, output, session) {
         if (!is.null(data$resident_data)) {
             # Calculate and add resident levels
             processed_data <- calculate_resident_level(data$resident_data)
-            
-            # For debugging
-            if (dev_mode) {
-                message("Processed resident data with levels. Sample:")
-                print(head(processed_data %>% select(name, type, grad_yr, Level)))
-            }
             
             return(processed_data)
         } else {
@@ -131,15 +113,6 @@ server <- function(input, output, session) {
         } else {
             values$redcap_prev_period <- NA
         }
-        
-        # For debugging
-        if (dev_mode) {
-            message(paste("Centralized period mapping:", values$current_period, "->", values$redcap_period, 
-                          "for resident level:", values$selected_resident$Level))
-            message(paste("Previous period mapping:", 
-                          ifelse(is.na(prev_app_period), "None", prev_app_period), "->", 
-                          ifelse(is.na(values$redcap_prev_period), "None", values$redcap_prev_period)))
-        }
     })
     
     # Reactive to determine the REDCap instance
@@ -153,13 +126,6 @@ server <- function(input, output, session) {
             period = values$current_period,
             return_type = "instance"
         )
-        
-        # For debugging
-        if (dev_mode) {
-            message(paste("REDCap instance calculated:", instance, 
-                          "for Level:", values$selected_resident$Level, 
-                          "and Period:", values$current_period))
-        }
         
         return(instance)
     })
@@ -892,12 +858,6 @@ server <- function(input, output, session) {
             level = values$selected_resident$Level
         )
         
-        # For debugging
-        if (dev_mode) {
-            message(paste("Self-evaluation complete for", values$selected_resident$name, 
-                          "in period", values$current_period, ":", is_complete))
-        }
-        
         return(is_complete)
     })
     
@@ -1301,11 +1261,7 @@ server <- function(input, output, session) {
         # Check if resident is an intern and in intro period
         is_intro <- values$selected_resident$Level == "Intern" && 
             values$current_period == "Intern Intro"
-        
-        if(dev_mode) {
-            message("Is intern intro period: ", is_intro)
-        }
-        
+      
         return(is_intro)
     })
     outputOptions(output, "is_intern_intro", suspendWhenHidden = FALSE)
