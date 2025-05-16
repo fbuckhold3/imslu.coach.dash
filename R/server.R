@@ -23,9 +23,6 @@ server <- function(input, output, session) {
           "coach_career", "coach_anyelse", "coach_summary", "coach_rev_complete")
     })
     
-    # Development mode flag (set to FALSE for production)
-    dev_mode <- FALSE
-    
     setup_imres_resources()
     
     # Reactive values to store session state
@@ -168,18 +165,21 @@ server <- function(input, output, session) {
     # Authentication logic
     #--------------------------------------------------
     # Access code validation
+    stored_access_code <- if (dev_mode) {
+      "default123"
+    } else {
+      Sys.getenv("ACCESS_CODE", "default123")
+    }
+    
+    # 2. Now just compare inside the observer
     observeEvent(input$submit_access, {
-        # Get the access code based on mode
-        stored_access_code <- if(dev_mode) "default123" else Sys.getenv("ACCESS_CODE")
-        
-        # Compare the input with the stored access code
-        if (input$access_code == stored_access_code) {
-            values$is_authenticated <- TRUE
-            shinyjs::hide("login-page")
-            shinyjs::show("coach-selection-page")
-        } else {
-            shinyjs::show("access_error")
-        }
+      if (input$access_code == stored_access_code) {
+        values$is_authenticated <- TRUE
+        shinyjs::hide("login-page")
+        shinyjs::show("coach-selection-page")
+      } else {
+        shinyjs::show("access_error")
+      }
     })
     
     # Coach selection
