@@ -24,6 +24,8 @@ server <- function(input, output, session) {
     })
     
     setup_imres_resources()
+    dev_mode <- FALSE
+    
     
     # Reactive values to store session state
     values <- reactiveValues(
