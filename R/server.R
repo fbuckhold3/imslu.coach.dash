@@ -164,12 +164,7 @@ server <- function(input, output, session) {
     
     # Authentication logic
     #--------------------------------------------------
-    # Access code validation
-    stored_access_code <- if (dev_mode) {
-      "default123"
-    } else {
-      Sys.getenv("ACCESS_CODE")
-    }
+
     
     # 2. Now just compare inside the observer
     observeEvent(input$submit_access, {

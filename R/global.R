@@ -27,7 +27,8 @@ source("R/helpers.R")
 source("R/modules.R")
 source("R/redcap_submission.R")
 
-
+# Grab ACCESS_CODE from the environment, default locally to "default123"
+stored_access_code <- Sys.getenv("ACCESS_CODE", "default123")
 # ---------- INITIALIZE APP CONFIG ----------
 initialize_app_config <- function() {
   # Set up REDCap API URL
