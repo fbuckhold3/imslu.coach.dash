@@ -3601,7 +3601,7 @@ server <- function(input, output, session) {
         # Build JSON directly with required repeating instrument fields
         json_data <- paste0(
           '[{"record_id":"', escape_json_string(record_id),
-          '","redcap_repeat_instrument":"milestone_selfevaluation_c33c",',
+          '","redcap_repeat_instrument":"milestone_entry",',
           '"redcap_repeat_instance":"', escape_json_string(as.character(instance_number)), '"',
           ',"prog_mile_date":"', today_date, '"',
           ',"prog_mile_period":"', escape_json_string(as.character(instance_number)), '"'

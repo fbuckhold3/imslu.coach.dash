@@ -604,7 +604,7 @@ submit_milestone_data <- function(redcap_url, redcap_token, record_id, selected_
     record_id = record_id,
     instance = instance_number,
     fields = fields,
-    instrument = "milestone_selfevaluation_c33c"
+    instrument = "milestone_entry"
   )
   
   # Check if we're in development mode
