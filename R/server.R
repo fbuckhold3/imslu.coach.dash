@@ -360,14 +360,17 @@ server <- function(input, output, session) {
             message("Setting beta test account self-eval to complete")
             has_self_eval <- TRUE
           } else {
-            # For all other residents, check for completeness
+            # For all other residents, check for completeness using safer methods
             
             # Method 1: Check s_eval_complete indicator
+            self_eval_rows <- NULL
             if ("s_eval_complete" %in% names(resident_data)) {
-              s_eval_rows <- resident_data %>% 
-                filter(name == res_name, s_eval_complete == "Complete")
+              # Safely filter without using get()
+              self_eval_rows <- resident_data[resident_data$name == res_name & 
+                                                !is.na(resident_data$s_eval_complete) & 
+                                                resident_data$s_eval_complete == "Complete", ]
               
-              if (nrow(s_eval_rows) > 0) {
+              if (nrow(self_eval_rows) > 0) {
                 has_self_eval <- TRUE
                 message("Found s_eval_complete = Complete")
               }
@@ -375,33 +378,39 @@ server <- function(input, output, session) {
             
             # Method 2: Check for matching period with content
             if (!has_self_eval && "s_e_period" %in% names(resident_data)) {
-              s_eval_rows <- resident_data %>% 
-                filter(name == res_name, s_e_period == redcap_period)
+              # Manual filter for matching period
+              period_rows <- resident_data[resident_data$name == res_name & 
+                                             !is.na(resident_data$s_e_period) &
+                                             resident_data$s_e_period == redcap_period, ]
               
-              if (nrow(s_eval_rows) > 0) {
+              if (nrow(period_rows) > 0) {
                 # Check key fields for content
                 for (field in c("s_e_plus", "s_e_delta")) {
-                  if (field %in% names(s_eval_rows)) {
-                    content_rows <- s_eval_rows %>% 
-                      filter(!is.na(get(field)), get(field) != "")
-                    
-                    if (nrow(content_rows) > 0) {
-                      has_self_eval <- TRUE
-                      message("Found content in ", field, " for matching period")
-                      break
+                  if (field %in% names(period_rows)) {
+                    # Manual check for non-NA and non-empty values
+                    for (row_idx in 1:nrow(period_rows)) {
+                      if (!is.na(period_rows[[field]][row_idx]) && 
+                          period_rows[[field]][row_idx] != "") {
+                        has_self_eval <- TRUE
+                        message("Found content in ", field, " for matching period")
+                        break
+                      }
                     }
                   }
+                  if (has_self_eval) break
                 }
               }
             }
             
-            # Method 3: Direct check for milestone data
+            # Method a: Direct check for milestone data
             if (!has_self_eval) {
               # Check if we have milestone data for this resident and period
               data <- app_data()
               if (!is.null(data$s_miles)) {
-                s_mile_rows <- data$s_miles %>% 
-                  filter(name == res_name, period == redcap_period)
+                # Manual filter for milestone data
+                s_mile_rows <- data$s_miles[data$s_miles$name == res_name & 
+                                              !is.na(data$s_miles$period) &
+                                              data$s_miles$period == redcap_period, ]
                 
                 if (nrow(s_mile_rows) > 0) {
                   has_self_eval <- TRUE
@@ -422,10 +431,12 @@ server <- function(input, output, session) {
           
           # Method 1: Check coach_rev_complete status for exact period match
           if ("coach_rev_complete" %in% names(resident_data) && "coach_period" %in% names(resident_data)) {
-            complete_rows <- resident_data %>% 
-              filter(name == res_name, 
-                     coach_period == as.character(coach_period),
-                     coach_rev_complete == "2")  # 2 = Complete in REDCap
+            # Manual filter for completed reviews
+            complete_rows <- resident_data[resident_data$name == res_name & 
+                                             !is.na(resident_data$coach_period) &
+                                             resident_data$coach_period == as.character(coach_period) &
+                                             !is.na(resident_data$coach_rev_complete) &
+                                             resident_data$coach_rev_complete == "2", ]  # 2 = Complete in REDCap
             
             if (nrow(complete_rows) > 0) {
               has_primary_review <- TRUE
@@ -435,31 +446,64 @@ server <- function(input, output, session) {
           
           # Method 2: Check for content in key coach_rev fields for exact period match
           if (!has_primary_review && "coach_period" %in% names(resident_data)) {
-            period_rows <- resident_data %>% 
-              filter(name == res_name, coach_period == as.character(coach_period))
+            # Manual filter for matching period
+            period_rows <- resident_data[resident_data$name == res_name & 
+                                           !is.na(resident_data$coach_period) &
+                                           resident_data$coach_period == as.character(coach_period), ]
             
             if (nrow(period_rows) > 0) {
-              for (field in c("coach_ilp_final", "coach_summary", "coach_pre_rev")) {
+              # Check key fields for content
+              key_fields <- c("coach_ilp_final", "coach_summary", "coach_pre_rev")
+              for (field in key_fields) {
                 if (field %in% names(period_rows)) {
-                  content_rows <- period_rows %>% 
-                    filter(!is.na(get(field)), get(field) != "")
-                  
-                  if (nrow(content_rows) > 0) {
-                    has_primary_review <- TRUE
-                    message("Found content in ", field, " for matching period")
-                    break
+                  # Manual check for non-NA and non-empty values
+                  for (row_idx in 1:nrow(period_rows)) {
+                    if (!is.na(period_rows[[field]][row_idx]) && 
+                        period_rows[[field]][row_idx] != "") {
+                      has_primary_review <- TRUE
+                      message("Found content in ", field, " for matching period")
+                      break
+                    }
                   }
                 }
+                if (has_primary_review) break
               }
             }
           }
           
-          # Method 3: Check for milestone data submission
+          # Method 3: Check for any coach_rev content (regardless of period)
+          if (!has_primary_review) {
+            # Manual filter for any resident data
+            any_rows <- resident_data[resident_data$name == res_name, ]
+            
+            if (nrow(any_rows) > 0) {
+              # Check key fields for content
+              key_fields <- c("coach_ilp_final", "coach_summary", "coach_pre_rev")
+              for (field in key_fields) {
+                if (field %in% names(any_rows)) {
+                  # Manual check for non-NA and non-empty values
+                  for (row_idx in 1:nrow(any_rows)) {
+                    if (!is.na(any_rows[[field]][row_idx]) && 
+                        any_rows[[field]][row_idx] != "") {
+                      has_primary_review <- TRUE
+                      message("Found content in ", field, " (any period)")
+                      break
+                    }
+                  }
+                }
+                if (has_primary_review) break
+              }
+            }
+          }
+          
+          # Method 4: Check for milestone data submission
           if (!has_primary_review) {
             data <- app_data()
             if (!is.null(data$p_miles)) {
-              p_mile_rows <- data$p_miles %>% 
-                filter(name == res_name, period == redcap_period)
+              # Manual filter for program milestone data
+              p_mile_rows <- data$p_miles[data$p_miles$name == res_name & 
+                                            !is.na(data$p_miles$period) &
+                                            data$p_miles$period == redcap_period, ]
               
               if (nrow(p_mile_rows) > 0) {
                 has_primary_review <- TRUE
@@ -479,10 +523,12 @@ server <- function(input, output, session) {
           
           # Method 1: Check second_rev_complete status for exact period match
           if ("second_rev_complete" %in% names(resident_data) && "second_period" %in% names(resident_data)) {
-            complete_rows <- resident_data %>% 
-              filter(name == res_name, 
-                     second_period == as.character(coach_period),
-                     second_rev_complete == "2")  # 2 = Complete in REDCap
+            # Manual filter for completed secondary reviews
+            complete_rows <- resident_data[resident_data$name == res_name & 
+                                             !is.na(resident_data$second_period) &
+                                             resident_data$second_period == as.character(coach_period) &
+                                             !is.na(resident_data$second_rev_complete) &
+                                             resident_data$second_rev_complete == "2", ]  # 2 = Complete in REDCap
             
             if (nrow(complete_rows) > 0) {
               has_secondary_review <- TRUE
@@ -492,21 +538,52 @@ server <- function(input, output, session) {
           
           # Method 2: Check for content in key second_review fields for exact period match
           if (!has_secondary_review && "second_period" %in% names(resident_data)) {
-            period_rows <- resident_data %>% 
-              filter(name == res_name, second_period == as.character(coach_period))
+            # Manual filter for matching period
+            period_rows <- resident_data[resident_data$name == res_name & 
+                                           !is.na(resident_data$second_period) &
+                                           resident_data$second_period == as.character(coach_period), ]
             
             if (nrow(period_rows) > 0) {
-              for (field in c("second_comments", "second_approve", "second_miles_comment")) {
+              # Check key fields for content
+              key_fields <- c("second_comments", "second_approve", "second_miles_comment")
+              for (field in key_fields) {
                 if (field %in% names(period_rows)) {
-                  content_rows <- period_rows %>% 
-                    filter(!is.na(get(field)), get(field) != "")
-                  
-                  if (nrow(content_rows) > 0) {
-                    has_secondary_review <- TRUE
-                    message("Found content in ", field, " for matching period")
-                    break
+                  # Manual check for non-NA and non-empty values
+                  for (row_idx in 1:nrow(period_rows)) {
+                    if (!is.na(period_rows[[field]][row_idx]) && 
+                        period_rows[[field]][row_idx] != "") {
+                      has_secondary_review <- TRUE
+                      message("Found content in ", field, " for matching period")
+                      break
+                    }
                   }
                 }
+                if (has_secondary_review) break
+              }
+            }
+          }
+          
+          # Method 3: Check for any second_review content (regardless of period)
+          if (!has_secondary_review) {
+            # Manual filter for any resident data
+            any_rows <- resident_data[resident_data$name == res_name, ]
+            
+            if (nrow(any_rows) > 0) {
+              # Check key fields for content
+              key_fields <- c("second_comments", "second_approve", "second_miles_comment")
+              for (field in key_fields) {
+                if (field %in% names(any_rows)) {
+                  # Manual check for non-NA and non-empty values
+                  for (row_idx in 1:nrow(any_rows)) {
+                    if (!is.na(any_rows[[field]][row_idx]) && 
+                        any_rows[[field]][row_idx] != "") {
+                      has_secondary_review <- TRUE
+                      message("Found content in ", field, " (any period)")
+                      break
+                    }
+                  }
+                }
+                if (has_secondary_review) break
               }
             }
           }
