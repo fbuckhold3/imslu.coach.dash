@@ -747,12 +747,13 @@ ui <- page_fluid(
           column(6,
                  div(
                    style = "float: right;",
+                   # Show Next button on all tabs except the last one (milestone tab)
+                   # The condition below checks if not on summary AND not on milestones tab
                    conditionalPanel(
-                     # Only show the next button when NOT on the summary tab
-                     condition = "input.primary_review_tabs != 'summary'",
+                     condition = "input.primary_review_tabs !== 'summary' && input.primary_review_tabs !== 'milestones'",
                      actionButton("next_tab", "Next", class = "btn-primary")
                    )
-                   # Removed the submit_primary_review button from here completely
+                   # Removed the submit_primary_review button completely
                  )
           )
         )

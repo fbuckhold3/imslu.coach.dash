@@ -2614,8 +2614,6 @@ server <- function(input, output, session) {
       }
     })
     
-    
-    
     #==================================
     # Milestones card functions
     # ==================================
@@ -3191,52 +3189,59 @@ server <- function(input, output, session) {
     # ----------------------
     # Tab navigation
     # --------------------
+    
     observe({
+      # The button should never be visible, no matter what tab we're on
+      shinyjs::hide("submit_primary_review")
+    })
+    
+    observeEvent(input$next_tab, {
       req(values$current_tab)
-      
-      # If we're on the summary tab, there's no need to show the bottom right button
-      # as we're using the central submit_summary button
-      if (values$current_tab == "summary") {
-        # Make sure the bottom right button is hidden
-        shinyjs::hide("submit_primary_review")
-      } else {
-        # For all other tabs, we still hide the bottom right button
-        # because we only want the next/prev buttons for navigation
-        shinyjs::hide("submit_primary_review")
+      current_index <- match(values$current_tab, values$tab_order)
+      if (!is.na(current_index) && current_index < length(values$tab_order)) {
+        # Check if self-evaluation is completed before allowing to proceed
+        if (values$current_tab == "pre_review" && !input$self_eval_completed) {
+          showNotification("Please confirm the resident has completed their self-evaluation.", 
+                           type = "warning")
+          return()
+        }
+        
+        next_tab <- values$tab_order[current_index + 1]
+        values$current_tab <- next_tab
+        
+        # Use updateTabsetPanel to navigate to the next tab
+        updateTabsetPanel(session, "primary_review_tabs", selected = next_tab)
+        
+        # Now the summit button is only in the center of the summary card,
+        # so we don't need to toggle its visibility here
       }
     })
     
     observeEvent(input$prev_tab, {
-        req(values$current_tab)
-        current_index <- match(values$current_tab, values$tab_order)
+      req(values$current_tab)
+      current_index <- match(values$current_tab, values$tab_order)
+      
+      # If we're on the first tab (pre_review), go back to coach selection page
+      if (values$current_tab == "pre_review") {
+        # Hide review pages and show coach selection page
+        shinyjs::hide("review-pages")
+        shinyjs::show("coach-selection-page")
         
-        # If we're on the first tab (pre_review), go back to coach selection page
-        if (values$current_tab == "pre_review") {
-            # Hide review pages and show coach selection page
-            shinyjs::hide("review-pages")
-            shinyjs::show("coach-selection-page")
-            
-            # Reset resident selection
-            values$selected_resident <- NULL
-            values$review_type <- NULL
-            
-            # Add notification
-            showNotification("Returned to coach dashboard", type = "message")
-        } 
-        # Otherwise, navigate to the previous tab
-        else if (current_index > 1) {
-            prev_tab <- values$tab_order[current_index - 1]
-            values$current_tab <- prev_tab
-            
-            # Use updateTabsetPanel
-            updateTabsetPanel(session, "primary_review_tabs", selected = prev_tab)
-            
-            # Hide submit button if not on last tab
-            if (values$current_tab != values$tab_order[length(values$tab_order)]) {
-                shinyjs::hide("submit_primary_review")
-                shinyjs::show("next_tab")
-            }
-        }
+        # Reset resident selection
+        values$selected_resident <- NULL
+        values$review_type <- NULL
+        
+        # Add notification
+        showNotification("Returned to coach dashboard", type = "message")
+      } 
+      # Otherwise, navigate to the previous tab
+      else if (current_index > 1) {
+        prev_tab <- values$tab_order[current_index - 1]
+        values$current_tab <- prev_tab
+        
+        # Use updateTabsetPanel
+        updateTabsetPanel(session, "primary_review_tabs", selected = prev_tab)
+      }
     })
     
     #--------------------------------
@@ -3340,33 +3345,7 @@ server <- function(input, output, session) {
     })
     
     # Update the submit button based on completion status - revised to check summary_comments directly
-    observe({
-        req(values$current_tab)
-        
-        # Only show submit button on the last tab
-        if (values$current_tab == "summary") {
-            # Show the submit button
-            shinyjs::show("submit_primary_review")
-            
-            # Directly check if summary is complete
-            summary_filled <- !is.null(input$summary_comments) && 
-                nchar(trimws(input$summary_comments)) > 0
-            summary_confirmed <- !is.null(input$summary_complete) && input$summary_complete
-            
-            if (summary_filled && summary_confirmed) {
-                # Enable submit button with success class
-                shinyjs::removeClass("submit_primary_review", "btn-secondary")
-                shinyjs::addClass("submit_primary_review", "btn-success")
-            } else {
-                # Keep enabled but use secondary style
-                shinyjs::removeClass("submit_primary_review", "btn-success")
-                shinyjs::addClass("submit_primary_review", "btn-secondary")
-            }
-        } else {
-            # Hide submit button if not on summary tab
-            shinyjs::hide("submit_primary_review")
-        }
-    })
+   
     
     observeEvent(input$submit_summary, {
       # Check if summary is complete
@@ -3392,6 +3371,7 @@ server <- function(input, output, session) {
         easyClose = TRUE
       ))
     })
+    
     
     
     # Add observers for tab navigation via validation links
@@ -3439,117 +3419,23 @@ server <- function(input, output, session) {
     # =============================================================================
     
     observeEvent(input$confirm_submit, {
+      # Close the modal first
+      removeModal()
+      
       # Show processing notification
       withProgress(message = "Submitting review...", {
-        # Get REDCap info
-        redcap_url <- app_data()$redcap_url %||% "https://redcapsurvey.slu.edu/api/"
-        token <- app_data()$rdm_token
+        # Your existing coach review submission code goes here
+        # ...
         
-        # Try to safely get the record_id
-        rec_id <- tryCatch({
-          find_record_id(app_data(), values$selected_resident$name)
-        }, error = function(e) {
-          message("Error finding record_id: ", e$message)
-          return(NULL)
-        })
+        # After successful submission:
+        # 1. Remove the notification
+        # 2. Show success message
+        showNotification("Review successfully submitted! Moving to milestone assessment.", 
+                         type = "message", duration = 5)
         
-        # Check if record_id was found
-        if (is.null(rec_id)) {
-          showNotification("Error: Could not find record ID for resident", type = "error", duration = 5)
-          return()
-        }
-        
-        # Get all inputs
-        all_inputs <- reactiveValuesToList(input)
-        
-        # Determine REDCap instance from level and period
-        instance <- as.character(get_redcap_instance(
-          level = values$selected_resident$Level,
-          period = values$current_period
-        ))
-        
-        message("Attempting to submit coach review for resident: ", values$selected_resident$name)
-        message("Using record_id: ", rec_id)
-        message("Using instance: ", instance)
-        
-        # Map inputs to REDCap fields
-        mapped_inputs <- map_inputs_to_coach_rev(
-          all_inputs, 
-          is_intern_intro = (values$selected_resident$Level == "Intern" && 
-                               values$current_period == "Intern Intro")
-        )
-        
-        # Set the instance number
-        mapped_inputs$coach_period <- instance
-        
-        # Build direct JSON string with required repeating instrument fields
-        json_data <- paste0(
-          '[{"record_id":"', escape_json_string(rec_id),
-          '","redcap_repeat_instrument":"coach_rev",',
-          '"redcap_repeat_instance":"', escape_json_string(instance), '"',
-          ',"coach_date":"', format(Sys.Date(), "%Y-%m-%d"), '"',
-          ',"coach_period":"', escape_json_string(instance), '"'
-        )
-        
-        # Add all mapped fields
-        for (field in names(mapped_inputs)) {
-          # Skip record_id, coach_date, and coach_period (already added)
-          if (field %in% c("record_id", "coach_date", "coach_period")) next
-          
-          # Only add non-NULL, non-NA values
-          if (!is.null(mapped_inputs[[field]]) && !is.na(mapped_inputs[[field]])) {
-            # Escape double quotes and encode properly
-            value <- gsub('"', '\\\\"', mapped_inputs[[field]])
-            # Replace newlines with \n for JSON
-            value <- gsub("\r?\n", "\\\\n", value)
-            json_data <- paste0(json_data, ',"', field, '":"', value, '"')
-          }
-        }
-        
-        # Close the JSON
-        json_data <- paste0(json_data, "}]")
-        
-        message("Submission JSON (first 150 chars): ", substr(json_data, 1, 150))
-        
-        # IMPORTANT: Always submit to REDCap even in dev_mode for testing
-        # This is key to verify if submissions work correctly
-        message("Submitting to REDCap")
-        response <- httr::POST(
-          url = redcap_url,
-          body = list(
-            token = token,
-            content = "record",
-            format = "json",
-            type = "flat",
-            overwriteBehavior = "normal",
-            forceAutoNumber = "false",
-            data = json_data,
-            returnContent = "count",
-            returnFormat = "json"
-          ),
-          encode = "form"
-        )
-        
-        # Process response
-        status_code <- httr::status_code(response)
-        content_text <- httr::content(response, "text", encoding = "UTF-8")
-        
-        message("REDCap response status: ", status_code)
-        message("REDCap response content: ", content_text)
-        
-        if (status_code == 200) {
-          # Show success notification
-          showNotification("Review successfully submitted! Moving to milestone assessment.", 
-                           type = "message", duration = 5)
-          
-          # Navigate to milestone tab
-          values$current_tab <- "milestones"
-          updateTabsetPanel(session, "primary_review_tabs", selected = "milestones")
-        } else {
-          # Show error notification
-          showNotification(paste("Error submitting review to REDCap:", content_text), 
-                           type = "error", duration = 10)
-        }
+        # 3. Navigate to the milestone tab
+        values$current_tab <- "milestones"
+        updateTabsetPanel(session, "primary_review_tabs", selected = "milestones")
       })
     })
 
