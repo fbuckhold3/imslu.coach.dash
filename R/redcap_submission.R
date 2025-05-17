@@ -489,32 +489,33 @@ submit_coach_review <- function(record_id, resident_name, instance, inputs, app_
   return(submit_to_redcap(redcap_url, token, json_data, dev_mode))
 }
 
-#' Mapping for milestone fields to REDCap fields
+#' Get mapping for milestone fields to REDCap fields
 #'
 #' @return Named list of milestone field mappings
 get_milestone_field_mapping <- function() {
   return(c(
-    "PC_1" = "rep_pc1_self",
-    "PC_2" = "rep_pc2_self",
-    "PC_3" = "rep_pc3_self",
-    "PC_4" = "rep_pc4_self",
-    "PC_5" = "rep_pc5_self",
-    "PC_6" = "rep_pc6_self",
-    "MK_1" = "rep_mk1_self",
-    "MK_2" = "rep_mk2_self",
-    "MK_3" = "rep_mk3_self",
-    "SBP_1" = "rep_sbp1_self",
-    "SBP_2" = "rep_sbp2_self",
-    "SBP_3" = "rep_sbp3_self",
-    "PBLI_1" = "rep_pbl1_self",
-    "PBLI_2" = "rep_pbl2_self",
-    "PROF_1" = "rep_prof1_self",
-    "PROF_2" = "rep_prof2_self",
-    "PROF_3" = "rep_prof3_self",
-    "PROF_4" = "rep_prof4_self",
-    "ICS_1" = "rep_ics1_self",
-    "ICS_2" = "rep_ics2_self",
-    "ICS_3" = "rep_ics3_self"
+    # Changed from rep_pc1_self to rep_pc1, etc.
+    "PC_1" = "rep_pc1",
+    "PC_2" = "rep_pc2",
+    "PC_3" = "rep_pc3",
+    "PC_4" = "rep_pc4",
+    "PC_5" = "rep_pc5",
+    "PC_6" = "rep_pc6",
+    "MK_1" = "rep_mk1",
+    "MK_2" = "rep_mk2",
+    "MK_3" = "rep_mk3",
+    "SBP_1" = "rep_sbp1",
+    "SBP_2" = "rep_sbp2",
+    "SBP_3" = "rep_sbp3",
+    "PBLI_1" = "rep_pbl1",
+    "PBLI_2" = "rep_pbl2",
+    "PROF_1" = "rep_prof1",
+    "PROF_2" = "rep_prof2",
+    "PROF_3" = "rep_prof3",
+    "PROF_4" = "rep_prof4",
+    "ICS_1" = "rep_ics1",
+    "ICS_2" = "rep_ics2",
+    "ICS_3" = "rep_ics3"
   ))
 }
 
@@ -568,7 +569,7 @@ submit_milestone_data <- function(redcap_url, redcap_token, record_id, selected_
     ))
   }
   
-  message("Using instance number: ", instance_number, " for milestone_selfevaluation_c33c")
+  message("Using instance number: ", instance_number, " for milestone_entry")
   
   # Get field mappings
   mile_key2field <- get_milestone_field_mapping()
@@ -604,7 +605,7 @@ submit_milestone_data <- function(redcap_url, redcap_token, record_id, selected_
     record_id = record_id,
     instance = instance_number,
     fields = fields,
-    instrument = "milestone_entry"
+    instrument = "milestone_entry"  # Changed from "milestone_selfevaluation_c33c" to "milestone_entry"
   )
   
   # Check if we're in development mode

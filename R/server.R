@@ -3191,29 +3191,19 @@ server <- function(input, output, session) {
     # ----------------------
     # Tab navigation
     # --------------------
-    observeEvent(input$next_tab, {
-        req(values$current_tab)
-        current_index <- match(values$current_tab, values$tab_order)
-        if (!is.na(current_index) && current_index < length(values$tab_order)) {
-            # Check if self-evaluation is completed before allowing to proceed
-            if (values$current_tab == "pre_review" && !input$self_eval_completed) {
-                showNotification("Please confirm the resident has completed their self-evaluation.", 
-                                 type = "warning")
-                return()
-            }
-            
-            next_tab <- values$tab_order[current_index + 1]
-            values$current_tab <- next_tab
-            
-            # Use updateTabsetPanel
-            updateTabsetPanel(session, "primary_review_tabs", selected = next_tab)
-            
-            # Show submit button on last tab
-            if (next_tab == values$tab_order[length(values$tab_order)]) {
-                shinyjs::show("submit_primary_review")
-                shinyjs::hide("next_tab")
-            }
-        }
+    observe({
+      req(values$current_tab)
+      
+      # If we're on the summary tab, there's no need to show the bottom right button
+      # as we're using the central submit_summary button
+      if (values$current_tab == "summary") {
+        # Make sure the bottom right button is hidden
+        shinyjs::hide("submit_primary_review")
+      } else {
+        # For all other tabs, we still hide the bottom right button
+        # because we only want the next/prev buttons for navigation
+        shinyjs::hide("submit_primary_review")
+      }
     })
     
     observeEvent(input$prev_tab, {
@@ -3379,28 +3369,28 @@ server <- function(input, output, session) {
     })
     
     observeEvent(input$submit_summary, {
-        # Check if summary is complete
-        summary_filled <- !is.null(input$summary_comments) && 
-            nchar(trimws(input$summary_comments)) > 0
-        summary_confirmed <- !is.null(input$summary_complete) && input$summary_complete
-        
-        if(!summary_filled || !summary_confirmed) {
-            # Show validation error
-            showNotification("Please complete the summary and check the confirmation box before submitting.", 
-                             type = "error", duration = 5)
-            return()
-        }
-        
-        # Show confirmation modal
-        showModal(modalDialog(
-            title = "Confirm Submission",
-            "Are you sure you want to submit this coach review? After submission, you'll proceed to the milestone assessment.",
-            footer = tagList(
-                modalButton("Cancel"),
-                actionButton("confirm_submit", "Submit Review", class = "btn-success")
-            ),
-            easyClose = TRUE
-        ))
+      # Check if summary is complete
+      summary_filled <- !is.null(input$summary_comments) && 
+        nchar(trimws(input$summary_comments)) > 0
+      summary_confirmed <- !is.null(input$summary_complete) && input$summary_complete
+      
+      if(!summary_filled || !summary_confirmed) {
+        # Show validation error
+        showNotification("Please complete the summary and check the confirmation box before submitting.", 
+                         type = "error", duration = 5)
+        return()
+      }
+      
+      # Show confirmation modal
+      showModal(modalDialog(
+        title = "Confirm Submission",
+        "Are you sure you want to submit this coach review? After submission, you'll proceed to the milestone assessment.",
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton("confirm_submit", "Submit Review", class = "btn-success")
+        ),
+        easyClose = TRUE
+      ))
     })
     
     

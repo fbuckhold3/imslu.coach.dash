@@ -748,13 +748,11 @@ ui <- page_fluid(
                  div(
                    style = "float: right;",
                    conditionalPanel(
+                     # Only show the next button when NOT on the summary tab
                      condition = "input.primary_review_tabs != 'summary'",
                      actionButton("next_tab", "Next", class = "btn-primary")
-                   ),
-                   actionButton("submit_primary_review", 
-                                tagList(icon("save"), "Submit Coach Review"), 
-                                class = "btn-success submit-ready",
-                                style = "display: none;")
+                   )
+                   # Removed the submit_primary_review button from here completely
                  )
           )
         )
