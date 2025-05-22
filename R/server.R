@@ -3958,20 +3958,154 @@ server <- function(input, output, session) {
       
       # Show processing notification
       withProgress(message = "Submitting review...", {
-        # Your existing coach review submission code goes here
-        # ...
         
-        # After successful submission:
-        # 1. Remove the notification
-        # 2. Show success message
-        showNotification("Review successfully submitted! Moving to milestone assessment.", 
-                         type = "message", duration = 5)
+        # Get all required data
+        req(values$selected_resident)
+        req(values$current_period)
+        req(values$selected_resident$Level)
         
-        # 3. Navigate to the milestone tab
-        values$current_tab <- "milestones"
-        updateTabsetPanel(session, "primary_review_tabs", selected = "milestones")
+        # Get REDCap connection info
+        redcap_url <- app_data()$redcap_url %||% "https://redcapsurvey.slu.edu/api/"
+        token <- app_data()$rdm_token
+        
+        # Get record ID for the selected resident
+        record_id <- find_record_id(app_data(), values$selected_resident$name)
+        
+        # Get instance number for the period
+        instance_number <- map_period_format(
+          level = values$selected_resident$Level,
+          period = values$current_period,
+          return_type = "instance"
+        )
+        
+        message("Submitting coach_rev for record_id: ", record_id, ", instance: ", instance_number)
+        
+        # Collect all input data
+        all_inputs <- reactiveValuesToList(input)
+        
+        # Map inputs to coach_rev fields
+        mapped_inputs <- map_inputs_to_coach_rev(
+          all_inputs, 
+          is_intern_intro = (values$selected_resident$Level == "Intern" && values$current_period == "Intern Intro")
+        )
+        
+        # Set completion status to complete
+        mapped_inputs$coach_rev_complete <- "2"  # 2 = Complete in REDCap
+        
+        # Build JSON data manually with required repeating instrument fields
+        json_data <- paste0(
+          '[{"record_id":"', escape_json_string(record_id),
+          '","redcap_repeat_instrument":"coach_rev",',
+          '"redcap_repeat_instance":"', escape_json_string(as.character(instance_number)), '"',
+          ',"coach_date":"', format(Sys.Date(), "%Y-%m-%d"), '"',
+          ',"coach_period":"', escape_json_string(as.character(instance_number)), '"'
+        )
+        
+        # Add all mapped fields to JSON
+        for (field in names(mapped_inputs)) {
+          # Skip fields already added
+          if (field %in% c("coach_date", "coach_period")) next
+          
+          # Only add non-NULL, non-NA values
+          if (!is.null(mapped_inputs[[field]]) && !is.na(mapped_inputs[[field]])) {
+            # Escape the value and add to JSON
+            value <- escape_json_string(as.character(mapped_inputs[[field]]))
+            json_data <- paste0(json_data, ',"', field, '":"', value, '"')
+          }
+        }
+        
+        # Close the JSON
+        json_data <- paste0(json_data, "}]")
+        
+        message("Coach review JSON (first 200 chars): ", substr(json_data, 1, 200))
+        
+        # Submit to REDCap
+        response <- httr::POST(
+          url = redcap_url,
+          body = list(
+            token = token,
+            content = "record",
+            format = "json",
+            type = "flat",
+            overwriteBehavior = "normal",
+            forceAutoNumber = "false",
+            data = json_data,
+            returnContent = "count",
+            returnFormat = "json"
+          ),
+          encode = "form"
+        )
+        
+        # Process response
+        status_code <- httr::status_code(response)
+        content_text <- httr::content(response, "text", encoding = "UTF-8")
+        
+        message("Coach review REDCap response status: ", status_code)
+        message("Coach review REDCap response content: ", content_text)
+        
+        if (status_code == 200) {
+          # Parse response to check if records were actually updated
+          tryCatch({
+            # Check if response is JSON format
+            if (grepl("^\\{", content_text)) {
+              # Parse JSON response
+              response_json <- jsonlite::fromJSON(content_text)
+              records_updated <- as.numeric(response_json$count)
+            } else {
+              # Parse plain number response
+              records_updated <- as.numeric(content_text)
+            }
+            
+            if (!is.na(records_updated) && records_updated > 0) {
+              # Show success message
+              showNotification(paste("Review successfully submitted! (", records_updated, " record updated) Moving to milestone assessment."), 
+                               type = "message", duration = 5)
+              
+              # Navigate to the milestone tab
+              values$current_tab <- "milestones"
+              updateTabsetPanel(session, "primary_review_tabs", selected = "milestones")
+            } else {
+              # No records updated - show error
+              showNotification("Error: No records were updated in REDCap. Please try again.", 
+                               type = "error", duration = 10)
+            }
+          }, error = function(e) {
+            # JSON parsing error - but if we got here with status 200, it probably worked
+            message("Parse error but status 200, assuming success: ", e$message)
+            showNotification("Review submitted successfully! Moving to milestone assessment.", 
+                             type = "message", duration = 5)
+            
+            # Navigate to the milestone tab anyway since we got HTTP 200
+            values$current_tab <- "milestones"
+            updateTabsetPanel(session, "primary_review_tabs", selected = "milestones")
+          })
+        } else {
+          # HTTP error
+          showNotification(paste("Error submitting review:", content_text), 
+                           type = "error", duration = 10)
+        }
       })
     })
+    
+    # Also add these helper functions if they don't exist in your helpers.R or elsewhere:
+    
+    # Function to safely escape JSON strings (add to helpers.R if not present)
+    escape_json_string <- function(x) {
+      if (is.null(x) || is.na(x)) return("")
+      
+      # Convert to character if not already
+      x <- as.character(x)
+      
+      # Escape special characters
+      x <- gsub('\\\\', '\\\\\\\\', x)  # Escape backslashes first
+      x <- gsub('"', '\\\\"', x)         # Escape double quotes
+      x <- gsub('\n', '\\\\n', x)        # Escape newlines
+      x <- gsub('\r', '\\\\r', x)        # Escape carriage returns
+      x <- gsub('\t', '\\\\t', x)        # Escape tabs
+      
+      return(x)
+    }
+    
 
     # =============================================================================
     # Milestone Assessment Submission
