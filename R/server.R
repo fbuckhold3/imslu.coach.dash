@@ -179,121 +179,131 @@ server <- function(input, output, session) {
         input$coach_name
     })
     
-    # Helper function for data tables with click handling
+    # Helper function for data tables with click handling (CORRECTED VERSION)
     datatable_with_click <- function(data, caption = NULL) {
-        # Base DT with click handling
-        dt <- DT::datatable(
-            data,
-            options = list(
-                pageLength = 10,
-                dom = 'ftp',
-                scrollX = TRUE,
-                columnDefs = list(list(
-                    targets = "_all",
-                    render = DT::JS(
-                        "function(data, type, row) {
-                if (data === null || data === '') {
-                    return '<span style=\"color: #999; font-style: italic;\">Not provided</span>';
-                }
-                return data;
+      # Base DT with click handling
+      dt <- DT::datatable(
+        data,
+        escape = FALSE,  # IMPORTANT: This allows HTML to render
+        options = list(
+          pageLength = 10,
+          dom = 'ftp',
+          scrollX = TRUE,
+          columnDefs = list(
+            # Make status columns narrower
+            list(width = "80px", targets = c(5, 6, 7)),  # Targets the status columns
+            list(
+              targets = "_all",
+              render = DT::JS(
+                "function(data, type, row) {
+              if (data === null || data === '') {
+                  return '<span style=\"color: #999; font-style: italic;\">Not provided</span>';
+              }
+              return data;
             }"
-                    )
-                ))
-            ),
-            caption = caption,
-            rownames = FALSE,
-            class = 'cell-border stripe hover',
-            selection = 'single',
-            callback = JS("
-        table.on('click', 'tbody tr', function() {
-            // Clear previously selected rows
-            table.$('tr.selected').removeClass('selected');
-            
-            // Select this row
-            $(this).addClass('selected');
-            
-            // Get the row data
-            var rowData = table.row(this).data();
-            var residentName = rowData[0];
-            var residentLevel = rowData[1];
-            var accessCode = rowData[2];
-            var reviewRole = rowData[3];
-            var reviewPeriod = rowData[4];
-            
-            console.log('Selected resident: ' + residentName + ', Level: ' + residentLevel + 
-                        ', Access code: ' + accessCode + ', Review role: ' + reviewRole + 
-                        ', Period: ' + reviewPeriod);
-            
-            // Set input value for Shiny with Level, review role and period
-            Shiny.setInputValue('selected_resident_in_table', 
-                {
-                    name: residentName, 
-                    level: residentLevel,
-                    access_code: accessCode, 
-                    review_role: reviewRole, 
-                    review_period: reviewPeriod
-                }, 
-                {priority: 'event'});
-        });
-    ")
-        ) %>%
-            DT::formatStyle(
-                columns = names(data),
-                backgroundColor = '#f8f9fa',
-                borderColor = '#dfe2e5'
+              )
             )
-        
-        return(dt)
+          )
+        ),
+        caption = caption,
+        rownames = FALSE,
+        class = 'cell-border stripe hover',
+        selection = 'single',
+        callback = JS("
+      table.on('click', 'tbody tr', function() {
+          // Clear previously selected rows
+          table.$('tr.selected').removeClass('selected');
+          
+          // Select this row
+          $(this).addClass('selected');
+          
+          // Get the row data
+          var rowData = table.row(this).data();
+          var residentName = rowData[0];
+          var residentLevel = rowData[1];
+          var accessCode = rowData[2];
+          var reviewRole = rowData[3];
+          var reviewPeriod = rowData[4];
+          
+          console.log('Selected resident: ' + residentName + ', Level: ' + residentLevel + 
+                      ', Access code: ' + accessCode + ', Review role: ' + reviewRole + 
+                      ', Period: ' + reviewPeriod);
+          
+          // Set input value for Shiny with Level, review role and period
+          Shiny.setInputValue('selected_resident_in_table', 
+              {
+                  name: residentName, 
+                  level: residentLevel,
+                  access_code: accessCode, 
+                  review_role: reviewRole, 
+                  review_period: reviewPeriod
+              }, 
+              {priority: 'event'});
+      });
+    ")
+      ) %>%
+        DT::formatStyle(
+          columns = names(data)[1:5],  # Base formatting for non-status columns
+          backgroundColor = '#f8f9fa',
+          borderColor = '#dfe2e5'
+        ) %>%
+        # Center align the status columns
+        DT::formatStyle(
+          columns = c('Self-Eval', 'Primary Review', 'Secondary Review'),
+          textAlign = 'center'
+        )
+      
+      return(dt)
     }
     
     # Function to check self-evaluation completeness
     check_self_eval_complete <- function(s_miles_data, s_eval_data, resident_name, period, level) {
-        # Check if either miles data or eval data is available
-        if (is.null(s_miles_data) && is.null(s_eval_data)) {
-            return(FALSE)
-        }
-        
-        # Check milestone data (if available)
-        if (!is.null(s_miles_data)) {
-            # Filter for this resident, period, level
-            miles_filtered <- s_miles_data %>%
-                filter(name == resident_name, period == period, level == level)
-            
-            if (nrow(miles_filtered) > 0) {
-                # Check if most milestone fields are filled in
-                # This is a simplified placeholder - replace with your actual logic
-                return(TRUE)
-            }
-        }
-        
-        # Check self-eval data (if available)
-        if (!is.null(s_eval_data)) {
-            # Filter for this resident's self-eval data
-            eval_filtered <- s_eval_data %>%
-                filter(name == resident_name)
-            
-            # Additional period check if s_e_period field exists
-            if ("s_e_period" %in% names(eval_filtered)) {
-                eval_filtered <- eval_filtered %>% filter(s_e_period == period)
-            }
-            
-            if (nrow(eval_filtered) > 0) {
-                # Check if key fields have content
-                required_fields <- c("s_e_plus", "s_e_delta")
-                required_fields <- intersect(required_fields, names(eval_filtered))
-                
-                if (length(required_fields) > 0) {
-                    for (field in required_fields) {
-                        if (!is.na(eval_filtered[[field]][1]) && eval_filtered[[field]][1] != "") {
-                            return(TRUE)
-                        }
-                    }
-                }
-            }
-        }
-        
-        # Default: not complete
+      # Check if either miles data or eval data is available
+      if (is.null(s_miles_data) && is.null(s_eval_data)) {
         return(FALSE)
+      }
+      
+      # Check milestone data (if available)
+      if (!is.null(s_miles_data)) {
+        # Filter for this resident, period, level
+        miles_filtered <- s_miles_data %>%
+          filter(name == resident_name, period == period, level == level)
+        
+        if (nrow(miles_filtered) > 0) {
+          # Check if most milestone fields are filled in
+          # This is a simplified placeholder - replace with your actual logic
+          return(TRUE)
+        }
+      }
+      
+      # Check self-eval data (if available)
+      if (!is.null(s_eval_data)) {
+        # Filter for this resident's self-eval data
+        eval_filtered <- s_eval_data %>%
+          filter(name == resident_name)
+        
+        # Additional period check if s_e_period field exists
+        if ("s_e_period" %in% names(eval_filtered)) {
+          eval_filtered <- eval_filtered %>% filter(s_e_period == period)
+        }
+        
+        if (nrow(eval_filtered) > 0) {
+          # Check if key fields have content
+          required_fields <- c("s_e_plus", "s_e_delta")
+          required_fields <- intersect(required_fields, names(eval_filtered))
+          
+          if (length(required_fields) > 0) {
+            for (field in required_fields) {
+              if (!is.na(eval_filtered[[field]][1]) && eval_filtered[[field]][1] != "") {
+                return(TRUE)
+              }
+            }
+          }
+        }
+      }
+      
+      # Default: not complete
+      return(FALSE)
     }
     
     output$coach_residents_table <- DT::renderDataTable({
@@ -321,13 +331,13 @@ server <- function(input, output, session) {
             )
           )
         
+        message("Found ", nrow(coach_residents), " residents for coach ", input$coach_name)
+        
         # Create empty vectors to store various status indicators
         redcap_periods <- character(nrow(coach_residents))
         self_eval_statuses <- character(nrow(coach_residents))
         primary_review_statuses <- character(nrow(coach_residents))
         secondary_review_statuses <- character(nrow(coach_residents))
-        
-        message("Found ", nrow(coach_residents), " residents for coach ", input$coach_name)
         
         # Process each resident to determine completion statuses
         for (i in 1:nrow(coach_residents)) {
@@ -364,7 +374,6 @@ server <- function(input, output, session) {
             
             # Method 1: Check s_eval_complete indicator
             if ("s_eval_complete" %in% names(resident_data)) {
-              # Safely filter without using get()
               self_eval_rows <- resident_data[resident_data$name == res_name & 
                                                 !is.na(resident_data$s_eval_complete) & 
                                                 resident_data$s_eval_complete == "Complete", ]
@@ -377,7 +386,6 @@ server <- function(input, output, session) {
             
             # Method 2: Check for matching period with content
             if (!has_self_eval && "s_e_period" %in% names(resident_data)) {
-              # Manual filter for matching period
               period_rows <- resident_data[resident_data$name == res_name & 
                                              !is.na(resident_data$s_e_period) &
                                              resident_data$s_e_period == redcap_period, ]
@@ -386,7 +394,6 @@ server <- function(input, output, session) {
                 # Check key fields for content
                 for (field in c("s_e_plus", "s_e_delta")) {
                   if (field %in% names(period_rows)) {
-                    # Manual check for non-NA and non-empty values
                     for (row_idx in 1:nrow(period_rows)) {
                       if (!is.na(period_rows[[field]][row_idx]) && 
                           period_rows[[field]][row_idx] != "") {
@@ -403,10 +410,8 @@ server <- function(input, output, session) {
             
             # Method 3: Direct check for milestone data
             if (!has_self_eval) {
-              # Check if we have milestone data for this resident and period
               data <- app_data()
               if (!is.null(data$s_miles)) {
-                # Manual filter for milestone data
                 s_mile_rows <- data$s_miles[data$s_miles$name == res_name & 
                                               !is.na(data$s_miles$period) &
                                               data$s_miles$period == redcap_period, ]
@@ -419,9 +424,10 @@ server <- function(input, output, session) {
             }
           }
           
-          # Set the self-eval status
-          self_eval_statuses[i] <- if(has_self_eval) "✅" else "❌"
-          message("Final self-eval status for ", res_name, ": ", self_eval_statuses[i])
+          # Set the self-eval status using CSS classes
+          self_eval_statuses[i] <- if(has_self_eval) 
+            '<div class="status-dot status-complete"></div>' else 
+              '<div class="status-dot status-incomplete"></div>'
           
           # ----------------------------------------
           # Check primary review completion status
@@ -430,7 +436,6 @@ server <- function(input, output, session) {
           
           # Method 1: Check coach_rev_complete status for exact period match
           if ("coach_rev_complete" %in% names(resident_data) && "coach_period" %in% names(resident_data)) {
-            # Manual filter for completed reviews
             complete_rows <- resident_data[resident_data$name == res_name & 
                                              !is.na(resident_data$coach_period) &
                                              resident_data$coach_period == as.character(coach_period) &
@@ -445,17 +450,14 @@ server <- function(input, output, session) {
           
           # Method 2: Check for content in key coach_rev fields for exact period match
           if (!has_primary_review && "coach_period" %in% names(resident_data)) {
-            # Manual filter for matching period
             period_rows <- resident_data[resident_data$name == res_name & 
                                            !is.na(resident_data$coach_period) &
                                            resident_data$coach_period == as.character(coach_period), ]
             
             if (nrow(period_rows) > 0) {
-              # Check key fields for content
               key_fields <- c("coach_ilp_final", "coach_summary", "coach_pre_rev")
               for (field in key_fields) {
                 if (field %in% names(period_rows)) {
-                  # Manual check for non-NA and non-empty values
                   for (row_idx in 1:nrow(period_rows)) {
                     if (!is.na(period_rows[[field]][row_idx]) && 
                         period_rows[[field]][row_idx] != "") {
@@ -511,9 +513,10 @@ server <- function(input, output, session) {
             }
           }
           
-          # Set primary review status
-          primary_review_statuses[i] <- if(has_primary_review) "✅" else "❌"
-          message("Primary review status for ", res_name, ": ", primary_review_statuses[i])
+          # Set primary review status using CSS classes
+          primary_review_statuses[i] <- if(has_primary_review) 
+            '<div class="status-dot status-complete"></div>' else 
+              '<div class="status-dot status-incomplete"></div>'
           
           # ----------------------------------------
           # Check secondary review completion status
@@ -522,7 +525,6 @@ server <- function(input, output, session) {
           
           # Method 1: Check second_rev_complete status for exact period match
           if ("second_rev_complete" %in% names(resident_data) && "second_period" %in% names(resident_data)) {
-            # Manual filter for completed secondary reviews
             complete_rows <- resident_data[resident_data$name == res_name & 
                                              !is.na(resident_data$second_period) &
                                              resident_data$second_period == as.character(coach_period) &
@@ -537,17 +539,14 @@ server <- function(input, output, session) {
           
           # Method 2: Check for content in key second_review fields for exact period match
           if (!has_secondary_review && "second_period" %in% names(resident_data)) {
-            # Manual filter for matching period
             period_rows <- resident_data[resident_data$name == res_name & 
                                            !is.na(resident_data$second_period) &
                                            resident_data$second_period == as.character(coach_period), ]
             
             if (nrow(period_rows) > 0) {
-              # Check key fields for content
               key_fields <- c("second_comments", "second_approve", "second_miles_comment")
               for (field in key_fields) {
                 if (field %in% names(period_rows)) {
-                  # Manual check for non-NA and non-empty values
                   for (row_idx in 1:nrow(period_rows)) {
                     if (!is.na(period_rows[[field]][row_idx]) && 
                         period_rows[[field]][row_idx] != "") {
@@ -587,16 +586,23 @@ server <- function(input, output, session) {
             }
           }
           
-          # Set secondary review status
-          secondary_review_statuses[i] <- if(has_secondary_review) "✅" else "❌"
-          message("Secondary review status for ", res_name, ": ", secondary_review_statuses[i])
-        }
+          # Set secondary review status using CSS classes
+          secondary_review_statuses[i] <- if(has_secondary_review) 
+            '<div class="status-dot status-complete"></div>' else 
+              '<div class="status-dot status-incomplete"></div>'
+          
+          message("Primary review status for ", res_name, ": ", 
+                  if(has_primary_review) "COMPLETE" else "INCOMPLETE")
+          message("Secondary review status for ", res_name, ": ", 
+                  if(has_secondary_review) "COMPLETE" else "INCOMPLETE")
+          
+        } # End of the for loop that processes each resident
         
         # Add all status columns to the data frame
         coach_residents$self_eval_status <- self_eval_statuses
         coach_residents$primary_review_status <- primary_review_statuses
         coach_residents$secondary_review_status <- secondary_review_statuses
-        coach_residents$redcap_period <- redcap_periods  # Add the REDCap period
+        coach_residents$redcap_period <- redcap_periods
         
         # Select columns for display
         coach_residents <- coach_residents %>%
@@ -607,37 +613,14 @@ server <- function(input, output, session) {
                      "Self-Eval", "Primary Review", "Secondary Review"))
         
         if (nrow(coach_residents) > 0) {
-          # Create table with click handling and formatted columns
+          # Create table with click handling and return it
           return(datatable_with_click(
             coach_residents, 
             caption = paste0("Residents Assigned to ", input$coach_name)
-          ) %>%
-            # Apply styling to status columns
-            DT::formatStyle(
-              'Self-Eval',
-              color = styleEqual(c("✅", "❌"), c('#155724', '#721c24')),
-              backgroundColor = styleEqual(c("✅", "❌"), c('#d4edda', '#f8d7da')),
-              fontWeight = 'bold',
-              textAlign = 'center'
-            ) %>%
-            DT::formatStyle(
-              'Primary Review',
-              color = styleEqual(c("✅", "❌"), c('#155724', '#721c24')),
-              backgroundColor = styleEqual(c("✅", "❌"), c('#d4edda', '#f8d7da')),
-              fontWeight = 'bold',
-              textAlign = 'center'
-            ) %>%
-            DT::formatStyle(
-              'Secondary Review',
-              color = styleEqual(c("✅", "❌"), c('#155724', '#721c24')),
-              backgroundColor = styleEqual(c("✅", "❌"), c('#d4edda', '#f8d7da')),
-              fontWeight = 'bold',
-              textAlign = 'center'
-            )
-          )
+          ))
         }
       } else {
-        # Error messages for debugging
+        # Error messages for debugging - MOVED INSIDE THE ELSE BLOCK
         if (is.null(resident_data)) {
           message("resident_data is NULL")
         } else if (!is.data.frame(resident_data)) {
@@ -649,7 +632,7 @@ server <- function(input, output, session) {
         }
       }
       
-      # Return empty datatable if no data found
+      # Return empty datatable if no data found - MOVED OUTSIDE THE IF BLOCK
       return(datatable_with_click(
         data.frame(
           `Resident Name` = character(0),
@@ -664,77 +647,6 @@ server <- function(input, output, session) {
         caption = paste0("No residents found for ", input$coach_name)
       ))
     })
-    
-    # Updated datatable_with_click helper function to include the status columns
-    datatable_with_click <- function(data, caption = NULL) {
-        # Base DT with click handling
-        dt <- DT::datatable(
-            data,
-            options = list(
-                pageLength = 10,
-                dom = 'ftp',
-                scrollX = TRUE,
-                columnDefs = list(
-                    # Make status columns narrower
-                    list(width = "80px", targets = c(5, 6, 7)),  # Targets the status columns
-                    list(
-                        targets = "_all",
-                        render = DT::JS(
-                            "function(data, type, row) {
-              if (data === null || data === '') {
-                  return '<span style=\"color: #999; font-style: italic;\">Not provided</span>';
-              }
-              return data;
-            }"
-                        )
-                    )
-                )
-            ),
-            caption = caption,
-            rownames = FALSE,
-            class = 'cell-border stripe hover',
-            selection = 'single',
-            callback = JS("
-      table.on('click', 'tbody tr', function() {
-          // Clear previously selected rows
-          table.$('tr.selected').removeClass('selected');
-          
-          // Select this row
-          $(this).addClass('selected');
-          
-          // Get the row data
-          var rowData = table.row(this).data();
-          var residentName = rowData[0];
-          var residentLevel = rowData[1];
-          var accessCode = rowData[2];
-          var reviewRole = rowData[3];
-          var reviewPeriod = rowData[4];
-          
-          console.log('Selected resident: ' + residentName + ', Level: ' + residentLevel + 
-                      ', Access code: ' + accessCode + ', Review role: ' + reviewRole + 
-                      ', Period: ' + reviewPeriod);
-          
-          // Set input value for Shiny with Level, review role and period
-          Shiny.setInputValue('selected_resident_in_table', 
-              {
-                  name: residentName, 
-                  level: residentLevel,
-                  access_code: accessCode, 
-                  review_role: reviewRole, 
-                  review_period: reviewPeriod
-              }, 
-              {priority: 'event'});
-      });
-    ")
-        ) %>%
-            DT::formatStyle(
-                columns = names(data)[1:5],  # Base formatting for non-status columns
-                backgroundColor = '#f8f9fa',
-                borderColor = '#dfe2e5'
-            )
-        
-        return(dt)
-    }
     
     # Handle resident selection in the coach residents table
     observeEvent(input$selected_resident_in_table, {

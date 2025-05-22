@@ -217,6 +217,20 @@
   max-width: 1200px;
 }
 
+    .status-dot {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin: 0 auto;
+    }
+    .status-complete {
+      background-color: #28a745;
+    }
+    .status-incomplete {
+      background-color: #dc3545;
+    }
+
 /* Style for the plus/delta sections */
 #resident_plus_assessment, #resident_delta_assessment {
   background-color: #f8f9fa;
