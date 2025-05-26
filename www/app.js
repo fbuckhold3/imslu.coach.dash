@@ -90,3 +90,37 @@ function handleCoachSelection() {
     $("#residents_table_container").hide();
   }
 }
+
+js_code_to_add <- '
+// Handle secondary review form validation
+function validateSecondaryReview() {
+  const comments = $("#secondary_coach_comments").val();
+  const approval = $("input[name=\'approve_milestones\']:checked").val();
+  const concerns = $("#milestone_concerns").val();
+  
+  let isValid = true;
+  let errors = [];
+  
+  if (!comments || comments.trim() === "") {
+    errors.push("Comments are required");
+    $("#secondary_coach_comments").addClass("is-invalid");
+  } else {
+    $("#secondary_coach_comments").removeClass("is-invalid");
+  }
+  
+  if (!approval) {
+    errors.push("Milestone approval is required");
+  }
+  
+  if (approval === "no" && (!concerns || concerns.trim() === "")) {
+    errors.push("Explanation of concerns is required when disagreeing with milestones");
+    $("#milestone_concerns").addClass("is-invalid");
+  } else {
+    $("#milestone_concerns").removeClass("is-invalid");
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors: errors
+  };
+}

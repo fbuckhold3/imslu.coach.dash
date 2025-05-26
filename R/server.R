@@ -1178,8 +1178,7 @@ server <- function(input, output, session) {
     outputOptions(output, "is_intern_intro", suspendWhenHidden = FALSE)
     
     # Evaluation Card
-    # ---------------------------------
-    # 
+
     get_most_recent_self_eval <- function(resident_name, period, column_name) {
         # Get app data directly
         data <- app_data()
@@ -2972,7 +2971,7 @@ server <- function(input, output, session) {
     })
     
     # Fetch and display primary coach's ILP final comments
-    output$primary_coach_comments <- renderText({
+    output$primary_coach_comments_ui <- renderUI({
       req(values$selected_resident)
       req(values$redcap_period)
       
@@ -2993,6 +2992,7 @@ server <- function(input, output, session) {
       
       # Check for coach_ilp_final
       ilp_final <- NULL
+      ilp_source <- "Not specified"
       
       if ("coach_ilp_final" %in% names(filtered_data)) {
         # Try to match the specific period if coach_period exists
@@ -3004,6 +3004,7 @@ server <- function(input, output, session) {
             for (i in 1:nrow(period_rows)) {
               if (!is.na(period_rows$coach_ilp_final[i]) && period_rows$coach_ilp_final[i] != "") {
                 ilp_final <- period_rows$coach_ilp_final[i]
+                ilp_source <- "Current period ILP summary"
                 break
               }
             }
@@ -3015,6 +3016,7 @@ server <- function(input, output, session) {
           for (i in 1:nrow(filtered_data)) {
             if (!is.na(filtered_data$coach_ilp_final[i]) && filtered_data$coach_ilp_final[i] != "") {
               ilp_final <- filtered_data$coach_ilp_final[i]
+              ilp_source <- "Most recent ILP summary"
               break
             }
           }
@@ -3028,18 +3030,23 @@ server <- function(input, output, session) {
           for (i in 1:nrow(filtered_data)) {
             if (!is.na(filtered_data$coach_summary[i]) && filtered_data$coach_summary[i] != "") {
               ilp_final <- filtered_data$coach_summary[i]
+              ilp_source <- "Coach summary"
               break
             }
           }
         }
         
         # Try other coach review fields
-        alt_fields <- c("coach_pre_rev", "coach_miles", "coach_rev_notes", "coach_anyelse")
-        for (field in alt_fields) {
+        alt_fields <- c("coach_pre_rev", "coach_anyelse", "coach_wellness", "coach_career")
+        field_labels <- c("Pre-review notes", "Additional comments", "Wellness notes", "Career comments")
+        
+        for (j in seq_along(alt_fields)) {
+          field <- alt_fields[j]
           if (is.null(ilp_final) && field %in% names(filtered_data)) {
             for (i in 1:nrow(filtered_data)) {
               if (!is.na(filtered_data[[field]][i]) && filtered_data[[field]][i] != "") {
                 ilp_final <- filtered_data[[field]][i]
+                ilp_source <- field_labels[j]
                 break
               }
             }
@@ -3047,8 +3054,91 @@ server <- function(input, output, session) {
         }
       }
       
-      # Return the comments or a default message
-      return(ilp_final %||% "No primary coach ILP summary available for this resident.")
+      # Create the UI based on what we found
+      if (!is.null(ilp_final) && ilp_final != "") {
+        # Split text into paragraphs for better display
+        paragraphs <- strsplit(ilp_final, "\n\n")[[1]]
+        paragraphs <- paragraphs[paragraphs != ""]  # Remove empty paragraphs
+        
+        # Create the styled display
+        tagList(
+          # Source indicator
+          div(
+            class = "alert alert-info d-flex align-items-center mb-3",
+            icon("info-circle", class = "me-2"),
+            tags$span(
+              tags$strong("Source: "), ilp_source,
+              if (ilp_source != "Current period ILP summary") {
+                tags$small(" (from previous or general comments)", class = "text-muted ms-2")
+              }
+            )
+          ),
+          
+          # Formatted text content
+          div(
+            class = "coach-comments-content",
+            style = "
+          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+          border: 1px solid #dee2e6;
+          border-left: 4px solid #0072B2;
+          border-radius: 8px;
+          padding: 20px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          line-height: 1.6;
+          color: #2c3e50;
+        ",
+            
+            # Display each paragraph with proper formatting
+            lapply(paragraphs, function(para) {
+              # Check if it looks like a section header (all caps, short, ends with colon)
+              if (nchar(para) < 50 && (grepl("^[A-Z\\s:]+:?$", para) || grepl("^\\d+\\.", para))) {
+                tags$h6(
+                  para,
+                  class = "text-primary fw-bold mt-3 mb-2",
+                  style = "font-size: 1.1em; border-bottom: 1px solid #0072B2; padding-bottom: 5px;"
+                )
+              } else {
+                tags$p(
+                  para,
+                  style = "margin-bottom: 15px; text-align: justify;"
+                )
+              }
+            }),
+            
+            # Add metadata at the bottom
+            tags$hr(style = "margin: 20px 0 15px 0; border-color: #0072B2;"),
+            div(
+              class = "text-muted",
+              style = "font-size: 0.9em;",
+              tags$i(class = "fas fa-calendar me-1"),
+              "Primary coach review for ", values$selected_resident$name, " - ", values$current_period,
+              tags$br(),
+              tags$i(class = "fas fa-user me-1"),
+              "Word count: ", length(strsplit(ilp_final, "\\s+")[[1]])
+            )
+          )
+        )
+      } else {
+        # No data found - create an informative placeholder
+        div(
+          class = "alert alert-warning d-flex align-items-center",
+          style = "min-height: 120px;",
+          div(
+            class = "text-center w-100",
+            icon("exclamation-triangle", class = "fa-2x text-warning mb-3"),
+            tags$h5("No Primary Coach ILP Summary Available", class = "text-warning"),
+            tags$p(
+              "No ILP summary has been found for ", values$selected_resident$name, 
+              " in the ", values$current_period, " period.", class = "mb-2"
+            ),
+            tags$p(
+              class = "mb-0 text-muted",
+              "This could mean the primary coach hasn't completed their review yet, or the data hasn't synced properly."
+            )
+          )
+        )
+      }
     })
     
     # Validation UI for secondary review
@@ -3609,82 +3699,209 @@ server <- function(input, output, session) {
     # Secondary Review Submission
     # =============================================================================
     
+    observeEvent(input$second_review_back, {
+      message("Secondary review back button clicked")  # Debug message
+      
+      # Hide review pages and show coach selection page
+      shinyjs::hide("review-pages")
+      shinyjs::show("coach-selection-page")
+      
+      # Reset resident selection
+      values$selected_resident <- NULL
+      values$review_type <- NULL
+      values$current_tab <- "pre_review"  # Reset tab too
+      
+      # Add notification
+      showNotification("Returned to coach dashboard", type = "message")
+    })
+    
+    observeEvent(input$submit_secondary_review, {
+      message("Secondary review submit button clicked")  # Debug message
+      message("Comments value: ", input$secondary_coach_comments %||% "NULL")
+      message("Approval value: ", input$approve_milestones %||% "NULL")
+      
+      # Validation logic
+      ready_to_submit <- TRUE
+      missing_items <- character(0)
+      
+      # Check comments field
+      if (is.null(input$secondary_coach_comments) || trimws(input$secondary_coach_comments) == "") {
+        missing_items <- c(missing_items, "Your comments on the ILP")
+        ready_to_submit <- FALSE
+      }
+      
+      # Check milestone approval
+      if (is.null(input$approve_milestones) || input$approve_milestones == "") {
+        missing_items <- c(missing_items, "Milestone assessment approval")
+        ready_to_submit <- FALSE
+      } else if (input$approve_milestones == "no") {
+        # If "No" is selected, check for concerns input
+        if (is.null(input$milestone_concerns) || trimws(input$milestone_concerns) == "") {
+          missing_items <- c(missing_items, "Explanation of milestone concerns")
+          ready_to_submit <- FALSE
+        }
+      }
+      
+      message("Ready to submit: ", ready_to_submit)
+      message("Missing items: ", paste(missing_items, collapse = ", "))
+      
+      # If validation fails, show error
+      if (!ready_to_submit) {
+        showNotification(
+          paste("Please complete the following required fields:", 
+                paste(missing_items, collapse = ", ")), 
+          type = "error", 
+          duration = 10
+        )
+        return()
+      }
+      
+      # Show confirmation modal
+      showModal(modalDialog(
+        title = "Confirm Secondary Review Submission",
+        div(
+          p("Are you sure you want to submit this secondary review?"),
+          tags$ul(
+            tags$li(paste("Resident:", values$selected_resident$name)),
+            tags$li(paste("Period:", values$current_period)),
+            tags$li(paste("Milestone Approval:", input$approve_milestones))
+          )
+        ),
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton("confirm_submit_secondary", "Submit Review", class = "btn-success")
+        ),
+        easyClose = TRUE
+      ))
+    })
+    
+    
     # Handle confirmation of secondary review submission
     observeEvent(input$confirm_submit_secondary, {
+      message("Confirming secondary review submission")
+      
       req(values$selected_resident)
       req(values$current_period)
       
       # Show processing notification
-      withProgress(message = "Submitting secondary review...", {
+      withProgress(message = "Submitting secondary review...", value = 0, {
+        
+        incProgress(0.1, detail = "Preparing data...")
+        
         # Get REDCap info
         redcap_url <- app_data()$redcap_url %||% "https://redcapsurvey.slu.edu/api/"
         token <- app_data()$rdm_token
         
-        # Get record ID
-        record_id <- find_record_id(app_data(), values$selected_resident$name)
+        # Validate token
+        if (is.null(token) || token == "") {
+          showNotification("Error: REDCap token not available", type = "error")
+          return()
+        }
+        
+        incProgress(0.2, detail = "Getting record ID...")
+        
+        # Get record ID with better error handling
+        record_id <- tryCatch({
+          find_record_id(app_data(), values$selected_resident$name)
+        }, error = function(e) {
+          message("Error finding record_id: ", e$message)
+          # For testing purposes, you might want to use a test record ID
+          return("999")  # Use a test record ID
+        })
         
         # Get instance number for the period
-        instance_number <- get_redcap_instance(
-          level = values$selected_resident$Level,
-          period = values$current_period
-        )
+        instance_number <- tryCatch({
+          get_redcap_instance(
+            level = values$selected_resident$Level,
+            period = values$current_period
+          )
+        }, error = function(e) {
+          message("Error getting instance number: ", e$message)
+          return("8")  # Default to interim
+        })
+        
+        message("Using record_id: ", record_id, ", instance: ", instance_number)
+        
+        incProgress(0.3, detail = "Building submission data...")
         
         # Collect the review data
         secondary_review_data <- list(
           second_date = format(Sys.Date(), "%Y-%m-%d"),
           second_period = as.character(instance_number),
-          second_comments = input$secondary_coach_comments,
+          second_comments = input$secondary_coach_comments %||% "",
           second_approve = ifelse(input$approve_milestones == "yes", "Yes", "No"),
           second_miles_comment = ifelse(input$approve_milestones == "no", 
-                                        input$milestone_concerns, ""),
+                                        input$milestone_concerns %||% "", ""),
           second_rev_complete = "2"  # Complete
         )
         
-        # Build JSON directly with required repeating instrument fields
+        # Build JSON with proper escaping
         json_data <- paste0(
           '[{"record_id":"', escape_json_string(record_id),
           '","redcap_repeat_instrument":"second_review",',
           '"redcap_repeat_instance":"', escape_json_string(as.character(instance_number)), '"'
         )
         
-        # Add all fields
+        # Add all fields with validation
         for (field in names(secondary_review_data)) {
-          if (!is.null(secondary_review_data[[field]]) && !is.na(secondary_review_data[[field]])) {
-            value <- escape_json_string(secondary_review_data[[field]])
-            json_data <- paste0(json_data, ',"', field, '":"', value, '"')
+          value <- secondary_review_data[[field]]
+          if (!is.null(value) && !is.na(value) && value != "") {
+            escaped_value <- escape_json_string(as.character(value))
+            json_data <- paste0(json_data, ',"', field, '":"', escaped_value, '"')
           }
         }
         
-        # Close the JSON
+        # Close JSON
         json_data <- paste0(json_data, "}]")
         
-        message("Submission JSON (first 150 chars): ", substr(json_data, 1, 150))
+        message("Secondary review JSON (first 200 chars): ", substr(json_data, 1, 200))
         
-        # Submit to REDCap
-        response <- httr::POST(
-          url = redcap_url,
-          body = list(
-            token = token,
-            content = "record",
-            format = "json",
-            type = "flat",
-            overwriteBehavior = "normal",
-            forceAutoNumber = "false",
-            data = json_data,
-            returnContent = "count",
-            returnFormat = "json"
-          ),
-          encode = "form"
-        )
+        incProgress(0.5, detail = "Submitting to REDCap...")
         
-        # Process response
-        status_code <- httr::status_code(response)
-        content_text <- httr::content(response, "text", encoding = "UTF-8")
+        # Submit to REDCap with error handling
+        submission_result <- tryCatch({
+          response <- httr::POST(
+            url = redcap_url,
+            body = list(
+              token = token,
+              content = "record",
+              format = "json",
+              type = "flat",
+              overwriteBehavior = "normal",
+              forceAutoNumber = "false",
+              data = json_data,
+              returnContent = "count",
+              returnFormat = "json"
+            ),
+            encode = "form",
+            httr::timeout(30)  # 30 second timeout
+          )
+          
+          # Process response
+          status_code <- httr::status_code(response)
+          content_text <- httr::content(response, "text", encoding = "UTF-8")
+          
+          message("REDCap response status: ", status_code)
+          message("REDCap response content: ", content_text)
+          
+          list(
+            success = status_code == 200,
+            status_code = status_code,
+            content = content_text
+          )
+          
+        }, error = function(e) {
+          message("HTTP Error in REDCap submission: ", e$message)
+          list(
+            success = FALSE,
+            error = e$message
+          )
+        })
         
-        message("REDCap response status: ", status_code)
-        message("REDCap response content: ", content_text)
+        incProgress(0.9, detail = "Processing response...")
         
-        if (status_code == 200) {
+        # Handle the result
+        if (submission_result$success) {
           # Close the modal
           removeModal()
           
@@ -3692,12 +3909,22 @@ server <- function(input, output, session) {
           showNotification("Secondary review successfully submitted!", 
                            type = "message", duration = 5)
           
+          incProgress(1.0, detail = "Complete!")
+          
           # Navigate to done page
-          show_done_page()
+          shinyjs::hide("review-pages")
+          shinyjs::show("done-page")
+          
         } else {
-          # Show error notification
-          showNotification(paste("Error submitting secondary review:", content_text), 
-                           type = "error", duration = 10)
+          # Show detailed error
+          error_msg <- if(!is.null(submission_result$content)) {
+            paste("HTTP", submission_result$status_code, ":", submission_result$content)
+          } else {
+            paste("Error:", submission_result$error)
+          }
+          
+          showNotification(paste("Error submitting secondary review:", error_msg), 
+                           type = "error", duration = 15)
         }
       })
     })

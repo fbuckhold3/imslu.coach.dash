@@ -315,3 +315,62 @@
   padding: 15px;
   border-radius: 5px;
 }
+
+/* Enhanced styling for secondary review */
+.coach-comments-content p {
+  text-indent: 0;
+}
+
+.coach-comments-content h6 {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.secondary-comments-container textarea {
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.5;
+  transition: border-color 0.3s ease;
+}
+
+.secondary-comments-container textarea:focus {
+  border-color: #0072B2;
+  box-shadow: 0 0 0 0.2rem rgba(0, 114, 178, 0.25);
+  outline: none;
+}
+
+.primary-coach-summary-container {
+  max-height: none; /* Remove height restriction */
+}
+
+/* Improve the overall card appearance */
+.card-header .d-flex h5 {
+  color: #0072B2;
+  font-weight: 600;
+}
+
+.badge.bg-warning {
+  font-size: 0.7em;
+  padding: 0.25em 0.5em;
+}
+
+/* Better spacing for the milestone approval section */
+.alert.alert-warning {
+  border-left: 4px solid #ffc107;
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+}
+
+/* Improve radio button styling */
+.form-check-input[type="radio"] {
+  width: 1.2em;
+  height: 1.2em;
+  margin-top: 0.15em;
+}
+
+.form-check-label {
+  font-weight: 500;
+  color: #2c3e50;
+  margin-left: 0.5em;
+}

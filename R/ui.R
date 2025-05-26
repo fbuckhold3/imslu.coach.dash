@@ -802,29 +802,42 @@ ui <- page_fluid(
             
             # Primary coach's ILP final comments
             card(
-              card_header("Primary Coach's ILP Summary"),
+              card_header(
+                div(
+                  class = "d-flex justify-content-between align-items-center",
+                  tags$h5("Primary Coach's ILP Summary", class = "mb-0"),
+                  tags$small("Review the primary coach's assessment", class = "text-muted")
+                )
+              ),
               card_body(
-                tags$div(
-                  id = "primary_coach_comments_container",
-                  class = "p-3 bg-light rounded border",
-                  style = "white-space: pre-wrap; max-height: 300px; overflow-y: auto;",
-                  verbatimTextOutput("primary_coach_comments")
+                # Improved display for primary coach comments
+                div(
+                  class = "primary-coach-summary-container",
+                  uiOutput("primary_coach_comments_ui")  # Changed from verbatimTextOutput
                 ),
                 
-                # Secondary coach's comments section
+                # Secondary coach's comments section - also improved
                 div(
                   class = "mt-4",
-                  tags$h5("Your Comments on the ILP"),
-                  textAreaInput(
-                    "secondary_coach_comments", 
-                    label = NULL,
-                    rows = 5,
-                    width = "100%",
-                    placeholder = "Enter your comments about the resident's Individualized Learning Plan and the primary coach's assessment..."
+                  div(
+                    class = "d-flex align-items-center mb-3",
+                    tags$h5("Your Comments on the ILP", class = "mb-0 me-3"),
+                    tags$small("Required", class = "badge bg-warning text-dark")
+                  ),
+                  div(
+                    class = "secondary-comments-container",
+                    textAreaInput(
+                      "secondary_coach_comments", 
+                      label = NULL,
+                      rows = 6,  # Increased from 5
+                      width = "100%",
+                      placeholder = "Enter your detailed comments about the resident's Individualized Learning Plan and the primary coach's assessment. Consider:\n\n• Do you agree with the primary coach's assessment?\n• Are there additional observations or concerns?\n• What recommendations do you have?\n• Are there resources the resident needs?"
+                    )
                   )
                 )
               )
             ),
+            
             
             # Milestone approval section
             card(
