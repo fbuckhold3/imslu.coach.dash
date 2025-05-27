@@ -113,20 +113,19 @@ get_current_period <- function(current_date = Sys.Date()) {
   }
 }
 
-#' Map Period and Level to Various Formats
+#' Map Period and Level to Various Formats - FIXED VERSION
 #'
 #' Maps the app's period and resident level to different formats used in the app
+#' Now handles the Graduation/Graduating inconsistency properly
 #'
 #' @param level The resident level (Intern, PGY2, PGY3)
 #' @param period The app period (Intern Intro, Mid Review, End Review)
-#' @param return_type What format to return ("instance", "milestone", "readable")
+#' @param return_type What format to return ("instance", "milestone", "readable", "ccc")
+#' @param form_context The REDCap form context to determine correct period name
 #'
 #' @return The mapped value in the requested format
 #' @export
-map_period_format <- function(level, period, return_type = "instance") {
-  # Debug output
-  message(paste("map_period_format called with level:", level, "period:", period, "return_type:", return_type))
-  
+map_period_format <- function(level, period, return_type = "instance", form_context = "milestone") {
   # Handle NA or missing values
   if (is.null(level) || is.na(level)) {
     level <- "Intern"  # Default to Intern if level is missing
@@ -135,146 +134,88 @@ map_period_format <- function(level, period, return_type = "instance") {
   
   if (is.null(period) || is.na(period)) {
     if (return_type == "instance") return(8)  # Default to Interim
-    if (return_type == "milestone" || return_type == "readable") return(NA)
+    if (return_type == "milestone" || return_type == "readable" || return_type == "ccc") return(NA)
   }
   
-  # Define mappings - EXPANDED to include both app format and readable format
+  # Define mappings with form-specific handling for final period
   mappings <- list(
     "Intern" = list(
-      # App format periods
       "Intern Intro" = list(
         instance = 7,
         milestone = "Intern Intro",
-        readable = "Intern Intro"
+        readable = "Intern Intro",
+        ccc = "Intern Intro"
       ),
       "Mid Review" = list(
         instance = 1,
         milestone = "Mid Intern",
-        readable = "Mid Intern"
+        readable = "Mid Intern",
+        ccc = "Mid Intern"
       ),
       "End Review" = list(
         instance = 2,
         milestone = "End Intern",
-        readable = "End Intern"
-      ),
-      # Milestone/readable format periods
-      "Intern Intro" = list(
-        instance = 7,
-        milestone = "Intern Intro",
-        readable = "Intern Intro"
-      ),
-      "Mid Intern" = list(
-        instance = 1,
-        milestone = "Mid Intern",
-        readable = "Mid Intern"
-      ),
-      "End Intern" = list(
-        instance = 2,
-        milestone = "End Intern",
-        readable = "End Intern"
+        readable = "End Intern",
+        ccc = "End Intern"
       )
     ),
     "PGY2" = list(
-      # App format periods
-      "Intern Intro" = list(  # This combination doesn't make logical sense, but included for completeness
+      "Intern Intro" = list(
         instance = 8,
         milestone = NA,
-        readable = NA
+        readable = NA,
+        ccc = NA
       ),
       "Mid Review" = list(
         instance = 3,
         milestone = "Mid PGY2",
-        readable = "Mid PGY2"
+        readable = "Mid PGY2",
+        ccc = "Mid PGY2"
       ),
       "End Review" = list(
         instance = 4,
         milestone = "End PGY2",
-        readable = "End PGY2"
-      ),
-      # Milestone/readable format periods
-      "Mid PGY2" = list(
-        instance = 3,
-        milestone = "Mid PGY2",
-        readable = "Mid PGY2"
-      ),
-      "End PGY2" = list(
-        instance = 4,
-        milestone = "End PGY2",
-        readable = "End PGY2"
+        readable = "End PGY2",
+        ccc = "End PGY2"
       )
     ),
     "PGY3" = list(
-      # App format periods
-      "Intern Intro" = list(  # This combination doesn't make logical sense, but included for completeness
+      "Intern Intro" = list(
         instance = 8,
         milestone = NA,
-        readable = NA
+        readable = NA,
+        ccc = NA
       ),
       "Mid Review" = list(
         instance = 5,
         milestone = "Mid PGY3",
-        readable = "Mid PGY3"
+        readable = "Mid PGY3",
+        ccc = "Mid PGY3"
       ),
       "End Review" = list(
         instance = 6,
-        milestone = "Graduation",
-        readable = "Graduation"
-      ),
-      # Milestone/readable format periods
-      "Mid PGY3" = list(
-        instance = 5,
-        milestone = "Mid PGY3",
-        readable = "Mid PGY3"
-      ),
-      "Graduation" = list(
-        instance = 6,
-        milestone = "Graduation",
-        readable = "Graduation"
+        # FIXED: Use form context to determine correct term
+        milestone = if(form_context %in% c("ccc_review", "second_review")) "Graduation" else "Graduating",
+        readable = if(form_context %in% c("ccc_review", "second_review")) "Graduation" else "Graduating",
+        ccc = "Graduation"  # CCC always uses "Graduation"
       )
     )
   )
   
   # Look up the mapping
   if (level %in% names(mappings) && period %in% names(mappings[[level]])) {
-    result <- mappings[[level]][[period]][[return_type]]
-    message(paste("Found mapping:", result))
-    return(result)
+    return(mappings[[level]][[period]][[return_type]])
   } else {
-    # Special case handling for periods in a different format
-    # If period ends with a level name (e.g., "End PGY2"), try to extract the period type
-    period_components <- strsplit(period, " ")[[1]]
-    if (length(period_components) >= 2) {
-      period_type <- period_components[1]  # e.g., "End" or "Mid"
-      
-      # Try with the standard app format period
-      if (period_type %in% c("End", "Mid")) {
-        app_period <- paste0(period_type, " Review")
-        if (level %in% names(mappings) && app_period %in% names(mappings[[level]])) {
-          result <- mappings[[level]][[app_period]][[return_type]]
-          message(paste("Found mapping via period type conversion:", result))
-          return(result)
-        }
-      }
-    }
-    
-    # Handle numeric instance directly
-    if (is.numeric(period) || (is.character(period) && !is.na(as.numeric(period)))) {
-      num_period <- as.numeric(period)
-      if (num_period >= 1 && num_period <= 7) {
-        message(paste("Using numeric period directly:", num_period))
-        return(num_period)  # If period is a valid REDCap instance number, return it directly
-      }
-    }
-    
-    # Default case - with warning
+    # Default case
     warning(paste("No mapping found for level:", level, "and period:", period))
-    if (return_type == "instance") return(8)  # Default to Interim (8)
+    if (return_type == "instance") return(8)  # Default to Interim
     return(NA)
   }
 }
 
+
 # Function to get the previous period based on current period and resident level
-get_previous_period <- function(current_period, resident_level) {
+get_previous_period <- function(current_period, resident_level, form_context = "milestone") {
   # First convert to a standard format - the "readable" format
   readable_period <- NULL
   
@@ -290,23 +231,32 @@ get_previous_period <- function(current_period, resident_level) {
     } else if (current_period == "End Review") {
       if (resident_level == "Intern") readable_period <- "End Intern"
       else if (resident_level == "PGY2") readable_period <- "End PGY2"
-      else if (resident_level == "PGY3" || resident_level == "Graduating") readable_period <- "Graduation"
+      else if (resident_level == "PGY3") {
+        # FIXED: Use form context to determine correct term
+        readable_period <- if(form_context %in% c("ccc_review", "second_review")) "Graduation" else "Graduating"
+      }
     }
   } else if (current_period %in% c("1", "2", "3", "4", "5", "6", "7")) {
-    # CCC format - use mapping
+    # CCC format - use mapping with form context
     ccc_to_readable <- c(
       "1" = "Mid Intern",
       "2" = "End Intern",
-      "3" = "Mid PGY2",
+      "3" = "Mid PGY2", 
       "4" = "End PGY2",
       "5" = "Mid PGY3",
-      "6" = "Graduation",
+      "6" = if(form_context %in% c("ccc_review", "second_review")) "Graduation" else "Graduating",
       "7" = "Intern Intro"
     )
     readable_period <- ccc_to_readable[current_period]
   } else {
-    # Assume it's already in readable format
-    readable_period <- current_period
+    # Assume it's already in readable format - but normalize Graduation/Graduating
+    if (current_period == "Graduation" && form_context %in% c("milestone", "s_eval", "ilp", "coach_rev")) {
+      readable_period <- "Graduating"
+    } else if (current_period == "Graduating" && form_context %in% c("ccc_review", "second_review")) {
+      readable_period <- "Graduation"
+    } else {
+      readable_period <- current_period
+    }
   }
   
   # If we couldn't map to a readable period, return NA
@@ -315,19 +265,25 @@ get_previous_period <- function(current_period, resident_level) {
     return(NA)
   }
   
-  # Define the sequence of periods
+  # Define the sequence of periods - use the most common form (milestone/graduating)
   period_sequence <- c(
     "Intern Intro",
-    "Mid Intern",
+    "Mid Intern", 
     "End Intern",
     "Mid PGY2",
     "End PGY2",
     "Mid PGY3",
-    "Graduation"
+    "Graduating"  # Use Graduating as the standard
   )
   
+  # Normalize the current period for sequence lookup
+  normalized_current <- readable_period
+  if (readable_period == "Graduation") {
+    normalized_current <- "Graduating"
+  }
+  
   # Find the current period's index in the sequence
-  current_index <- match(readable_period, period_sequence)
+  current_index <- match(normalized_current, period_sequence)
   
   # If period not found or it's the first one (Intern Intro), return NA
   if (is.na(current_index) || current_index == 1) {
@@ -335,10 +291,29 @@ get_previous_period <- function(current_period, resident_level) {
     return(NA)
   }
   
-  # Return the previous period in the sequence
+  # Get the previous period in the sequence
   prev_period <- period_sequence[current_index - 1]
+  
+  # Convert back to form-appropriate format if needed
+  if (prev_period == "Graduating" && form_context %in% c("ccc_review", "second_review")) {
+    prev_period <- "Graduation"
+  }
+  
   message("Previous period for '", readable_period, "' (", resident_level, ") is '", prev_period, "'")
   return(prev_period)
+}
+
+# Helper function to normalize period names based on form context
+normalize_period_for_form <- function(period, form_context = "milestone") {
+  if (is.null(period) || is.na(period)) return(period)
+  
+  if (period == "Graduation" && form_context %in% c("milestone", "s_eval", "ilp", "coach_rev")) {
+    return("Graduating")
+  } else if (period == "Graduating" && form_context %in% c("ccc_review", "second_review")) {
+    return("Graduation")
+  }
+  
+  return(period)
 }
 
 #' Check if Period Should Have Program Data
@@ -469,25 +444,35 @@ map_period_between_formats <- function(period, from_format = "app", to_format = 
 get_ccc_session_name <- function(session) {
   session_names <- c(
     "1" = "Mid Intern",
-    "2" = "End Intern",
+    "2" = "End Intern", 
     "3" = "Mid PGY2",
     "4" = "End PGY2",
     "5" = "Mid PGY3",
-    "6" = "Graduation",
+    "6" = "Graduation",  # CCC always uses "Graduation"
     "7" = "Intern Intro"
   )
   
   return(session_names[as.character(session)])
 }
 
-# Function to map app period to milestone period format
-map_to_milestone_period <- function(level, period) {
+# Function to map app period to milestone period format - FIXED VERSION
+map_to_milestone_period <- function(level, period, form_context = "milestone") {
   # Debug
-  message(paste("Mapping period:", period, "for level:", level))
+  message(paste("Mapping period:", period, "for level:", level, "form_context:", form_context))
   
-  # Direct mapping for standard period names
+  # Direct mapping for standard period names - but check for Graduation/Graduating
   if (period %in% c("Intern Intro", "Mid Intern", "End Intern", 
-                    "Mid PGY2", "End PGY2", "Mid PGY3", "Graduation")) {
+                    "Mid PGY2", "End PGY2", "Mid PGY3", "Graduation", "Graduating")) {
+    
+    # Handle the Graduation/Graduating inconsistency
+    if (period == "Graduation" && form_context %in% c("milestone", "s_eval", "ilp", "coach_rev")) {
+      message(paste("Converting 'Graduation' to 'Graduating' for form context:", form_context))
+      return("Graduating")
+    } else if (period == "Graduating" && form_context %in% c("ccc_review", "second_review")) {
+      message(paste("Converting 'Graduating' to 'Graduation' for form context:", form_context))
+      return("Graduation")
+    }
+    
     message(paste("Using direct mapping for standard period:", period))
     return(period)
   }
@@ -501,26 +486,34 @@ map_to_milestone_period <- function(level, period) {
   else if (period == "End Review") {
     if (level == "Intern") return("End Intern")
     if (level == "PGY2") return("End PGY2")
-    if (level == "PGY3") return("Graduation")
+    if (level == "PGY3") {
+      # FIXED: Use form context to determine correct term
+      if (form_context %in% c("ccc_review", "second_review")) {
+        return("Graduation")
+      } else {
+        return("Graduating")
+      }
+    }
   }
   else if (period == "Intro") {
     return("Intern Intro")
   }
   
-  # For numeric codes
-  period_codes <- c(
+  # For numeric codes - handle the 6 -> Graduation/Graduating mapping
+  period_codes_milestone <- c(
     "1" = "Mid Intern",
     "2" = "End Intern",
     "3" = "Mid PGY2",
     "4" = "End PGY2",
     "5" = "Mid PGY3",
-    "6" = "Graduation",
+    "6" = if(form_context %in% c("ccc_review", "second_review")) "Graduation" else "Graduating",
     "7" = "Intern Intro"
   )
   
-  if (period %in% names(period_codes)) {
-    message(paste("Mapping numeric code", period, "to", period_codes[period]))
-    return(period_codes[period])
+  if (period %in% names(period_codes_milestone)) {
+    mapped_period <- period_codes_milestone[period]
+    message(paste("Mapping numeric code", period, "to", mapped_period, "for form context:", form_context))
+    return(mapped_period)
   }
   
   # If we can't map, return NA
@@ -955,15 +948,28 @@ group_fields_by_section <- function(data, data_dict, section_title,
 create_ilp_data_table <- function(resident_name, period, resident_data, rdm_dict) {
   message(paste("Creating ILP data table for", resident_name, "period:", period))
   
+  # Normalize the period for ILP form context
+  normalized_period <- normalize_period_for_form(period, "ilp")
+  message(paste("Normalized period for ILP:", normalized_period))
+  
   # Get ILP columns from data dictionary - adjusted for your rdm_dict structure
   ilp_cols <- rdm_dict$field_name[rdm_dict$form_name == "ilp"]
   
-  # Extract the resident's ILP data
-  ilp_dat <- extract_non_na_values(resident_data, resident_name, ilp_cols, period)
+  # Extract the resident's ILP data using the normalized period
+  ilp_dat <- extract_non_na_values(resident_data, resident_name, ilp_cols, normalized_period)
   
   if (is.null(ilp_dat) || nrow(ilp_dat) == 0) {
-    message("No ILP data found for", resident_name, "in period", period)
-    return(NULL)
+    message("No ILP data found for", resident_name, "in period", normalized_period)
+    # Try the original period as fallback
+    if (period != normalized_period) {
+      message("Trying original period as fallback:", period)
+      ilp_dat <- extract_non_na_values(resident_data, resident_name, ilp_cols, period)
+    }
+    
+    if (is.null(ilp_dat) || nrow(ilp_dat) == 0) {
+      message("Still no ILP data found with fallback")
+      return(NULL)
+    }
   }
   
   # Function to safely get a value from ilp_dat
@@ -1083,7 +1089,7 @@ create_ccc_notes_table <- function(resident_name, current_period, resident_level
     return(NULL)
   }
   
-  # Convert current period to readable format if needed
+  # Convert current period to readable format for CCC context
   readable_current_period <- NULL
   if (current_period %in% c("Intern Intro", "Mid Review", "End Review")) {
     if (current_period == "Intern Intro") {
@@ -1095,15 +1101,18 @@ create_ccc_notes_table <- function(resident_name, current_period, resident_level
     } else if (current_period == "End Review") {
       if (resident_level == "Intern") readable_current_period <- "End Intern"
       else if (resident_level == "PGY2") readable_current_period <- "End PGY2"
-      else if (resident_level == "PGY3") readable_current_period <- "Graduation"
+      else if (resident_level == "PGY3") readable_current_period <- "Graduation"  # FIXED: CCC uses "Graduation"
     }
   } else {
-    # Assume it's already in readable format
-    readable_current_period <- current_period
+    # Assume it's already in readable format, but normalize for CCC context
+    readable_current_period <- normalize_period_for_form(current_period, "ccc_review")
   }
   
-  # Filter out rows that match the current period
-  ccc_dat <- ccc_dat[ccc_dat$ccc_session != readable_current_period, ]
+  # Filter out rows that match the current period - check both possible formats
+  if (!is.null(readable_current_period)) {
+    ccc_dat <- ccc_dat[!(ccc_dat$ccc_session %in% c(readable_current_period, 
+                                                    normalize_period_for_form(readable_current_period, "milestone"))), ]
+  }
   
   # Sort by date in descending order (most recent first)
   if ("ccc_date" %in% names(ccc_dat) && !all(is.na(ccc_dat$ccc_date))) {
@@ -1153,6 +1162,7 @@ create_ccc_notes_table <- function(resident_name, current_period, resident_level
   message("Found", nrow(display_data), "prior CCC records")
   return(display_data)
 }
+
 
 get_knowledge_data <- function(resident_name, current_period, resident_level, resident_data) {
   # Debug

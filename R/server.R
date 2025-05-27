@@ -523,17 +523,17 @@ server <- function(input, output, session) {
           # ----------------------------------------
           has_secondary_review <- FALSE
           
-          # Method 1: Check second_rev_complete status for exact period match
-          if ("second_rev_complete" %in% names(resident_data) && "second_period" %in% names(resident_data)) {
+          # Method 1: Check second_review_complete status for exact period match
+          if ("second_review_complete" %in% names(resident_data) && "second_period" %in% names(resident_data)) {
             complete_rows <- resident_data[resident_data$name == res_name & 
                                              !is.na(resident_data$second_period) &
                                              resident_data$second_period == as.character(coach_period) &
-                                             !is.na(resident_data$second_rev_complete) &
-                                             resident_data$second_rev_complete == "2", ]  # 2 = Complete in REDCap
+                                             !is.na(resident_data$second_review_complete) &
+                                             resident_data$second_review_complete == "2", ]  # 2 = Complete in REDCap
             
             if (nrow(complete_rows) > 0) {
               has_secondary_review <- TRUE
-              message("Found second_rev_complete = 2 for matching period")
+              message("Found second_review_complete = 2 for matching period")
             }
           }
           
@@ -818,114 +818,137 @@ server <- function(input, output, session) {
     
     # Render the current self-assessment plot
     output$self_milestones_plot <- renderPlot({
-        req(values$selected_resident)
-        req(values$redcap_period)  # <-- CHANGE: Use redcap_period instead
-        
-        data <- app_data()
-        
-        # REMOVE: No longer need to map the period here
-        # mile_period <- map_to_milestone_period(values$selected_resident$Level, values$current_period)
-        
-        # Use the centrally mapped period directly
-        mile_period <- values$redcap_period  # <-- CHANGE: Use redcap_period
-        
-        if (!is.null(data$s_miles) && !is.na(mile_period)) {
-            tryCatch({
-                message(paste("Attempting to render self milestone plot for period:", mile_period))
-                
-                # Debug: check if there's any data for this resident and period
-                has_data <- any(data$s_miles$name == values$selected_resident$name & 
-                                    data$s_miles$period == mile_period, na.rm = TRUE)
-                message("Data exists for this resident and period: ", has_data)
-                
-                # Call miles_plot with the correct parameters
-                miles_plot(data$s_miles, values$selected_resident$name, mile_period)
-            }, error = function(e) {
-                message(paste("Error rendering self milestone plot:", e$message))
-                ggplot() +
-                    annotate("text", x = 0.5, y = 0.5,
-                             label = paste("Error rendering milestone plot:", e$message),
-                             color = "red", size = 4) +
-                    theme_void()
-            })
-        } else {
-            ggplot() +
-                annotate("text", x = 0.5, y = 0.5,
-                         label = paste("No self-assessment data available for period:", 
-                                       ifelse(is.na(mile_period), "Unknown", mile_period)),
-                         color = "darkgray", size = 5) +
-                theme_void()
-        }
+      req(values$selected_resident)
+      req(values$current_period)
+      
+      data <- app_data()
+      
+      # Map the app period to milestone period format with milestone form context
+      mile_period <- map_to_milestone_period(
+        values$selected_resident$Level, 
+        values$current_period,
+        form_context = "milestone"  # ADDED: Specify form context
+      )
+      
+      if (!is.null(data$s_miles) && !is.na(mile_period)) {
+        tryCatch({
+          message(paste("Attempting to render self milestone plot for period:", mile_period))
+          
+          # Debug: check if there's any data for this resident and period
+          has_data <- any(data$s_miles$name == values$selected_resident$name & 
+                            data$s_miles$period == mile_period, na.rm = TRUE)
+          message("Data exists for this resident and period: ", has_data)
+          
+          # Call miles_plot with the correct parameters
+          miles_plot(data$s_miles, values$selected_resident$name, mile_period)
+        }, error = function(e) {
+          message(paste("Error rendering self milestone plot:", e$message))
+          ggplot() +
+            annotate("text", x = 0.5, y = 0.5,
+                     label = paste("Error rendering milestone plot:", e$message),
+                     color = "red", size = 4) +
+            theme_void()
+        })
+      } else {
+        ggplot() +
+          annotate("text", x = 0.5, y = 0.5,
+                   label = paste("No self-assessment data available for period:", 
+                                 ifelse(is.na(mile_period), "Unknown", mile_period)),
+                   color = "darkgray", size = 5) +
+          theme_void()
+      }
     })
+    
     
     # Render the previous program assessment plot
     output$program_milestones_plot <- renderPlot({
-        req(values$selected_resident)
-        # Require the previously mapped period instead of calculating it again
-        req(values$redcap_prev_period)  
-        
-        data <- app_data()
-        
-        # Debugging
-        message("In program_milestones_plot - Using mapped previous period")
-        message("Current period: ", values$current_period)
-        message("Current mapped period: ", values$redcap_period)
-        message("Previous mapped period: ", values$redcap_prev_period)
-        
-        # Use the centrally calculated previous period directly
-        prev_mile_period <- values$redcap_prev_period
-        
-        # Only attempt to render if previous period exists and should have program data
-        if (!is.na(prev_mile_period) && !is.null(data$p_miles)) {
-            tryCatch({
-                message(paste("Attempting to render program milestone plot for period:", prev_mile_period))
-                
-                # Debug: check if there's any data for this resident and period
-                if (!is.null(data$p_miles)) {
-                    has_data <- any(data$p_miles$name == values$selected_resident$name & 
-                                        data$p_miles$period == prev_mile_period, na.rm = TRUE)
-                    message("Data exists for this resident and previous period: ", has_data)
-                    
-                    if (has_data) {
-                        # Call miles_plot with the correct parameters
-                        p <- miles_plot(data$p_miles, values$selected_resident$name, prev_mile_period)
-                        return(p)
-                    }
-                }
-                
-                # If we get here, no data was found
-                ggplot() +
-                    annotate("text", x = 0.5, y = 0.5,
-                             label = paste("No milestone data found for", values$selected_resident$name, 
-                                           "in period", prev_mile_period),
-                             color = "darkgray", size = 5) +
-                    theme_void()
-                
-            }, error = function(e) {
-                message(paste("Error rendering previous program plot:", e$message))
-                ggplot() +
-                    annotate("text", x = 0.5, y = 0.5,
-                             label = paste("Error rendering milestone plot:", e$message),
-                             color = "red", size = 4) +
-                    theme_void()
-            })
-        } else {
-            # Create an empty plot when no previous program data exists or is expected
-            reason <- if(is.na(prev_mile_period)) {
-                "No previous assessment period"
-            } else if (is.null(data$p_miles)) {
-                "No milestone data available"
-            } else {
-                "No program assessment for the previous period"
-            }
+      req(values$selected_resident)
+      req(values$current_period)
+      
+      data <- app_data()
+      
+      # Debugging
+      message("In program_milestones_plot - Getting previous period")
+      message("Current period: ", values$current_period)
+      message("Resident level: ", values$selected_resident$Level)
+      
+      # Get the previous period in app format with milestone form context
+      prev_app_period <- get_previous_period(
+        values$current_period, 
+        values$selected_resident$Level,
+        form_context = "milestone"  # ADDED: Specify form context
+      )
+      
+      message("Previous app period: ", ifelse(is.na(prev_app_period), "NA", prev_app_period))
+      
+      # The previous period is already in milestone format, but normalize it
+      if (!is.na(prev_app_period)) {
+        prev_mile_period <- normalize_period_for_form(prev_app_period, "milestone")
+        message("Previous milestone period: ", ifelse(is.na(prev_mile_period), "NA", prev_mile_period))
+      } else {
+        prev_mile_period <- NA
+        message("No previous period found")
+      }
+      
+      # Special case handling for End Review
+      if (values$current_period == "End Review" && values$selected_resident$Level == "Intern") {
+        message("Special case: End Review for Intern")
+        prev_mile_period <- "Mid Intern"
+        message("Forced previous milestone period to: Mid Intern")
+      }
+      
+      # Only attempt to render if previous period exists and should have program data
+      if (!is.na(prev_mile_period) && !is.null(data$p_miles)) {
+        tryCatch({
+          message(paste("Attempting to render program milestone plot for period:", prev_mile_period))
+          
+          # Debug: check if there's any data for this resident and period
+          if (!is.null(data$p_miles)) {
+            has_data <- any(data$p_miles$name == values$selected_resident$name & 
+                              data$p_miles$period == prev_mile_period, na.rm = TRUE)
+            message("Data exists for this resident and previous period: ", has_data)
             
-            ggplot() +
-                annotate("text", x = 0.5, y = 0.5,
-                         label = reason,
-                         color = "darkgray", size = 5) +
-                theme_void()
+            if (has_data) {
+              # Call miles_plot with the correct parameters
+              p <- miles_plot(data$p_miles, values$selected_resident$name, prev_mile_period)
+              return(p)
+            }
+          }
+          
+          # If we get here, no data was found
+          ggplot() +
+            annotate("text", x = 0.5, y = 0.5,
+                     label = paste("No milestone data found for", values$selected_resident$name, 
+                                   "in period", prev_mile_period),
+                     color = "darkgray", size = 5) +
+            theme_void()
+          
+        }, error = function(e) {
+          message(paste("Error rendering previous program plot:", e$message))
+          ggplot() +
+            annotate("text", x = 0.5, y = 0.5,
+                     label = paste("Error rendering milestone plot:", e$message),
+                     color = "red", size = 4) +
+            theme_void()
+        })
+      } else {
+        # Create an empty plot when no previous program data exists or is expected
+        reason <- if(is.na(prev_mile_period)) {
+          "No previous assessment period"
+        } else if (is.null(data$p_miles)) {
+          "No milestone data available"
+        } else {
+          "No program assessment for the previous period"
         }
+        
+        ggplot() +
+          annotate("text", x = 0.5, y = 0.5,
+                   label = reason,
+                   color = "darkgray", size = 5) +
+          theme_void()
+      }
     })
+    
     
     output$prior_ccc_notes <- renderUI({
         req(values$selected_resident)
@@ -1049,117 +1072,131 @@ server <- function(input, output, session) {
     })
     
     output$prior_ilp <- renderUI({
-        req(values$selected_resident)
-        req(values$redcap_prev_period)  # Use the centrally calculated previous period
-        
-        # Get resident level
-        resident_level <- values$selected_resident$Level
-        
-        # Debug
-        message("Looking for previous ILP data for resident: ", values$selected_resident$name, 
-                ", previous period: ", values$redcap_prev_period)
-        
-        # Skip the period calculation since we already have it in values$redcap_prev_period
-        
-        if (is.na(values$redcap_prev_period)) {
-            return(div(class = "alert alert-info", 
-                       "No previous ILP data available for this resident's current level and period."))
-        }
-        
-        # Get app data
-        data <- app_data()
-        
-        # Create ILP table - pass the centrally mapped previous period
-        ilp_table <- tryCatch({
-            create_ilp_data_table(
-                resident_name = values$selected_resident$name,
-                period = values$redcap_prev_period,  # Use centrally mapped previous period
-                resident_data = processed_resident_data(),
-                rdm_dict = data$rdm_dict
-            )
-        }, error = function(e) {
-            message("Error creating ILP table: ", e$message)
-            return(NULL)
-        })
-        
-        if (is.null(ilp_table) || nrow(ilp_table) == 0) {
-            return(div(class = "alert alert-info", 
-                       paste("No prior ILP data available for", values$selected_resident$name, 
-                             "in the", values$redcap_prev_period, "period.")))
-        }
-        
-        # Clean up column names
-        colnames(ilp_table) <- c(
-            "Competency", 
-            "Goal Met", 
-            "Comments", 
-            "Goal Description", 
-            "Action Plan", 
-            "Milestone Descriptions"
+      req(values$selected_resident)
+      req(values$current_period)
+      
+      # Get resident level
+      resident_level <- values$selected_resident$Level
+      
+      # Debug
+      message("Looking for previous period for current period: ", values$current_period, 
+              ", resident level: ", resident_level)
+      
+      # Get the previous period with ILP form context
+      prev_period <- get_previous_period(
+        values$current_period, 
+        resident_level,
+        form_context = "ilp"  # ADDED: Specify ILP form context
+      )
+      
+      # Debug
+      message("Current period: ", values$current_period, 
+              ", Resident level: ", resident_level,
+              ", Previous period: ", ifelse(is.na(prev_period), "NA", prev_period))
+      
+      if (is.na(prev_period)) {
+        return(div(class = "alert alert-info", 
+                   "No previous ILP data available for this resident's current level and period."))
+      }
+      
+      # Get app data
+      data <- app_data()
+      
+      # Debug
+      message("Attempting to find ILP data for resident: ", values$selected_resident$name, 
+              " in period: ", prev_period)
+      
+      # Create ILP table
+      ilp_table <- tryCatch({
+        create_ilp_data_table(
+          resident_name = values$selected_resident$name,
+          period = prev_period,
+          resident_data = processed_resident_data(),
+          rdm_dict = data$rdm_dict
         )
-        
-        # Clean up milestone descriptions
-        ilp_table$`Milestone Descriptions` <- gsub("\\n\\nNA", "", ilp_table$`Milestone Descriptions`)
-        
-        # Return the formatted table
+      }, error = function(e) {
+        message("Error creating ILP table: ", e$message)
+        return(NULL)
+      })
+      
+      if (is.null(ilp_table) || nrow(ilp_table) == 0) {
+        return(div(class = "alert alert-info", 
+                   paste("No prior ILP data available for", values$selected_resident$name, 
+                         "in the", prev_period, "period.")))
+      }
+      
+      # Clean up column names
+      colnames(ilp_table) <- c(
+        "Competency", 
+        "Goal Met", 
+        "Comments", 
+        "Goal Description", 
+        "Action Plan", 
+        "Milestone Descriptions"
+      )
+      
+      # Clean up milestone descriptions
+      ilp_table$`Milestone Descriptions` <- gsub("\\n\\nNA", "", ilp_table$`Milestone Descriptions`)
+      
+      # Return the formatted table
+      div(
+        h4(paste("Previous ILP from", prev_period, "Period")),
         div(
-            h4(paste("Previous ILP from", values$redcap_prev_period, "Period")), # FIXED: Using values$redcap_prev_period instead of prev_period
-            div(
-                style = "overflow-x: auto;",
-                DT::renderDataTable({
-                    DT::datatable(
-                        ilp_table,
-                        options = list(
-                            pageLength = 3,
-                            scrollX = TRUE,
-                            dom = 't',
-                            ordering = FALSE,
-                            columnDefs = list(
-                                list(className = 'dt-left', targets = "_all"),
-                                list(width = '18%', targets = 0),
-                                list(width = '8%', targets = 1),
-                                list(width = '15%', targets = 2),
-                                list(width = '20%', targets = 3),
-                                list(width = '15%', targets = 4),
-                                list(width = '24%', targets = 5)
-                            )
-                        ),
-                        rownames = FALSE,
-                        escape = FALSE,
-                        class = "display compact stripe"
-                    ) %>%
-                        DT::formatStyle(
-                            'Competency',
-                            fontWeight = 'bold',
-                            backgroundColor = '#f0f7fa'
-                        ) %>%
-                        DT::formatStyle(
-                            'Goal Met',
-                            backgroundColor = styleEqual(
-                                c("Yes", "No"), 
-                                c('#d4edda', '#f8d7da')
-                            ),
-                            color = styleEqual(
-                                c("Yes", "No"), 
-                                c('#155724', '#721c24')
-                            ),
-                            fontWeight = 'bold',
-                            textAlign = 'center'
-                        ) %>%
-                        DT::formatStyle(
-                            'Goal Description',
-                            fontWeight = 'bold',
-                            backgroundColor = '#f8f9fa'
-                        ) %>%
-                        DT::formatStyle(
-                            'Milestone Descriptions',
-                            whiteSpace = 'pre-line',
-                            fontSize = '90%',
-                            backgroundColor = '#fafafa'
-                        )
-                })
-            )
+          style = "overflow-x: auto;",
+          DT::renderDataTable({
+            DT::datatable(
+              ilp_table,
+              options = list(
+                pageLength = 3,
+                scrollX = TRUE,
+                dom = 't',
+                ordering = FALSE,
+                columnDefs = list(
+                  list(className = 'dt-left', targets = "_all"),
+                  list(width = '18%', targets = 0),
+                  list(width = '8%', targets = 1),
+                  list(width = '15%', targets = 2),
+                  list(width = '20%', targets = 3),
+                  list(width = '15%', targets = 4),
+                  list(width = '24%', targets = 5)
+                )
+              ),
+              rownames = FALSE,
+              escape = FALSE,
+              class = "display compact stripe"
+            ) %>%
+              DT::formatStyle(
+                'Competency',
+                fontWeight = 'bold',
+                backgroundColor = '#f0f7fa'
+              ) %>%
+              DT::formatStyle(
+                'Goal Met',
+                backgroundColor = styleEqual(
+                  c("Yes", "No"), 
+                  c('#d4edda', '#f8d7da')
+                ),
+                color = styleEqual(
+                  c("Yes", "No"), 
+                  c('#155724', '#721c24')
+                ),
+                fontWeight = 'bold',
+                textAlign = 'center'
+              ) %>%
+              DT::formatStyle(
+                'Goal Description',
+                fontWeight = 'bold',
+                backgroundColor = '#f8f9fa'
+              ) %>%
+              DT::formatStyle(
+                'Milestone Descriptions',
+                whiteSpace = 'pre-line',
+                fontSize = '90%',
+                backgroundColor = '#fafafa'
+              )
+          })
         )
+      )
     })
     
     # Wellness Card
@@ -2530,29 +2567,30 @@ server <- function(input, output, session) {
     # Re-render the current self-assessment plot for milestone review
     output$self_milestones_plot_m <- renderPlot({
       req(values$selected_resident)
-      req(values$redcap_period)  # <-- CHANGE: Use redcap_period instead
+      req(values$current_period)
       
       data <- app_data()
       
-      # REMOVE: No longer need to map the period here
-      # mile_period <- map_to_milestone_period(values$selected_resident$Level, values$current_period)
-      
-      # Use the centrally mapped period directly
-      mile_period <- values$redcap_period  # <-- CHANGE: Use redcap_period
+      # Map the app period to milestone period format with milestone form context
+      mile_period <- map_to_milestone_period(
+        values$selected_resident$Level, 
+        values$current_period,
+        form_context = "milestone"  # ADDED: Specify form context for milestone data
+      )
       
       if (!is.null(data$s_miles) && !is.na(mile_period)) {
         tryCatch({
-          message(paste("Attempting to render self milestone plot for period:", mile_period))
+          message(paste("Attempting to render self milestone plot (_m) for period:", mile_period))
           
           # Debug: check if there's any data for this resident and period
           has_data <- any(data$s_miles$name == values$selected_resident$name & 
                             data$s_miles$period == mile_period, na.rm = TRUE)
-          message("Data exists for this resident and period: ", has_data)
+          message("Data exists for this resident and period (_m plot): ", has_data)
           
           # Call miles_plot with the correct parameters
           miles_plot(data$s_miles, values$selected_resident$name, mile_period)
         }, error = function(e) {
-          message(paste("Error rendering self milestone plot:", e$message))
+          message(paste("Error rendering self milestone plot (_m):", e$message))
           ggplot() +
             annotate("text", x = 0.5, y = 0.5,
                      label = paste("Error rendering milestone plot:", e$message),
@@ -2569,33 +2607,54 @@ server <- function(input, output, session) {
       }
     })
     
+    
     # Re-render the previous program assessment plot for milestone review
     output$program_milestones_plot_m <- renderPlot({
       req(values$selected_resident)
-      # Require the previously mapped period instead of calculating it again
-      req(values$redcap_prev_period)  
+      req(values$current_period)
       
       data <- app_data()
       
       # Debugging
-      message("In program_milestones_plot - Using mapped previous period")
+      message("In program_milestones_plot_m - Getting previous period")
       message("Current period: ", values$current_period)
-      message("Current mapped period: ", values$redcap_period)
-      message("Previous mapped period: ", values$redcap_prev_period)
+      message("Resident level: ", values$selected_resident$Level)
       
-      # Use the centrally calculated previous period directly
-      prev_mile_period <- values$redcap_prev_period
+      # Get the previous period in app format with milestone form context
+      prev_app_period <- get_previous_period(
+        values$current_period, 
+        values$selected_resident$Level,
+        form_context = "milestone"  # ADDED: Specify form context for milestone data
+      )
+      
+      message("Previous app period (_m plot): ", ifelse(is.na(prev_app_period), "NA", prev_app_period))
+      
+      # The previous period is already in milestone format, but normalize it
+      if (!is.na(prev_app_period)) {
+        prev_mile_period <- normalize_period_for_form(prev_app_period, "milestone")
+        message("Previous milestone period (_m plot): ", ifelse(is.na(prev_mile_period), "NA", prev_mile_period))
+      } else {
+        prev_mile_period <- NA
+        message("No previous period found (_m plot)")
+      }
+      
+      # Special case handling for End Review
+      if (values$current_period == "End Review" && values$selected_resident$Level == "Intern") {
+        message("Special case (_m plot): End Review for Intern")
+        prev_mile_period <- "Mid Intern"
+        message("Forced previous milestone period (_m plot) to: Mid Intern")
+      }
       
       # Only attempt to render if previous period exists and should have program data
       if (!is.na(prev_mile_period) && !is.null(data$p_miles)) {
         tryCatch({
-          message(paste("Attempting to render program milestone plot for period:", prev_mile_period))
+          message(paste("Attempting to render program milestone plot (_m) for period:", prev_mile_period))
           
           # Debug: check if there's any data for this resident and period
           if (!is.null(data$p_miles)) {
             has_data <- any(data$p_miles$name == values$selected_resident$name & 
                               data$p_miles$period == prev_mile_period, na.rm = TRUE)
-            message("Data exists for this resident and previous period: ", has_data)
+            message("Data exists for this resident and previous period (_m plot): ", has_data)
             
             if (has_data) {
               # Call miles_plot with the correct parameters
@@ -2613,7 +2672,7 @@ server <- function(input, output, session) {
             theme_void()
           
         }, error = function(e) {
-          message(paste("Error rendering previous program plot:", e$message))
+          message(paste("Error rendering previous program plot (_m):", e$message))
           ggplot() +
             annotate("text", x = 0.5, y = 0.5,
                      label = paste("Error rendering milestone plot:", e$message),
@@ -3775,8 +3834,6 @@ server <- function(input, output, session) {
       ))
     })
     
-    
-    # Handle confirmation of secondary review submission
     observeEvent(input$confirm_submit_secondary, {
       message("Confirming secondary review submission")
       
@@ -3792,73 +3849,171 @@ server <- function(input, output, session) {
         redcap_url <- app_data()$redcap_url %||% "https://redcapsurvey.slu.edu/api/"
         token <- app_data()$rdm_token
         
-        # Validate token
         if (is.null(token) || token == "") {
           showNotification("Error: REDCap token not available", type = "error")
           return()
         }
         
-        incProgress(0.2, detail = "Getting record ID...")
-        
-        # Get record ID with better error handling
+        # Get record ID
         record_id <- tryCatch({
           find_record_id(app_data(), values$selected_resident$name)
         }, error = function(e) {
           message("Error finding record_id: ", e$message)
-          # For testing purposes, you might want to use a test record ID
-          return("999")  # Use a test record ID
+          return("999")
         })
         
-        # Get instance number for the period
-        instance_number <- tryCatch({
-          get_redcap_instance(
-            level = values$selected_resident$Level,
-            period = values$current_period
-          )
-        }, error = function(e) {
-          message("Error getting instance number: ", e$message)
-          return("8")  # Default to interim
-        })
+        incProgress(0.3, detail = "Normalizing period and determining mapping...")
         
-        message("Using record_id: ", record_id, ", instance: ", instance_number)
+        # NORMALIZE the period name before mapping
+        normalized_period <- values$current_period
         
-        incProgress(0.3, detail = "Building submission data...")
+        # Handle different period name variations
+        if (normalized_period %in% c("Graduating", "Graduation", "End PGY3")) {
+          normalized_period <- "End Review"  # Convert to what map_period_format expects
+        } else if (normalized_period %in% c("Mid PGY3", "Mid Intern", "Mid PGY2")) {
+          normalized_period <- "Mid Review"  # Convert to what map_period_format expects
+        } else if (normalized_period %in% c("End Intern", "End PGY2")) {
+          normalized_period <- "End Review"  # Convert to what map_period_format expects
+        } else if (normalized_period == "Intern Intro") {
+          # Skip secondary reviews for Intern Intro
+          showNotification("Secondary reviews are not available for Intern Intro period.", 
+                           type = "warning", duration = 5)
+          return()
+        }
         
-        # Collect the review data
-        secondary_review_data <- list(
-          second_date = format(Sys.Date(), "%Y-%m-%d"),
-          second_period = as.character(instance_number),
-          second_comments = input$secondary_coach_comments %||% "",
-          second_approve = ifelse(input$approve_milestones == "yes", "Yes", "No"),
-          second_miles_comment = ifelse(input$approve_milestones == "no", 
-                                        input$milestone_concerns %||% "", ""),
-          second_rev_complete = "2"  # Complete
+        message("Original period: ", values$current_period)
+        message("Normalized period: ", normalized_period)
+        
+        # Now use the normalized period for mapping
+        correct_instance <- map_period_format(
+          level = values$selected_resident$Level,
+          period = normalized_period,  # Use normalized period
+          return_type = "instance",
+          form_context = "second_review"
         )
         
-        # Build JSON with proper escaping
-        json_data <- paste0(
-          '[{"record_id":"', escape_json_string(record_id),
-          '","redcap_repeat_instrument":"second_review",',
-          '"redcap_repeat_instance":"', escape_json_string(as.character(instance_number)), '"'
+        # Get the period dropdown value for second_period field
+        correct_period_dropdown <- map_period_format(
+          level = values$selected_resident$Level,
+          period = normalized_period,  # Use normalized period
+          return_type = "ccc",
+          form_context = "second_review"
         )
         
-        # Add all fields with validation
-        for (field in names(secondary_review_data)) {
-          value <- secondary_review_data[[field]]
-          if (!is.null(value) && !is.na(value) && value != "") {
-            escaped_value <- escape_json_string(as.character(value))
-            json_data <- paste0(json_data, ',"', field, '":"', escaped_value, '"')
+        message("After mapping with normalized period:")
+        message("  Instance: ", correct_instance)
+        message("  Period dropdown: ", correct_period_dropdown)
+        
+        # Map the dropdown value to the numeric code
+        period_name_to_code <- c(
+          "Mid Intern" = "1",
+          "End Intern" = "2", 
+          "Mid PGY2" = "3",
+          "End PGY2" = "4",
+          "Mid PGY3" = "5",
+          "Graduation" = "6"
+        )
+        
+        correct_period_code <- period_name_to_code[correct_period_dropdown]
+        
+        # If mapping still failed, use direct logic based on original period
+        if (is.na(correct_instance) || correct_instance == 8) {
+          message("Map function failed, using direct logic for period: ", values$current_period)
+          
+          if (values$selected_resident$Level == "PGY3" && 
+              values$current_period %in% c("Graduating", "Graduation", "End Review", "End PGY3")) {
+            correct_instance <- 6
+            correct_period_code <- "6"
+            message("Direct mapping: PGY3 Graduating -> Instance 6, Period 6")
+          } else if (values$selected_resident$Level == "PGY3" && 
+                     values$current_period %in% c("Mid Review", "Mid PGY3")) {
+            correct_instance <- 5
+            correct_period_code <- "5"
+          } else if (values$selected_resident$Level == "PGY2" && 
+                     values$current_period %in% c("End Review", "End PGY2")) {
+            correct_instance <- 4
+            correct_period_code <- "4"
+          } else if (values$selected_resident$Level == "PGY2" && 
+                     values$current_period %in% c("Mid Review", "Mid PGY2")) {
+            correct_instance <- 3
+            correct_period_code <- "3"
+          } else if (values$selected_resident$Level == "Intern" && 
+                     values$current_period %in% c("End Review", "End Intern")) {
+            correct_instance <- 2
+            correct_period_code <- "2"
+          } else if (values$selected_resident$Level == "Intern" && 
+                     values$current_period %in% c("Mid Review", "Mid Intern")) {
+            correct_instance <- 1
+            correct_period_code <- "1"
+          } else {
+            showNotification(paste("Cannot map period:", values$current_period, "for level:", values$selected_resident$Level), 
+                             type = "error", duration = 10)
+            return()
           }
         }
         
-        # Close JSON
+        if (is.na(correct_period_code)) {
+          correct_period_code <- as.character(correct_instance)
+        }
+        
+        message("=== FINAL MAPPING ===")
+        message("Level: ", values$selected_resident$Level)
+        message("Original Period: ", values$current_period)
+        message("Normalized Period: ", normalized_period)
+        message("REDCap Instance: ", correct_instance)
+        message("REDCap Period Code: ", correct_period_code)
+        message("Period Name: ", names(period_name_to_code)[period_name_to_code == correct_period_code])
+        
+        incProgress(0.4, detail = "Building submission data...")
+        
+        # Build submission data with CORRECTED values
+        secondary_review_data <- list(
+          second_date = format(Sys.Date(), "%Y-%m-%d"),
+          second_period = correct_period_code,                         # Use corrected period code
+          second_approve = ifelse(input$approve_milestones == "yes", "1", "0"),
+          second_comments = input$secondary_coach_comments %||% "",
+          second_miles_comment = ifelse(input$approve_milestones == "no", 
+                                        input$milestone_concerns %||% "", ""),
+          second_review_complete = "2"
+        )
+        
+        # Validate that we have a valid period (1-6)
+        if (!correct_period_code %in% c("1", "2", "3", "4", "5", "6")) {
+          showNotification(paste("Invalid period mapping:", correct_period_code), 
+                           type = "error", duration = 10)
+          return()
+        }
+        
+        message("Final submission values:")
+        message("  second_period: ", secondary_review_data$second_period)
+        message("  second_approve: ", secondary_review_data$second_approve)
+        message("  REDCap instance: ", correct_instance)
+        
+        incProgress(0.5, detail = "Building JSON...")
+        
+        # Build JSON with CORRECTED instance number
+        json_data <- paste0(
+          '[{"record_id":"', escape_json_string(record_id),
+          '","redcap_repeat_instrument":"second_review",',
+          '"redcap_repeat_instance":"', escape_json_string(as.character(correct_instance)), '"'
+        )
+        
+        # Add all fields
+        for (field_name in names(secondary_review_data)) {
+          value <- secondary_review_data[[field_name]]
+          if (!is.null(value) && !is.na(value)) {
+            escaped_value <- escape_json_string(as.character(value))
+            json_data <- paste0(json_data, ',"', field_name, '":"', escaped_value, '"')
+          }
+        }
+        
         json_data <- paste0(json_data, "}]")
         
-        message("Secondary review JSON (first 200 chars): ", substr(json_data, 1, 200))
+        message("Final JSON: ", json_data)
         
-        incProgress(0.5, detail = "Submitting to REDCap...")
+        incProgress(0.7, detail = "Submitting to REDCap...")
         
-        # Submit to REDCap with error handling
+        # Submit to REDCap
         submission_result <- tryCatch({
           response <- httr::POST(
             url = redcap_url,
@@ -3874,10 +4029,9 @@ server <- function(input, output, session) {
               returnFormat = "json"
             ),
             encode = "form",
-            httr::timeout(30)  # 30 second timeout
+            httr::timeout(30)
           )
           
-          # Process response
           status_code <- httr::status_code(response)
           content_text <- httr::content(response, "text", encoding = "UTF-8")
           
@@ -3891,78 +4045,113 @@ server <- function(input, output, session) {
           )
           
         }, error = function(e) {
-          message("HTTP Error in REDCap submission: ", e$message)
-          list(
-            success = FALSE,
-            error = e$message
-          )
+          message("HTTP Error: ", e$message)
+          list(success = FALSE, error = e$message)
         })
         
         incProgress(0.9, detail = "Processing response...")
         
-        # Handle the result
+        # Handle result
         if (submission_result$success) {
-          # Close the modal
           removeModal()
           
-          # Show success notification
-          showNotification("Secondary review successfully submitted!", 
-                           type = "message", duration = 5)
+          # Show success with details
+          period_names <- c("1"="Mid Intern", "2"="End Intern", "3"="Mid PGY2", 
+                            "4"="End PGY2", "5"="Mid PGY3", "6"="Graduation")
+          period_name <- period_names[correct_period_code]
           
-          incProgress(1.0, detail = "Complete!")
+          showNotification(paste("Secondary review submitted successfully for", 
+                                 values$selected_resident$name, "- Period:", period_name,
+                                 "(Instance", correct_instance, ")"), 
+                           type = "message", duration = 8)
           
-          # Navigate to done page
           shinyjs::hide("review-pages")
           shinyjs::show("done-page")
-          
         } else {
-          # Show detailed error
           error_msg <- if(!is.null(submission_result$content)) {
             paste("HTTP", submission_result$status_code, ":", submission_result$content)
           } else {
             paste("Error:", submission_result$error)
           }
-          
           showNotification(paste("Error submitting secondary review:", error_msg), 
                            type = "error", duration = 15)
         }
+        
+        incProgress(1.0, detail = "Complete!")
       })
     })
     
+
     
+    # ==============================================================================
+    # DEBUGGING - Check what period values you're actually getting
+    # ==============================================================================
+    
+    observe({
+      if (!is.null(values$current_period)) {
+        message("Current period in values: '", values$current_period, "'")
+        message("Current period class: ", class(values$current_period))
+      }
+    })
     
     
     # Handle the "Start New Review" button on the done page
     observeEvent(input$start_new_review, {
-        # Reset selection values
-        values$selected_resident <- NULL
-        values$selected_coach <- NULL
-        values$current_period <- NULL
-        values$review_type <- NULL
-        values$current_tab <- "pre_review"
+      # Show loading notification
+      showNotification("Refreshing data for new review...", type = "message", duration = 3, id = "refresh_loading")
+      
+      # Reset selection values
+      values$selected_resident <- NULL
+      values$selected_coach <- NULL
+      values$current_period <- NULL
+      values$review_type <- NULL
+      values$current_tab <- "pre_review"
+      
+      # Reset any form inputs
+      updateTextAreaInput(session, "discussion_points", value = "")
+      updateTextAreaInput(session, "resident_background", value = "")
+      updateTextAreaInput(session, "dealing_with_residency", value = "")
+      updateTextAreaInput(session, "resident_wellbeing", value = "")
+      updateTextAreaInput(session, "evaluations_assessment", value = "")
+      updateTextAreaInput(session, "evaluations_comments", value = "")
+      updateTextAreaInput(session, "knowledge_topics_comments", value = "")
+      updateTextAreaInput(session, "board_prep_comments", value = "")
+      updateTextAreaInput(session, "knowledge_overall_comments", value = "")
+      updateTextAreaInput(session, "scholarship_comments", value = "")
+      updateTextAreaInput(session, "milestone_goals_comments", value = "")
+      updateTextAreaInput(session, "career_comments", value = "")
+      updateTextAreaInput(session, "summary_comments", value = "")
+      updateTextAreaInput(session, "secondary_coach_comments", value = "")
+      updateCheckboxInput(session, "summary_complete", value = FALSE)
+      updateRadioButtons(session, "approve_milestones", selected = character(0))
+      
+      # RELOAD THE DATA - This is the key addition
+      tryCatch({
+        # Force reload by invalidating the app_data reactive
+        # This will trigger ensure_data_loaded() to run again
         
-        # Reset any form inputs if needed
-        updateTextAreaInput(session, "discussion_points", value = "")
-        updateTextAreaInput(session, "resident_background", value = "")
-        updateTextAreaInput(session, "dealing_with_residency", value = "")
-        updateTextAreaInput(session, "resident_wellbeing", value = "")
-        updateTextAreaInput(session, "evaluations_assessment", value = "")
-        updateTextAreaInput(session, "evaluations_comments", value = "")
-        updateTextAreaInput(session, "knowledge_topics_comments", value = "")
-        updateTextAreaInput(session, "board_prep_comments", value = "")
-        updateTextAreaInput(session, "knowledge_overall_comments", value = "")
-        updateTextAreaInput(session, "scholarship_comments", value = "")
-        updateTextAreaInput(session, "milestone_goals_comments", value = "")
-        updateTextAreaInput(session, "career_comments", value = "")
-        updateTextAreaInput(session, "summary_comments", value = "")
-        updateCheckboxInput(session, "summary_complete", value = FALSE)
+        # Method 1: Use invalidateLater to trigger data refresh
+        invalidateLater(100)  # Small delay to ensure UI reset happens first
         
-        # Navigate back to coach selection
-        shinyjs::hide("done-page")
-        shinyjs::show("coach-selection-page")
+        # Method 2: Or manually call the data loading function
+        # (Add this if Method 1 doesn't work)
+        # new_data <- ensure_data_loaded()
         
-        # Reset the tab panel
-        updateTabsetPanel(session, "primary_review_tabs", selected = "pre_review")
+        showNotification("Data refreshed successfully!", type = "message", duration = 2)
+        
+      }, error = function(e) {
+        message("Error reloading data: ", e$message)
+        showNotification("Warning: Could not refresh data. You may see outdated information.", 
+                         type = "warning", duration = 5)
+      })
+      
+      # Navigate back to coach selection
+      shinyjs::hide("done-page")
+      shinyjs::show("coach-selection-page")
+      
+      # Reset the tab panel
+      updateTabsetPanel(session, "primary_review_tabs", selected = "pre_review")
     })
+    
     
 }
