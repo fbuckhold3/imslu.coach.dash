@@ -125,92 +125,112 @@ get_current_period <- function(current_date = Sys.Date()) {
 #'
 #' @return The mapped value in the requested format
 #' @export
-map_period_format <- function(level, period, return_type = "instance", form_context = "milestone") {
-  # Handle NA or missing values
-  if (is.null(level) || is.na(level)) {
-    level <- "Intern"  # Default to Intern if level is missing
-    warning("Using default level (Intern) in map_period_format")
+map_period_format <- function(level, period, return_type = "instance", form_context = "coach_rev") {
+  # Handle NA or missing values - DON'T default to Intern, throw error instead
+  if (is.null(level) || is.na(level) || level == "") {
+    stop("Level cannot be NULL, NA, or empty in map_period_format")
   }
   
-  if (is.null(period) || is.na(period)) {
-    if (return_type == "instance") return(8)  # Default to Interim
-    if (return_type == "milestone" || return_type == "readable" || return_type == "ccc") return(NA)
+  if (is.null(period) || is.na(period) || period == "") {
+    stop("Period cannot be NULL, NA, or empty in map_period_format")
   }
   
-  # Define mappings with form-specific handling for final period
-  mappings <- list(
+  message("DEBUG: map_period_format called with level=", level, ", period=", period, ", return_type=", return_type)
+  
+  # Define mappings with EXPLICIT coach_rev context
+  coach_rev_mappings <- list(
     "Intern" = list(
-      "Intern Intro" = list(
-        instance = 7,
-        milestone = "Intern Intro",
-        readable = "Intern Intro",
-        ccc = "Intern Intro"
-      ),
-      "Mid Review" = list(
-        instance = 1,
-        milestone = "Mid Intern",
-        readable = "Mid Intern",
-        ccc = "Mid Intern"
-      ),
-      "End Review" = list(
-        instance = 2,
-        milestone = "End Intern",
-        readable = "End Intern",
-        ccc = "End Intern"
-      )
+      "Intern Intro" = list(instance = 7, milestone = "Intern Intro", readable = "Intern Intro"),
+      "Mid Review" = list(instance = 1, milestone = "Mid Intern", readable = "Mid Intern"),
+      "End Review" = list(instance = 2, milestone = "End Intern", readable = "End Intern")
     ),
     "PGY2" = list(
-      "Intern Intro" = list(
-        instance = 8,
-        milestone = NA,
-        readable = NA,
-        ccc = NA
-      ),
-      "Mid Review" = list(
-        instance = 3,
-        milestone = "Mid PGY2",
-        readable = "Mid PGY2",
-        ccc = "Mid PGY2"
-      ),
-      "End Review" = list(
-        instance = 4,
-        milestone = "End PGY2",
-        readable = "End PGY2",
-        ccc = "End PGY2"
-      )
+      "Mid Review" = list(instance = 3, milestone = "Mid PGY2", readable = "Mid PGY2"),
+      "End Review" = list(instance = 4, milestone = "End PGY2", readable = "End PGY2")
     ),
     "PGY3" = list(
-      "Intern Intro" = list(
-        instance = 8,
-        milestone = NA,
-        readable = NA,
-        ccc = NA
-      ),
-      "Mid Review" = list(
-        instance = 5,
-        milestone = "Mid PGY3",
-        readable = "Mid PGY3",
-        ccc = "Mid PGY3"
-      ),
-      "End Review" = list(
-        instance = 6,
-        # FIXED: Use form context to determine correct term
-        milestone = if(form_context %in% c("ccc_review", "second_review")) "Graduation" else "Graduating",
-        readable = if(form_context %in% c("ccc_review", "second_review")) "Graduation" else "Graduating",
-        ccc = "Graduation"  # CCC always uses "Graduation"
-      )
+      "Mid Review" = list(instance = 5, milestone = "Mid PGY3", readable = "Mid PGY3"),
+      "End Review" = list(instance = 6, milestone = "Graduation", readable = "Graduation")
     )
   )
   
   # Look up the mapping
-  if (level %in% names(mappings) && period %in% names(mappings[[level]])) {
-    return(mappings[[level]][[period]][[return_type]])
-  } else {
-    # Default case
-    warning(paste("No mapping found for level:", level, "and period:", period))
-    if (return_type == "instance") return(8)  # Default to Interim
-    return(NA)
+  if (level %in% names(coach_rev_mappings) && period %in% names(coach_rev_mappings[[level]])) {
+    result <- coach_rev_mappings[[level]][[period]][[return_type]]
+    message("DEBUG: Found mapping - returning ", return_type, ": ", result)
+    return(result)
   }
+  
+  # Try alternative period formats if direct mapping fails
+  message("DEBUG: Direct mapping failed, trying alternatives...")
+  
+  # Handle period aliases
+  period_aliases <- c(
+    "End Intern" = "End Review",
+    "Mid Intern" = "Mid Review", 
+    "End PGY2" = "End Review",
+    "Mid PGY2" = "Mid Review",
+    "End PGY3" = "End Review", 
+    "Mid PGY3" = "Mid Review",
+    "Graduation" = "End Review"
+  )
+  
+  if (period %in% names(period_aliases)) {
+    alt_period <- period_aliases[period]
+    message("DEBUG: Trying alias mapping: ", period, " -> ", alt_period)
+    
+    if (level %in% names(coach_rev_mappings) && alt_period %in% names(coach_rev_mappings[[level]])) {
+      result <- coach_rev_mappings[[level]][[alt_period]][[return_type]]
+      message("DEBUG: Alias mapping successful - returning ", return_type, ": ", result)
+      return(result)
+    }
+  }
+  
+  # ERROR: No mapping found - don't default to 8, throw error
+  error_msg <- paste("No mapping found for level:", level, "and period:", period, "in coach_rev context")
+  message("ERROR: ", error_msg)
+  stop(error_msg)
+}
+
+# ALTERNATIVE: Simplified coach-specific mapping function
+get_coach_rev_instance <- function(level, period) {
+  message("DEBUG: get_coach_rev_instance called with level=", level, ", period=", period)
+  
+  # Explicit mapping table for coach_rev form
+  instance_map <- c(
+    # Intern mappings
+    "Intern_Intern Intro" = 7,
+    "Intern_Mid Review" = 1,
+    "Intern_End Review" = 2,
+    "Intern_Mid Intern" = 1,    # Alternative format
+    "Intern_End Intern" = 2,    # Alternative format
+    
+    # PGY2 mappings
+    "PGY2_Mid Review" = 3,
+    "PGY2_End Review" = 4,
+    "PGY2_Mid PGY2" = 3,        # Alternative format
+    "PGY2_End PGY2" = 4,        # Alternative format
+    
+    # PGY3 mappings
+    "PGY3_Mid Review" = 5,
+    "PGY3_End Review" = 6,
+    "PGY3_Mid PGY3" = 5,        # Alternative format
+    "PGY3_End PGY3" = 6,        # Alternative format
+    "PGY3_Graduation" = 6       # Alternative format
+  )
+  
+  # Create lookup key
+  lookup_key <- paste(level, period, sep = "_")
+  message("DEBUG: Looking up key: ", lookup_key)
+  
+  if (lookup_key %in% names(instance_map)) {
+    result <- instance_map[lookup_key]
+    message("DEBUG: Found mapping: ", lookup_key, " -> ", result)
+    return(as.numeric(result))
+  }
+  
+  # Error if no mapping found
+  stop("No coach_rev instance mapping found for level: ", level, " and period: ", period)
 }
 
 

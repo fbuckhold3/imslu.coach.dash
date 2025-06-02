@@ -117,17 +117,64 @@ server <- function(input, output, session) {
     
     # Reactive to determine the REDCap instance
     redcap_instance <- reactive({
-        req(values$selected_resident$Level)
-        req(values$current_period)
+      req(values$selected_resident$Level)
+      req(values$current_period)
+      
+      level <- values$selected_resident$Level
+      period <- values$current_period
+      
+      # Enhanced debugging
+      message("=== REDCap Instance Calculation ===")
+      message("Input - Level: '", level, "', Period: '", period, "'")
+      message("Resident: ", values$selected_resident$name)
+      
+      # EXPLICIT mapping for coach_rev form to avoid any confusion
+      instance <- tryCatch({
+        # Direct mapping table specifically for coach reviews
+        if (level == "Intern" && period == "Intern Intro") {
+          7
+        } else if (level == "Intern" && period %in% c("Mid Review", "Mid Intern")) {
+          1  
+        } else if (level == "Intern" && period %in% c("End Review", "End Intern")) {
+          2  # This should be 2 for End Intern, NOT 8!
+        } else if (level == "PGY2" && period %in% c("Mid Review", "Mid PGY2")) {
+          3
+        } else if (level == "PGY2" && period %in% c("End Review", "End PGY2")) {
+          4
+        } else if (level == "PGY3" && period %in% c("Mid Review", "Mid PGY3")) {
+          5
+        } else if (level == "PGY3" && period %in% c("End Review", "End PGY3", "Graduation")) {
+          6
+        } else {
+          # Instead of defaulting to 8, throw an error so we can debug
+          stop("No mapping found for Level: '", level, "' and Period: '", period, "'")
+        }
+      }, error = function(e) {
+        message("ERROR in instance calculation: ", e$message)
+        message("This will cause data to be stored incorrectly!")
         
-        # Map level and period to a REDCap instance
-        instance <- map_period_format(
-            level = values$selected_resident$Level,
-            period = values$current_period,
-            return_type = "instance"
+        # Show error to user instead of silently defaulting
+        showNotification(
+          paste("Error determining review period:", e$message), 
+          type = "error", 
+          duration = 10
         )
         
-        return(instance)
+        # Return NA instead of 8 to prevent incorrect submission
+        return(NA)
+      })
+      
+      message("Calculated Instance: ", instance)
+      message("Expected for End Intern: 2")
+      message("===================================")
+      
+      # Validation check
+      if (level == "Intern" && period %in% c("End Review", "End Intern") && instance != 2) {
+        message("ERROR: End Intern should map to instance 2, but got: ", instance)
+        showNotification("Critical Error: Incorrect period mapping detected!", type = "error")
+      }
+      
+      return(instance)
     })
     
     # Authentication logic
@@ -352,11 +399,31 @@ server <- function(input, output, session) {
           redcap_periods[i] <- redcap_period
           
           # Convert period to REDCap instance
-          coach_period <- map_period_format(
-            level = res_level,
-            period = current_period,
-            return_type = "instance"
-          )
+          coach_period <- tryCatch({
+  # Use the SAME explicit mapping logic as your redcap_instance reactive
+  if (res_level == "Intern" && current_period == "Intern Intro") {
+    7
+  } else if (res_level == "Intern" && current_period %in% c("Mid Review", "Mid Intern")) {
+    1  
+  } else if (res_level == "Intern" && current_period %in% c("End Review", "End Intern")) {
+    2  # This should be 2 for End Intern, NOT 8!
+  } else if (res_level == "PGY2" && current_period %in% c("Mid Review", "Mid PGY2")) {
+    3
+  } else if (res_level == "PGY2" && current_period %in% c("End Review", "End PGY2")) {
+    4
+  } else if (res_level == "PGY3" && current_period %in% c("Mid Review", "Mid PGY3")) {
+    5
+  } else if (res_level == "PGY3" && current_period %in% c("End Review", "End PGY3", "Graduation")) {
+    6
+  } else {
+    # Log the unmapped combination for debugging
+    message("WARNING: Unmapped combination in coach table - Level: '", res_level, "', Period: '", current_period, "'")
+    8  # Only use 8 as absolute last resort
+  }
+}, error = function(e) {
+  message("ERROR in coach table period mapping: ", e$message)
+  8
+})
           
           message("Mapped period: ", current_period, " -> ", redcap_period, " (instance: ", coach_period, ")")
           
@@ -3862,107 +3929,56 @@ server <- function(input, output, session) {
           return("999")
         })
         
-        incProgress(0.3, detail = "Normalizing period and determining mapping...")
+        ncProgress(0.3, detail = "Determining period mapping...")
         
-        # NORMALIZE the period name before mapping
-        normalized_period <- values$current_period
+        # Use the SAME explicit mapping logic as your redcap_instance reactive
+        correct_instance <- tryCatch({
+          level <- values$selected_resident$Level
+          period <- values$current_period
+          
+          message("=== SECONDARY REVIEW MAPPING ===")
+          message("Level: '", level, "', Period: '", period, "'")
+          
+          # Use explicit mapping - same logic as redcap_instance reactive
+          if (level == "Intern" && period == "Intern Intro") {
+            showNotification("Secondary reviews are not available for Intern Intro period.", 
+                             type = "warning", duration = 5)
+            return()
+          } else if (level == "Intern" && period %in% c("Mid Review", "Mid Intern")) {
+            1  
+          } else if (level == "Intern" && period %in% c("End Review", "End Intern")) {
+            2  # This should be 2 for End Intern, NOT 8!
+          } else if (level == "PGY2" && period %in% c("Mid Review", "Mid PGY2")) {
+            3
+          } else if (level == "PGY2" && period %in% c("End Review", "End PGY2")) {
+            4
+          } else if (level == "PGY3" && period %in% c("Mid Review", "Mid PGY3")) {
+            5
+          } else if (level == "PGY3" && period %in% c("End Review", "End PGY3", "Graduation", "Graduating")) {
+            6
+          } else {
+            stop("Cannot map Level: '", level, "' and Period: '", period, "' for secondary review")
+          }
+        }, error = function(e) {
+          message("ERROR in secondary review mapping: ", e$message)
+          showNotification(paste("Cannot determine review period for", values$selected_resident$Level, values$current_period), 
+                           type = "error")
+          return()
+        })
         
-        # Handle different period name variations
-        if (normalized_period %in% c("Graduating", "Graduation", "End PGY3")) {
-          normalized_period <- "End Review"  # Convert to what map_period_format expects
-        } else if (normalized_period %in% c("Mid PGY3", "Mid Intern", "Mid PGY2")) {
-          normalized_period <- "Mid Review"  # Convert to what map_period_format expects
-        } else if (normalized_period %in% c("End Intern", "End PGY2")) {
-          normalized_period <- "End Review"  # Convert to what map_period_format expects
-        } else if (normalized_period == "Intern Intro") {
-          # Skip secondary reviews for Intern Intro
-          showNotification("Secondary reviews are not available for Intern Intro period.", 
-                           type = "warning", duration = 5)
+        # Validate that we got a valid instance
+        if (is.null(correct_instance) || is.na(correct_instance) || !correct_instance %in% 1:7) {
+          showNotification("Invalid period mapping for secondary review", type = "error")
           return()
         }
         
-        message("Original period: ", values$current_period)
-        message("Normalized period: ", normalized_period)
+        # The period code for second_period field should match the instance
+        correct_period_code <- as.character(correct_instance)
         
-        # Now use the normalized period for mapping
-        correct_instance <- map_period_format(
-          level = values$selected_resident$Level,
-          period = normalized_period,  # Use normalized period
-          return_type = "instance",
-          form_context = "second_review"
-        )
-        
-        # Get the period dropdown value for second_period field
-        correct_period_dropdown <- map_period_format(
-          level = values$selected_resident$Level,
-          period = normalized_period,  # Use normalized period
-          return_type = "ccc",
-          form_context = "second_review"
-        )
-        
-        message("After mapping with normalized period:")
-        message("  Instance: ", correct_instance)
-        message("  Period dropdown: ", correct_period_dropdown)
-        
-        # Map the dropdown value to the numeric code
-        period_name_to_code <- c(
-          "Mid Intern" = "1",
-          "End Intern" = "2", 
-          "Mid PGY2" = "3",
-          "End PGY2" = "4",
-          "Mid PGY3" = "5",
-          "Graduation" = "6"
-        )
-        
-        correct_period_code <- period_name_to_code[correct_period_dropdown]
-        
-        # If mapping still failed, use direct logic based on original period
-        if (is.na(correct_instance) || correct_instance == 8) {
-          message("Map function failed, using direct logic for period: ", values$current_period)
-          
-          if (values$selected_resident$Level == "PGY3" && 
-              values$current_period %in% c("Graduating", "Graduation", "End Review", "End PGY3")) {
-            correct_instance <- 6
-            correct_period_code <- "6"
-            message("Direct mapping: PGY3 Graduating -> Instance 6, Period 6")
-          } else if (values$selected_resident$Level == "PGY3" && 
-                     values$current_period %in% c("Mid Review", "Mid PGY3")) {
-            correct_instance <- 5
-            correct_period_code <- "5"
-          } else if (values$selected_resident$Level == "PGY2" && 
-                     values$current_period %in% c("End Review", "End PGY2")) {
-            correct_instance <- 4
-            correct_period_code <- "4"
-          } else if (values$selected_resident$Level == "PGY2" && 
-                     values$current_period %in% c("Mid Review", "Mid PGY2")) {
-            correct_instance <- 3
-            correct_period_code <- "3"
-          } else if (values$selected_resident$Level == "Intern" && 
-                     values$current_period %in% c("End Review", "End Intern")) {
-            correct_instance <- 2
-            correct_period_code <- "2"
-          } else if (values$selected_resident$Level == "Intern" && 
-                     values$current_period %in% c("Mid Review", "Mid Intern")) {
-            correct_instance <- 1
-            correct_period_code <- "1"
-          } else {
-            showNotification(paste("Cannot map period:", values$current_period, "for level:", values$selected_resident$Level), 
-                             type = "error", duration = 10)
-            return()
-          }
-        }
-        
-        if (is.na(correct_period_code)) {
-          correct_period_code <- as.character(correct_instance)
-        }
-        
-        message("=== FINAL MAPPING ===")
-        message("Level: ", values$selected_resident$Level)
-        message("Original Period: ", values$current_period)
-        message("Normalized Period: ", normalized_period)
-        message("REDCap Instance: ", correct_instance)
-        message("REDCap Period Code: ", correct_period_code)
-        message("Period Name: ", names(period_name_to_code)[period_name_to_code == correct_period_code])
+        message("=== SECONDARY REVIEW FINAL MAPPING ===")
+        message("Instance: ", correct_instance)
+        message("Period Code: ", correct_period_code)
+        message("========================================")
         
         incProgress(0.4, detail = "Building submission data...")
         
