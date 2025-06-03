@@ -3929,7 +3929,7 @@ server <- function(input, output, session) {
           return("999")
         })
         
-        ncProgress(0.3, detail = "Determining period mapping...")
+        incProgress(0.3, detail = "Determining period mapping...")
         
         # Use the SAME explicit mapping logic as your redcap_instance reactive
         correct_instance <- tryCatch({
