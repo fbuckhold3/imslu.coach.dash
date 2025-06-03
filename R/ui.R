@@ -770,7 +770,8 @@ ui <- page_fluid(
             # Back button at the top
             div(
               class = "mb-4",
-              actionButton("second_review_back", "← Back to Coach Dashboard", 
+              actionButton("second_review_back", 
+                           tagList(icon("arrow-left"), " Back to Coach Dashboard"), 
                            class = "btn-secondary btn-sm")
             ),
             
@@ -829,9 +830,9 @@ ui <- page_fluid(
                     textAreaInput(
                       "secondary_coach_comments", 
                       label = NULL,
-                      rows = 6,  # Increased from 5
+                      rows = 6,
                       width = "100%",
-                      placeholder = "Enter your detailed comments about the resident's Individualized Learning Plan and the primary coach's assessment. Consider:\n\n• Do you agree with the primary coach's assessment?\n• Are there additional observations or concerns?\n• What recommendations do you have?\n• Are there resources the resident needs?"
+                      placeholder = "Enter your detailed comments about the resident's Individualized Learning Plan and the primary coach's assessment. Consider:\n\n- Do you agree with the primary coach's assessment?\n- Are there additional observations or concerns?\n- What recommendations do you have?\n- Are there resources the resident needs?"
                     )
                   )
                 )
