@@ -557,65 +557,104 @@ submit_milestone_data <- function(redcap_url, redcap_token, record_id, selected_
   # Convert record_id to character
   record_id <- as.character(record_id)
   
-  # FIXED: Updated period mapping to handle Graduating correctly
-  period_mapping <- c(
+  # FIXED: More robust period mapping for milestones
+  # Direct mapping table for milestone periods
+  milestone_period_mapping <- c(
+    # Standard milestone periods
     "Intern Intro" = "7",
-    "Mid Intern" = "1",
+    "Mid Intern" = "1", 
     "End Intern" = "2",
     "Mid PGY2" = "3",
-    "End PGY2" = "4",
+    "End PGY2" = "4", 
     "Mid PGY3" = "5",
-    "Graduating" = "6",  # FIXED: milestone forms use "Graduating"
-    "Graduation" = "6"   # ADDED: Also handle "Graduation" mapping to same instance
+    "Graduation" = "6",    # CCC/second review format
+    "Graduating" = "6",    # Milestone/self-eval format
+    
+    # App format periods with level-based mapping
+    "Intern_Intern Intro" = "7",
+    "Intern_Mid Review" = "1",
+    "Intern_End Review" = "2",
+    "PGY2_Mid Review" = "3", 
+    "PGY2_End Review" = "4",
+    "PGY3_Mid Review" = "5",
+    "PGY3_End Review" = "6",
+    "PGY3_Graduating" = "6",
+    "PGY3_Graduation" = "6"
   )
   
-  # If period is in app format, map it to milestone format first
-  if (selected_period %in% c("Intern Intro", "Mid Review", "End Review")) {
-    # Map app period to milestone period with milestone form context
+  # Try direct mapping first
+  instance_number <- milestone_period_mapping[selected_period]
+  
+  # If that fails, try with level prefix
+  if (is.na(instance_number)) {
+    level_period_key <- paste(resident_level, selected_period, sep = "_")
+    instance_number <- milestone_period_mapping[level_period_key]
+    message("Trying level-period key: ", level_period_key, " -> ", instance_number)
+  }
+  
+  # If still NA, try mapping through map_to_milestone_period
+  if (is.na(instance_number)) {
+    message("Direct mapping failed, trying map_to_milestone_period...")
     milestone_period <- map_to_milestone_period(resident_level, selected_period, "milestone")
-  } else {
-    # Already in milestone format, but normalize for milestone context
-    milestone_period <- normalize_period_for_form(selected_period, "milestone")
+    
+    if (!is.na(milestone_period)) {
+      instance_number <- milestone_period_mapping[milestone_period]
+      message("Mapped ", selected_period, " -> ", milestone_period, " -> ", instance_number)
+    }
   }
   
-  message("Selected period: ", selected_period)
-  message("Milestone period: ", milestone_period)
-  message("Resident level: ", resident_level)
-  
-  # Get instance number from period mapping
-  instance_number <- period_mapping[milestone_period]
-  
-  # If instance_number is NA, try a fallback mapping
+  # CRITICAL FIX: Handle graduating/graduation specifically
   if (is.na(instance_number)) {
-    message("Period mapping failed for: ", milestone_period, 
-            ", trying fallback mapping...")
-    
-    # Fallback direct mapping for app periods
-    app_direct_mapping <- c(
-      "Intern Intro" = "7",
-      "Mid Review" = ifelse(resident_level == "Intern", "1", 
-                            ifelse(resident_level == "PGY2", "3", "5")),
-      "End Review" = ifelse(resident_level == "Intern", "2", 
-                            ifelse(resident_level == "PGY2", "4", "6"))
-    )
-    
-    instance_number <- app_direct_mapping[selected_period]
+    # Special handling for graduation variants
+    if (selected_period %in% c("Graduating", "Graduation") || 
+        (selected_period == "End Review" && resident_level == "PGY3")) {
+      instance_number <- "6"
+      message("Using graduation instance 6 for period: ", selected_period)
+    }
+    # Handle other End Review cases
+    else if (selected_period == "End Review") {
+      if (resident_level == "Intern") {
+        instance_number <- "2"
+      } else if (resident_level == "PGY2") {
+        instance_number <- "4" 
+      } else {
+        instance_number <- "6"  # Default PGY3 to graduation
+      }
+      message("Mapped End Review for ", resident_level, " to instance: ", instance_number)
+    }
+    # Handle Mid Review cases  
+    else if (selected_period == "Mid Review") {
+      if (resident_level == "Intern") {
+        instance_number <- "1"
+      } else if (resident_level == "PGY2") {
+        instance_number <- "3"
+      } else if (resident_level == "PGY3") {
+        instance_number <- "5"
+      }
+      message("Mapped Mid Review for ", resident_level, " to instance: ", instance_number)
+    }
   }
   
-  if (is.na(instance_number)) {
+  # Final validation - ensure we have a valid instance
+  valid_instances <- c("1", "2", "3", "4", "5", "6", "7")
+  if (is.na(instance_number) || !(instance_number %in% valid_instances)) {
+    error_msg <- paste("Could not map period", selected_period, 
+                       "with level", resident_level, "to a valid milestone instance.",
+                       "Attempted instance:", instance_number)
+    message("ERROR: ", error_msg)
     return(list(
       success = FALSE,
-      outcome_message = paste("Could not map period", selected_period, 
-                              "with level", resident_level, "to a REDCap instance.")
+      outcome_message = error_msg
     ))
   }
   
-  message("Using instance number: ", instance_number, " for milestone_selfevaluation_c33c")
+  message("Using milestone instance number: ", instance_number, " for milestone_selfevaluation_c33c")
   
+  # Rest of the function continues as before...
   # Mapping for field names
   mile_key2field <- c(
     "PC_1" = "rep_pc1_self",
-    "PC_2" = "rep_pc2_self",
+    "PC_2" = "rep_pc2_self", 
     "PC_3" = "rep_pc3_self",
     "PC_4" = "rep_pc4_self",
     "PC_5" = "rep_pc5_self",
@@ -651,7 +690,7 @@ submit_milestone_data <- function(redcap_url, redcap_token, record_id, selected_
   # Build fields list with all milestone data
   fields <- list(
     prog_mile_date = today_date,
-    prog_mile_period = instance_number
+    prog_mile_period = instance_number  # This should now be a valid 1-7
   )
   
   # Log the date and period fields being used 
@@ -674,8 +713,7 @@ submit_milestone_data <- function(redcap_url, redcap_token, record_id, selected_
     }
   }
   
-  # Make sure all values are properly escaped in our manually constructed JSON
-  # Build data manually but DO NOT include the complete field
+  # Build data manually with proper escaping
   data_str <- '[{'
   data_str <- paste0(data_str, '"record_id":"', escape_json_string(as.character(record_id)), '"')
   data_str <- paste0(data_str, ',"redcap_repeat_instrument":"milestone_selfevaluation_c33c"')
@@ -690,12 +728,12 @@ submit_milestone_data <- function(redcap_url, redcap_token, record_id, selected_
     }
   }
   
-  # Close the object and array WITHOUT adding the complete status field
+  # Close the object and array
   data_str <- paste0(data_str, "}]")
   
   message("Submitting milestone data (first 100 chars): ", substr(data_str, 1, 100))
   
-  # Submit to REDCap with modified parameters to address the error
+  # Submit to REDCap
   response <- httr::POST(
     url = redcap_url,
     body = list(
@@ -720,27 +758,16 @@ submit_milestone_data <- function(redcap_url, redcap_token, record_id, selected_
   message("REDCap API response status: ", status_code)
   message("REDCap API response: ", response_content)
   
-  # Check if submission was successful or if it's just the form status field error
-  submission_success <- status_code == 200
-  
-  if (!submission_success) {
-    # Check if the error is just about the form status field
-    if (grepl("Form Status field", response_content)) {
-      # If the error is just about the form status, consider this a success
-      return(list(
-        success = TRUE,
-        outcome_message = "Milestone data saved (form status unchanged)"
-      ))
-    } else {
-      return(list(
-        success = FALSE,
-        outcome_message = paste("REDCap error:", response_content)
-      ))
-    }
-  } else {
+  # Check if submission was successful
+  if (status_code == 200) {
     return(list(
       success = TRUE,
       outcome_message = "Milestone data successfully submitted"
+    ))
+  } else {
+    return(list(
+      success = FALSE,
+      outcome_message = paste("REDCap error:", response_content)
     ))
   }
 }

@@ -25,6 +25,40 @@ server <- function(input, output, session) {
     
     setup_imres_resources()
     
+    get_milestone_field_mapping <- function() {
+      c(
+        "PC_1" = "rep_pc1",
+        "PC_2" = "rep_pc2", 
+        "PC_3" = "rep_pc3",
+        "PC_4" = "rep_pc4",
+        "PC_5" = "rep_pc5",
+        "PC_6" = "rep_pc6",
+        "MK_1" = "rep_mk1",
+        "MK_2" = "rep_mk2",
+        "MK_3" = "rep_mk3",
+        "SBP_1" = "rep_sbp1",
+        "SBP_2" = "rep_sbp2",
+        "SBP_3" = "rep_sbp3",
+        "PBLI_1" = "rep_pbl1",
+        "PBLI_2" = "rep_pbl2",
+        "PROF_1" = "rep_prof1",
+        "PROF_2" = "rep_prof2",
+        "PROF_3" = "rep_prof3",
+        "PROF_4" = "rep_prof4",
+        "ICS_1" = "rep_ics1",
+        "ICS_2" = "rep_ics2",
+        "ICS_3" = "rep_ics3"
+      )
+    }
+    
+    
+    get_milestone_desc_fields <- function() {
+      c("PC_1", "PC_2", "PC_3", "PC_6",
+        "PBLI_1", "PBLI_2",
+        "PROF_1", "PROF_2", "PROF_3", "PROF_4",
+        "ICS_1", "ICS_2", "ICS_3")
+    }
+    
     # Reactive values to store session state
     values <- reactiveValues(
         is_authenticated = FALSE,
@@ -3704,14 +3738,37 @@ server <- function(input, output, session) {
     # Milestone Assessment Submission
     # =============================================================================
     
-    # Handle confirmation of milestone submission
+    get_milestone_instance <- function(level, period) {
+      # Direct mapping for milestone submissions - NO instance 8 allowed!
+      if (level == "Intern") {
+        if (period %in% c("Intern Intro", "7")) return("7")
+        if (period %in% c("Mid Review", "Mid Intern", "1")) return("1")
+        if (period %in% c("End Review", "End Intern", "2")) return("2")
+      } else if (level == "PGY2") {
+        if (period %in% c("Mid Review", "Mid PGY2", "3")) return("3")
+        if (period %in% c("End Review", "End PGY2", "4")) return("4")
+      } else if (level == "PGY3") {
+        if (period %in% c("Mid Review", "Mid PGY3", "5")) return("5")
+        if (period %in% c("End Review", "End PGY3", "Graduation", "Graduating", "6")) return("6")
+      }
+      
+      # If we can't map it, there's a problem - don't default to 8!
+      stop("Cannot map level '", level, "' and period '", period, "' to valid milestone instance (1-7)")
+    }
+    
+    # Handle confirmation of milestone submission - CORRECTED VERSION
+    # Handle confirmation of milestone submission - CORRECTED VERSION
     observeEvent(input$confirm_submit_milestones, {
       req(values$selected_resident)
-      req(values$redcap_period)
+      req(values$current_period)  # Use current_period, not redcap_period
       req(miles_mod$scores())
+      
+      # Close the modal first
+      removeModal()
       
       # Show processing notification
       withProgress(message = "Submitting milestone assessment...", {
+        
         # Get REDCap info
         redcap_url <- app_data()$redcap_url %||% "https://redcapsurvey.slu.edu/api/"
         token <- app_data()$rdm_token
@@ -3719,14 +3776,27 @@ server <- function(input, output, session) {
         # Get record ID for the selected resident
         record_id <- find_record_id(app_data(), values$selected_resident$name)
         
-        # Determine instance number for the period
-        instance_number <- get_redcap_instance(
-          level = values$selected_resident$Level,
-          period = values$current_period
-        )
+        # CORRECTED: Use the fixed milestone instance function
+        instance_number <- tryCatch({
+          get_milestone_instance(
+            level = values$selected_resident$Level,
+            period = values$current_period  # Use current_period directly
+          )
+        }, error = function(e) {
+          showNotification(paste("Period mapping error:", e$message), type = "error")
+          return(NULL)
+        })
         
+        if (is.null(instance_number)) {
+          return()
+        }
+        
+        message("=== MILESTONE SUBMISSION ===")
         message("Using record_id: ", record_id)
-        message("Using instance number: ", instance_number)
+        message("Level: ", values$selected_resident$Level)
+        message("Period: ", values$current_period)
+        message("Instance number: ", instance_number)
+        message("===========================")
         
         # Format today's date
         today_date <- format(Sys.Date(), "%Y-%m-%d")
@@ -3738,29 +3808,29 @@ server <- function(input, output, session) {
         # Build JSON directly with required repeating instrument fields
         json_data <- paste0(
           '[{"record_id":"', escape_json_string(record_id),
-          '","redcap_repeat_instrument":"milestone_entry",',
-          '"redcap_repeat_instance":"', escape_json_string(as.character(instance_number)), '"',
+          '","redcap_repeat_instrument":"milestone_entry",',  # CORRECTED form name
+          '"redcap_repeat_instance":"', escape_json_string(instance_number), '"',
           ',"prog_mile_date":"', today_date, '"',
-          ',"prog_mile_period":"', escape_json_string(as.character(instance_number)), '"'
+          ',"prog_mile_period":"', escape_json_string(instance_number), '"'  # Same as instance for milestones
         )
         
         # Add milestone scores
         scores <- miles_mod$scores()
+        descriptions <- miles_mod$desc()
+        
         for(key in names(scores)) {
-          field_name <- mile_key2field[key]
+          field_name <- mile_key2field[[key]]
           if (!is.null(field_name)) {
             # Add score
             json_data <- paste0(json_data, ',"', field_name, '":"', 
                                 escape_json_string(as.character(scores[[key]])), '"')
             
             # Add description if available
-            if (key %in% desc_enabled_fields) {
-              desc <- miles_mod$desc()[[key]]
-              if (!is.null(desc) && !is.na(desc) && desc != "") {
-                desc_field <- paste0(field_name, "_desc")
-                json_data <- paste0(json_data, ',"', desc_field, '":"', 
-                                    escape_json_string(as.character(desc)), '"')
-              }
+            if (key %in% desc_enabled_fields && !is.null(descriptions[[key]]) && 
+                !is.na(descriptions[[key]]) && descriptions[[key]] != "") {
+              desc_field <- paste0(field_name, "_desc")
+              json_data <- paste0(json_data, ',"', desc_field, '":"', 
+                                  escape_json_string(as.character(descriptions[[key]])), '"')
             }
           }
         }
@@ -3768,24 +3838,34 @@ server <- function(input, output, session) {
         # Close the JSON
         json_data <- paste0(json_data, "}]")
         
-        message("Submission JSON (first 150 chars): ", substr(json_data, 1, 150))
+        message("Milestone JSON (first 200 chars): ", substr(json_data, 1, 200))
         
         # Submit to REDCap
-        response <- httr::POST(
-          url = redcap_url,
-          body = list(
-            token = token,
-            content = "record",
-            format = "json",
-            type = "flat",
-            overwriteBehavior = "normal",
-            forceAutoNumber = "false",
-            data = json_data,
-            returnContent = "count",
-            returnFormat = "json"
-          ),
-          encode = "form"
-        )
+        response <- tryCatch({
+          httr::POST(
+            url = redcap_url,
+            body = list(
+              token = token,
+              content = "record",
+              format = "json",
+              type = "flat",
+              overwriteBehavior = "normal",
+              forceAutoNumber = "false",
+              data = json_data,
+              returnContent = "count",
+              returnFormat = "json"
+            ),
+            encode = "form",
+            httr::timeout(30)
+          )
+        }, error = function(e) {
+          showNotification(paste("Network error:", e$message), type = "error")
+          return(NULL)
+        })
+        
+        if (is.null(response)) {
+          return()
+        }
         
         # Process response
         status_code <- httr::status_code(response)
@@ -3795,14 +3875,12 @@ server <- function(input, output, session) {
         message("REDCap response content: ", content_text)
         
         if (status_code == 200) {
-          # Close the modal
-          removeModal()
-          
           # Save the data for possible display
-          milestone_data$current_data <- process_current_milestone(
-            milestone_scores = miles_mod,
+          milestone_data$current_data <- list(
             resident_name = values$selected_resident$name,
-            current_period = values$redcap_period
+            period = values$current_period,
+            scores = scores,
+            descriptions = descriptions
           )
           
           milestone_data$submission_status <- "complete"
@@ -3814,9 +3892,9 @@ server <- function(input, output, session) {
           # Navigate to done page
           show_done_page()
         } else {
-          # Show error notification
-          showNotification(paste("Error submitting milestone assessment:", content_text), 
-                           type = "error", duration = 10)
+          # Show error notification with specific details
+          showNotification(paste("Error submitting milestone assessment (", status_code, "):", content_text), 
+                           type = "error", duration = 15)
         }
       })
     })
