@@ -1,14 +1,374 @@
-/* IMSLU Coaching App Styles */
+/* Coach App Custom CSS - Updated for gmed integration */
 
-/* Card styling */
+/* ============================================================================
+   SSM SLUCARE COLOR VARIABLES (compatible with gmed)
+   ============================================================================ */
+:root {
+  --ssm-primary-blue: #003d5c;
+  --ssm-secondary-blue: #0066a1;
+  --ssm-light-blue: #4a90a4;
+  --ssm-accent-blue: #2196f3;
+  --ssm-success-green: #00a651;
+  --ssm-warning-orange: #ff8c00;
+  --ssm-danger-red: #dc3545;
+  --ssm-light-gray: #f8f9fa;
+  --ssm-white: #ffffff;
+}
+
+/* ============================================================================
+   APPLICATION HEADER
+   ============================================================================ */
+.gmed-app-header {
+  background: linear-gradient(135deg, var(--ssm-primary-blue) 0%, var(--ssm-secondary-blue) 100%);
+  color: var(--ssm-white);
+  padding: 2rem 0;
+  margin-bottom: 2rem;
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 4px 20px rgba(0, 61, 92, 0.15);
+}
+
+.gmed-app-header h1 {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.gmed-app-header h4 {
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+/* ============================================================================
+   RESIDENT INFO PANEL (override gmed defaults if needed)
+   ============================================================================ */
+.gmed-resident-panel {
+  background: linear-gradient(135deg, var(--ssm-light-gray) 0%, var(--ssm-white) 100%);
+  border-left: 4px solid var(--ssm-secondary-blue);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0 12px 12px 0;
+  box-shadow: 0 4px 16px rgba(0, 61, 92, 0.08);
+}
+
+.gmed-resident-panel h5 {
+  color: var(--ssm-primary-blue);
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+/* ============================================================================
+   COACH DASHBOARD SPECIFIC STYLES
+   ============================================================================ */
+.coach-dashboard-header {
+  background: linear-gradient(135deg, var(--ssm-primary-blue) 0%, var(--ssm-secondary-blue) 100%);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 61, 92, 0.15);
+}
+
+.table-instruction {
+  color: var(--ssm-secondary-blue);
+  font-size: 1.1rem;
+}
+
+/* ============================================================================
+   CARD STYLING (compatible with gmed)
+   ============================================================================ */
+.card {
+  border: 1px solid rgba(0, 61, 92, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 61, 92, 0.08);
+  transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 8px 24px rgba(0, 61, 92, 0.12);
+}
+
 .card-header {
-  background-color: #0072B2;
-  color: white;
+  background: linear-gradient(135deg, var(--ssm-light-gray) 0%, var(--ssm-white) 100%);
+  border-bottom: 2px solid var(--ssm-secondary-blue);
+  border-radius: 12px 12px 0 0 !important;
+  font-weight: 600;
+  color: var(--ssm-primary-blue);
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+/* ============================================================================
+   FORM CONTROLS (enhanced for gmed)
+   ============================================================================ */
+.form-control, .form-select {
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--ssm-secondary-blue);
+  box-shadow: 0 0 0 0.2rem rgba(0, 102, 161, 0.25);
+}
+
+textarea.form-control {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* ============================================================================
+   BUTTONS (SSM styling)
+   ============================================================================ */
+.btn-primary {
+  background: linear-gradient(135deg, var(--ssm-secondary-blue) 0%, var(--ssm-light-blue) 100%);
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--ssm-primary-blue) 0%, var(--ssm-secondary-blue) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 102, 161, 0.3);
+}
+
+.btn-secondary {
+  background: #6c757d;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, var(--ssm-success-green) 0%, #26a69a 100%);
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 166, 81, 0.3);
+}
+
+/* ============================================================================
+   DATATABLE STYLING (compatible with gmed)
+   ============================================================================ */
+.dataTables_wrapper {
+  font-family: inherit;
+}
+
+.dataTables_wrapper table.dataTable {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 61, 92, 0.1);
+}
+
+.dataTables_wrapper table.dataTable thead th {
+  background: linear-gradient(135deg, var(--ssm-primary-blue) 0%, var(--ssm-secondary-blue) 100%);
+  color: var(--ssm-white);
+  border: none;
+  padding: 1rem;
+  font-weight: 600;
+}
+
+.dataTables_wrapper table.dataTable tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.dataTables_wrapper table.dataTable tbody tr:hover {
+  background-color: rgba(0, 102, 161, 0.05);
+  cursor: pointer;
+}
+
+.dataTables_wrapper table.dataTable tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+/* ============================================================================
+   PROGRESS INDICATORS (complement gmed styles)
+   ============================================================================ */
+.review-progress {
+  height: 16px;
+  border-radius: 10px;
+  background: #e9ecef;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.gmed-step-indicator {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: var(--ssm-secondary-blue);
+}
+
+/* ============================================================================
+   ALERTS AND NOTIFICATIONS
+   ============================================================================ */
+.alert {
+  border: none;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.alert-success {
+  background: linear-gradient(135deg, rgba(0, 166, 81, 0.1) 0%, rgba(38, 166, 154, 0.1) 100%);
+  color: var(--ssm-success-green);
+  border-left: 4px solid var(--ssm-success-green);
+}
+
+.alert-warning {
+  background: linear-gradient(135deg, rgba(255, 140, 0, 0.1) 0%, rgba(255, 193, 7, 0.1) 100%);
+  color: var(--ssm-warning-orange);
+  border-left: 4px solid var(--ssm-warning-orange);
+}
+
+.alert-danger {
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(255, 99, 132, 0.1) 100%);
+  color: var(--ssm-danger-red);
+  border-left: 4px solid var(--ssm-danger-red);
+}
+
+.alert-info {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(74, 144, 164, 0.1) 100%);
+  color: var(--ssm-accent-blue);
+  border-left: 4px solid var(--ssm-accent-blue);
+}
+
+/* ============================================================================
+   PLUS/DELTA FEEDBACK DISPLAY (complement gmed)
+   ============================================================================ */
+.gmed-plus-delta-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.gmed-plus-section h5 {
+  color: var(--ssm-success-green);
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.gmed-delta-section h5 {
+  color: var(--ssm-danger-red);
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.feedback-text {
+  background: var(--ssm-light-gray);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+/* ============================================================================
+   TAB NAVIGATION (enhance bslib tabs)
+   ============================================================================ */
+.nav-tabs {
+  border-bottom: 2px solid var(--ssm-secondary-blue);
+  margin-bottom: 1.5rem;
+}
+
+.nav-tabs .nav-link {
+  border: none;
+  border-radius: 8px 8px 0 0;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  color: var(--ssm-primary-blue);
+  transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  background: rgba(0, 102, 161, 0.1);
+  color: var(--ssm-secondary-blue);
 }
 
 .nav-tabs .nav-link.active {
-  background-color: #56B4E9;
-  color: white;
+  background: var(--ssm-secondary-blue);
+  color: var(--ssm-white);
+  border-bottom: 2px solid var(--ssm-secondary-blue);
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+@media (max-width: 768px) {
+  .gmed-plus-delta-container {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .gmed-app-header {
+    padding: 1rem 0;
+  }
+  
+  .card-body {
+    padding: 1rem;
+  }
+  
+  .btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* ============================================================================
+   ANIMATION HELPERS
+   ============================================================================ */
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.5s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+.text-primary-custom {
+  color: var(--ssm-primary-blue) !important;
+}
+
+.text-secondary-custom {
+  color: var(--ssm-secondary-blue) !important;
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(135deg, var(--ssm-primary-blue) 0%, var(--ssm-secondary-blue) 100%) !important;
+}
+
+.shadow-custom {
+  box-shadow: 0 4px 16px rgba(0, 61, 92, 0.1) !important;
+}
+
+.border-primary-custom {
+  border-color: var(--ssm-secondary-blue) !important;
 }
 
 /* Resident info panel */
@@ -19,358 +379,10 @@
   margin-bottom: 20px;
 }
 
-/* Coach selection styling */
-.coach-selection-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.coach-selection-container .selectize-control {
-  width: 80%;
-  max-width: 600px;
-}
-
-.coach-selection-container .selectize-dropdown {
-  width: 100% !important;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.coach-selection-container .selectize-input {
-  font-size: 18px;
-  line-height: 2;
-  padding: 12px 15px;
-  border: 1px solid #0072B2;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-}
-
-.coach-selection-container .selectize-input:focus {
-  border-color: #56B4E9;
-  box-shadow: 0 0 10px rgba(86, 180, 233, 0.5);
-}
-
-.coach-selection-container .selectize-input.dropdown-active {
-  border-radius: 8px 8px 0 0;
-}
-
-.coach-selection-container label {
-  font-size: 20px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 15px;
-}
-
-/* Coach dashboard styling */
-.coach-dashboard-header {
-  background-color: #0072B2;
-  color: white;
-  padding: 15px;
-  margin-bottom: 20px;
-  border-radius: 5px;
-}
-
-/* Table row hover effect */
-.dataTable tbody tr:hover {
-  background-color: rgba(86, 180, 233, 0.2) !important;
-  cursor: pointer;
-}
-
-/* Selected row style */
-.dataTable tbody tr.selected {
-  background-color: rgba(86, 180, 233, 0.4) !important;
-}
-
-/* Resident details section */
-.resident-details {
-  background-color: #f8f9fa;
-  border-left: 4px solid #56B4E9;
-  margin-top: 10px;
-  margin-bottom: 20px;
-  padding: 15px;
-  border-radius: 0 5px 5px 0;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-/* Hide resident details section initially */
-#resident_details_section {
-  display: none;
-}
-
-/* Make table rows more obviously clickable */
-#coach_residents_table .dataTables_wrapper tbody tr {
-  cursor: pointer;
-}
-
-#coach_residents_table .dataTables_wrapper tbody tr:hover {
-  background-color: rgba(0, 114, 178, 0.15) !important; 
-}
-
-#coach_residents_table .dataTables_wrapper tbody tr.selected {
-  background-color: rgba(0, 114, 178, 0.3) !important;
-}
-
-/* Clear button for coach selection */
-.selectize-control.single .selectize-input:after {
-  content: '×';
-  font-size: 16px;
-  opacity: 0.5;
-  border: none;
-  right: 8px;
-}
-
 /* Emphasize table instruction */
 .table-instruction {
   color: #0072B2;
   border-bottom: 1px solid #0072B2;
   padding-bottom: 8px;
   margin-bottom: 16px;
-}
-
-/* Make text areas wider and more prominent */
-.form-control.shiny-bound-input[type='textarea'] {
-  width: 100%;
-  border: 1px solid #ddd;
-  padding: 10px;
-  font-size: 14px;
-  border-radius: 4px;
-}
-
-/* Add focus style */
-.form-control.shiny-bound-input[type='textarea']:focus {
-  border-color: #0072B2;
-  box-shadow: 0 0 0 0.2rem rgba(0, 114, 178, 0.25);
-}
-
-/* Career plan section styling */
-.career-section {
-  margin-bottom: 20px;
-  padding: 15px;
-  border-radius: 5px;
-  background-color: #f8f9fa;
-}
-
-.career-section h5 {
-  color: #0072B2;
-  border-bottom: 1px solid #0072B2;
-  padding-bottom: 8px;
-  margin-bottom: 15px;
-}
-
-.career-section ul {
-  padding-left: 20px;
-}
-
-.career-section li {
-  margin-bottom: 5px;
-}
-
-.discussion-topics {
-  background-color: #e9ecef;
-  padding: 15px;
-  border-radius: 5px;
-  border-left: 4px solid #0072B2;
-}
-
-/* Add nice styling to the career plan comment box */
-#career_comments {
-  border: 1px solid #ddd;
-  border-left: 3px solid #0072B2;
-}
-
-#career_comments:focus {
-  border-color: #0072B2;
-  box-shadow: 0 0 0 0.2rem rgba(0, 114, 178, 0.25);
-}
-
-/* Fix tab visibility with z-index and margin */
-.nav-tabs {
-  position: relative;
-  z-index: 10;
-  margin-top: 15px;
-}
-
-/* Progress bar styling */
-.review-progress {
-  margin-bottom: 20px;
-  height: 10px;
-}
-
-.review-progress .progress-bar {
-  transition: width 0.5s ease;
-}
-
-/* Step indicator formatting */
-.step-indicator {
-  font-size: 0.85rem;
-  margin-bottom: 5px;
-  font-weight: bold;
-  color: #0072B2;
-}
-
-/* Modal styling */
-.big-modal .modal-dialog {
-  width: 90%;
-  max-width: 1200px;
-}
-
-    .status-dot {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      margin: 0 auto;
-    }
-    .status-complete {
-      background-color: #28a745;
-    }
-    .status-incomplete {
-      background-color: #dc3545;
-    }
-
-/* Style for the plus/delta sections */
-#resident_plus_assessment, #resident_delta_assessment {
-  background-color: #f8f9fa;
-  border-left: 4px solid #0072B2;
-  padding: 10px 15px;
-  margin-bottom: 20px;
-  border-radius: 0 4px 4px 0;
-  white-space: pre-wrap;
-  font-size: 14px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-#resident_plus_assessment {
-  border-left-color: #28a745; /* Green for positive feedback */
-}
-
-#resident_delta_assessment {
-  border-left-color: #dc3545; /* Red for areas of improvement */
-}
-
-/* Table button styling */
-.btn-link.card-header-action {
-  color: white;
-  float: right;
-  padding: 0 5px;
-  margin: -5px 0;
-}
-
-.btn-link.card-header-action:hover {
-  color: #f8f9fa;
-  text-decoration: none;
-}
-
-/* Style for board prep table warning rows */
-.board-prep-table tr td:nth-child(2) {
-  position: relative;
-}
-
-.board-prep-table tr:nth-child(1) td:nth-child(2),
-.board-prep-table tr:nth-child(2) td:nth-child(2),
-.board-prep-table tr:nth-child(3) td:nth-child(2) {
-  background-color: #f8d7da !important;
-  color: #721c24 !important;
-  font-weight: bold !important;
-}
-
-.board-prep-table tr:nth-child(5) td:nth-child(2)[data-value='Yes'] {
-  background-color: #f8d7da !important;
-  color: #721c24 !important;
-  font-weight: bold !important;
-}
-
-/* Styles for validation indicators */
-.validation-error {
-  color: #721c24;
-  background-color: #f8d7da;
-  border-color: #f5c6cb;
-  padding: 10px;
-  margin-bottom: 15px;
-  border-radius: 5px;
-}
-
-.validation-success {
-  color: #155724;
-  background-color: #d4edda;
-  border-color: #c3e6cb;
-  padding: 10px;
-  margin-bottom: 15px;
-  border-radius: 5px;
-}
-
-/* Make the submit button more prominent when ready */
-.submit-ready {
-  font-weight: bold !important;
-  padding: 10px 20px !important;
-}
-
-/* Styling for the summary validation box */
-.summary-validation {
-  margin-top: 15px;
-  padding: 15px;
-  border-radius: 5px;
-}
-
-/* Enhanced styling for secondary review */
-.coach-comments-content p {
-  text-indent: 0;
-}
-
-.coach-comments-content h6 {
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.secondary-comments-container textarea {
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  padding: 15px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  line-height: 1.5;
-  transition: border-color 0.3s ease;
-}
-
-.secondary-comments-container textarea:focus {
-  border-color: #0072B2;
-  box-shadow: 0 0 0 0.2rem rgba(0, 114, 178, 0.25);
-  outline: none;
-}
-
-.primary-coach-summary-container {
-  max-height: none; /* Remove height restriction */
-}
-
-/* Improve the overall card appearance */
-.card-header .d-flex h5 {
-  color: #0072B2;
-  font-weight: 600;
-}
-
-.badge.bg-warning {
-  font-size: 0.7em;
-  padding: 0.25em 0.5em;
-}
-
-/* Better spacing for the milestone approval section */
-.alert.alert-warning {
-  border-left: 4px solid #ffc107;
-  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-}
-
-/* Improve radio button styling */
-.form-check-input[type="radio"] {
-  width: 1.2em;
-  height: 1.2em;
-  margin-top: 0.15em;
-}
-
-.form-check-label {
-  font-weight: 500;
-  color: #2c3e50;
-  margin-left: 0.5em;
 }
