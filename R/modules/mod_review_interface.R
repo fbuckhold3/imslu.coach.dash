@@ -30,69 +30,61 @@ mod_review_interface_ui <- function(id) {
     bslib::accordion(
       id = ns("review_accordion"),
       open = "wellness",  # First section open by default
-      multiple = FALSE,   # Only one section open at a time
-      
+      multiple = TRUE,   # Allow multiple sections open at once
+
       # Section 1: Wellness & Progress
       bslib::accordion_panel(
         title = "1. Wellness & Progress",
         value = "wellness",
-        icon = bsicons::bs_icon("heart-pulse"),
         mod_wellness_ui(ns("wellness"))
       ),
-      
+
       # Section 2: Evaluations & Feedback
       bslib::accordion_panel(
         title = "2. Evaluations & Feedback",
         value = "evaluations",
-        icon = bsicons::bs_icon("clipboard-data"),
         "Section 2 - Coming soon"
       ),
-      
+
       # Section 3: Learning & Board Preparation
       bslib::accordion_panel(
         title = "3. Learning & Board Preparation",
         value = "learning",
-        icon = bsicons::bs_icon("book"),
         "Section 3 - Coming soon"
       ),
-      
+
       # Section 4: Scholarship
       bslib::accordion_panel(
         title = "4. Scholarship",
         value = "scholarship",
-        icon = bsicons::bs_icon("mortarboard"),
         "Section 4 - Coming soon"
       ),
-      
+
       # Section 5: Career Planning
       bslib::accordion_panel(
         title = "5. Career Planning",
         value = "career",
-        icon = bsicons::bs_icon("briefcase"),
         "Section 5 - Coming soon"
       ),
-      
+
       # Section 6: Goals & ILP Review
       bslib::accordion_panel(
         title = "6. Goals & ILP Review",
         value = "goals",
-        icon = bsicons::bs_icon("bullseye"),
         "Section 6 - Coming soon"
       ),
-      
+
       # Section 7: ILP Summary
       bslib::accordion_panel(
         title = "7. ILP Summary",
         value = "ilp_summary",
-        icon = bsicons::bs_icon("journal-text"),
         "Section 7 - Coming soon"
       ),
-      
+
       # Section 8: Milestone Entry
       bslib::accordion_panel(
         title = "8. Milestone Entry",
         value = "milestones",
-        icon = bsicons::bs_icon("star"),
         "Section 8 - Coming soon"
       )
     ),

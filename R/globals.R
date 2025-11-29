@@ -23,7 +23,8 @@ options(spinner.color = "#0072B2")  # SLU blue
 # LOAD REQUIRED PACKAGES
 # ==============================================================================
 library(shiny)
-library(shinydashboard)  # or bslib if you prefer
+library(shinydashboard)
+library(bslib)  # For accordion and modern components
 library(shinyjs)
 library(DT)
 library(dplyr)
