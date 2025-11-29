@@ -39,6 +39,7 @@ if (!require(gmed)) {
   stop("gmed package not installed. Install with: remotes::install_github('fbuckhold3/gmed')")
 }
 
+
 # ==============================================================================
 # SSL CONFIGURATION FOR REDCAP
 # ==============================================================================
@@ -418,90 +419,108 @@ check_second_review_complete <- function(all_forms, record_id, period_number) {
          nzchar(second_data$second_comments[1]))
 }
 
-# ==============================================================================
-# RESIDENT DATA FILTERING
-# ==============================================================================
-
-#' Get Resident Data for Period
-#' 
-#' Extracts all relevant data for a resident in a specific period
-#' 
-#' @param rdm_data Complete RDM data structure
-#' @param record_id Resident record ID
-#' @param period_name Period name (e.g., "Mid Intern")
-#' @param include_previous Logical, whether to include previous period data
-#' @return List with current_period, previous_period (if requested), resident_info
-#' @export
-get_resident_period_data <- function(
-  rdm_data,
-  record_id,
-  period_name,
-  include_previous = TRUE
-) {
+get_resident_period_data <- function(rdm_data, record_id, current_period, include_previous = TRUE) {
   
-  # Get period numbers
-  period_num <- get_period_number(period_name)
-  prev_period_name <- get_previous_period(period_name)
-  prev_period_num <- if (!is.na(prev_period_name)) {
-    get_period_number(prev_period_name)
-  } else {
-    NA_integer_
+  # Automatically unwrap ALL reactive values
+  data <- rdm_data
+  while (is.function(data)) {
+    data <- data()
   }
   
-  # Resident info
-  resident_info <- rdm_data$residents %>%
-    filter(record_id == !!record_id) %>%
+  # Unwrap record_id if it's reactive
+  rid <- record_id
+  while (is.function(rid)) {
+    rid <- rid()
+  }
+  
+  # Unwrap current_period if it's reactive
+  period <- current_period
+  while (is.function(period)) {
+    period <- period()
+  }
+  
+  # Convert period name to number if needed
+  if (is.character(period)) {
+    period <- get_period_number(period)
+  }
+  
+  # Get resident info
+  resident_info <- data$residents %>%
+    filter(record_id == !!rid) %>%
     slice(1)
   
-  # Current period data from each form
-  current_data <- list()
-  for (form_name in names(rdm_data$all_forms)) {
-    form_data <- rdm_data$all_forms[[form_name]]
-    
-    if (!"record_id" %in% names(form_data)) next
-    
-    # Filter for this resident and period
-    current_data[[form_name]] <- form_data %>%
-      filter(
-        record_id == !!record_id,
-        if ("redcap_repeat_instance" %in% names(.)) {
-          redcap_repeat_instance == !!period_num
-        } else {
-          TRUE  # Non-repeating form
-        }
-      )
+  # Get current period data from all_forms
+  current_s_eval <- if (!is.null(data$all_forms$s_eval)) {
+    data$all_forms$s_eval %>%
+      filter(record_id == !!rid, redcap_repeat_instrument == "s_eval") %>%
+      filter(!is.na(s_e_period), s_e_period == !!period)
+  } else {
+    data.frame()
   }
   
-  # Previous period data (if requested)
-  previous_data <- NULL
-  if (include_previous && !is.na(prev_period_num)) {
-    previous_data <- list()
-    for (form_name in names(rdm_data$all_forms)) {
-      form_data <- rdm_data$all_forms[[form_name]]
-      
-      if (!"record_id" %in% names(form_data)) next
-      
-      previous_data[[form_name]] <- form_data %>%
-        filter(
-          record_id == !!record_id,
-          if ("redcap_repeat_instance" %in% names(.)) {
-            redcap_repeat_instance == !!prev_period_num
-          } else {
-            TRUE
-          }
-        )
-    }
+  current_coach_rev <- if (!is.null(data$all_forms$coach_rev)) {
+    data$all_forms$coach_rev %>%
+      filter(record_id == !!rid, redcap_repeat_instrument == "coach_rev") %>%
+      filter(!is.na(coach_period), coach_period == !!period)
+  } else {
+    data.frame()
   }
   
-  return(list(
+  current_ilp <- if (!is.null(data$all_forms$ilp)) {
+    data$all_forms$ilp %>%
+      filter(record_id == !!rid, redcap_repeat_instrument == "ilp") %>%
+      filter(!is.na(ilp_period), ilp_period == !!period)
+  } else {
+    data.frame()
+  }
+  
+  current_milestone <- if (!is.null(data$all_forms$milestone_entry)) {
+    data$all_forms$milestone_entry %>%
+      filter(record_id == !!rid, redcap_repeat_instrument == "milestone_entry") %>%
+      filter(!is.na(prog_mile_period), prog_mile_period == !!period)
+  } else {
+    data.frame()
+  }
+  
+  result <- list(
     resident_info = resident_info,
-    period_name = period_name,
-    period_number = period_num,
-    current_period = current_data,
-    previous_period_name = prev_period_name,
-    previous_period_number = prev_period_num,
-    previous_period = previous_data
-  ))
+    current_period = list(
+      s_eval = current_s_eval,
+      coach_rev = current_coach_rev,
+      ilp = current_ilp,
+      milestone_entry = current_milestone
+    )
+  )
+  
+  # Add previous period if requested
+  if (include_previous && period > 0) {
+    prev_period <- period - 1
+    
+    prev_s_eval <- if (!is.null(data$all_forms$s_eval)) {
+      data$all_forms$s_eval %>%
+        filter(record_id == !!rid, redcap_repeat_instrument == "s_eval") %>%
+        filter(!is.na(s_e_period), s_e_period == !!prev_period)
+    } else {
+      data.frame()
+    }
+    
+    prev_coach_rev <- if (!is.null(data$all_forms$coach_rev)) {
+      data$all_forms$coach_rev %>%
+        filter(record_id == !!rid, redcap_repeat_instrument == "coach_rev") %>%
+        filter(!is.na(coach_period), coach_period == !!prev_period)
+    } else {
+      data.frame()
+    }
+    
+    result$previous_period <- list(
+      s_eval = prev_s_eval,
+      coach_rev = prev_coach_rev
+    )
+  } else {
+    result$previous_period <- NULL
+  }
+  
+  return(result)
 }
 
 # ==============================================================================
@@ -564,24 +583,11 @@ get_review_instance <- function(level, period_name, review_type = "scheduled") {
 # ==============================================================================
 # Will be added as modules are created
 
-# Source utility functions
-if (file.exists("R/utils/submission_helpers.R")) {
-  source("R/utils/submission_helpers.R")
-}
-
-if (file.exists("R/utils/data_helpers.R")) {
-  source("R/utils/data_helpers.R")
-}
-
-if (file.exists("R/utils/completion_helpers.R")) {
-  source("R/utils/completion_helpers.R")
-}
-
-# Source module files
-module_files <- list.files("R/modules", pattern = "\\.R$", full.names = TRUE, recursive = TRUE)
-for (module_file in module_files) {
-  source(module_file)
-}
+source("R/modules/mod_login.R")
+source("R/modules/mod_coach_select.R")
+source("R/modules/mod_resident_table.R")
+source("R/modules/mod_wellness.R")
+source("R/modules/mod_review_interface.R")
 
 # ==============================================================================
 # STARTUP MESSAGE

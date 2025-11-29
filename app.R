@@ -5,7 +5,7 @@
 #
 # Main application file for RDM 2.0 coaching dashboard
 # Phase 1: Login, coach selection, resident table
-# Phase 2+: Review interface with accordion sections
+# Phase 2: Review interface with accordion sections
 #
 # ==============================================================================
 
@@ -182,12 +182,27 @@ server <- function(input, output, session) {
     app_data
   )
   
+  # ==========================================================================
+  # REVIEW INTERFACE (PHASE 2)
+  # ==========================================================================
+  
+  review_interface <- mod_review_interface_server(
+  "review",
+  selected_resident = reactive({ resident_selection$selected_resident() }),
+  rdm_data = app_data,
+  current_period = resident_selection$current_period  # CORRECT - pass the reactive itself
+)
+  
   # Update view when resident is selected
   observe({
     req(resident_selection$selected_resident())
     app_state$current_view <- "review"
-    
-    # TODO: Navigate to review interface (Phase 2)
+  })
+  
+  # Handle back button from review
+  observeEvent(review_interface$back_clicked(), {
+    app_state$current_view <- "resident_table"
+    resident_selection$clear_selection()  # Clear resident selection
   })
   
   # ==========================================================================
@@ -264,77 +279,39 @@ server <- function(input, output, session) {
       
       # Resident table view
       "resident_table" = {
-        message("=== Rendering resident_table UI ===")
         fluidRow(
           column(12,
             div(
-              style = "margin: 20px;",
-              
-              # Back button
-              actionButton(
-                "back_to_coach",
-                "Change Coach",
-                icon = icon("arrow-left"),
-                class = "btn-sm btn-default",
-                style = "margin-bottom: 15px;"
-              ),
-              
+              style = "max-width: 1200px; margin: 20px auto;",
               mod_resident_table_ui("resident_table")
             )
           )
         )
       },
       
-      # Review interface (placeholder for Phase 2)
+      # Review interface view (PHASE 2)
       "review" = {
         req(resident_selection$selected_resident())
-        
-        resident <- resident_selection$selected_resident()
-        
+        fluidRow(
+          column(12,
+            mod_review_interface_ui("review")
+          )
+        )
+      },
+      
+      # Default/fallback
+      {
         fluidRow(
           column(12,
             div(
-              style = "margin: 20px;",
-              
-              # Back button
+              style = "text-align: center; margin-top: 100px;",
+              h3("Navigation Error"),
+              p("Unknown view state"),
               actionButton(
-                "back_to_table",
-                "Back to Resident List",
-                icon = icon("arrow-left"),
-                class = "btn-sm btn-default",
-                style = "margin-bottom: 15px;"
-              ),
-              
-              # Placeholder for review interface
-              box(
-                width = 12,
-                title = format_resident_summary(resident),
-                status = "primary",
-                solidHeader = TRUE,
-                
-                h4("Review Interface - Coming in Phase 2"),
-                p("This is where the accordion review interface will go."),
-                
-                tags$ul(
-                  tags$li("Section 1: Wellness & Progress"),
-                  tags$li("Section 2: Evaluations & Feedback"),
-                  tags$li("Section 3: Learning & Board Preparation"),
-                  tags$li("Section 4: Scholarship"),
-                  tags$li("Section 5: Career Planning"),
-                  tags$li("Section 6: Goals & ILP Review"),
-                  tags$li("Section 7: ILP Summary"),
-                  tags$li("Section 8: Milestone Entry")
-                ),
-                
-                hr(),
-                
-                actionButton(
-                  "test_submit",
-                  "Test Submit (Placeholder)",
-                  icon = icon("check"),
-                  class = "btn-success",
-                  disabled = "disabled"
-                )
+                "reset_to_login",
+                "Return to Login",
+                icon = icon("home"),
+                onclick = "location.reload();"
               )
             )
           )
@@ -355,7 +332,7 @@ server <- function(input, output, session) {
   # Back to resident table
   observeEvent(input$back_to_table, {
     app_state$current_view <- "resident_table"
-    resident_selection$deselect()
+    resident_selection$clear_selection()
   })
   
   # ==========================================================================
