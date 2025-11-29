@@ -384,7 +384,8 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
       list(
         selected_resident = selected_resident,
         selected_period = selected_period,
-        deselect = deselect_resident
+        current_period = reactive({ get_period_number(selected_period()) }),  # Add this for compatibility
+        clear_selection = deselect_resident  # Renamed for clarity
       )
     )
   })
