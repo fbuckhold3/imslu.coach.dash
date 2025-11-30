@@ -168,17 +168,26 @@ server <- function(input, output, session) {
   
   # Update view when coach is selected
   observe({
+    message("DEBUG: Navigation observe() triggered")
+
     # Validate coach_data first
     data <- tryCatch({
-      coach_data()
+      message("DEBUG: Navigation calling coach_data()")
+      result <- coach_data()
+      message("DEBUG: Navigation got coach_data")
+      result
     }, error = function(e) {
-      message("Error accessing coach_data: ", e$message)
+      message("ERROR accessing coach_data in navigation: ", e$message)
+      print(e)
       NULL
     })
 
+    message("DEBUG: Navigation about to req(data)")
     # Only proceed if we have valid data
     req(data)
+    message("DEBUG: Navigation req(data) passed")
     req(is.list(data))
+    message("DEBUG: Navigation req(is.list(data)) passed")
 
     # Safely access coach_name
     coach_name <- data$coach_name
@@ -188,6 +197,7 @@ server <- function(input, output, session) {
       message("=== Changing view to resident_table ===")
       app_state$current_view <- "resident_table"
     }
+    message("DEBUG: Navigation observe() completed")
   })
   
   # ==========================================================================
@@ -266,23 +276,36 @@ server <- function(input, output, session) {
   # ==========================================================================
   
   output$header_coach_info <- renderUI({
+    message("DEBUG: header_coach_info renderUI START")
+
     # Safely access coach_data with error handling
     data <- tryCatch({
-      coach_data()
+      message("DEBUG: header_coach_info calling coach_data()")
+      result <- coach_data()
+      message("DEBUG: header_coach_info got coach_data")
+      result
     }, error = function(e) {
-      message("Error in header_coach_info: ", e$message)
+      message("ERROR in header_coach_info: ", e$message)
+      print(e)
       NULL
     })
 
+    message("DEBUG: header_coach_info about to req(data)")
     req(data)
+    message("DEBUG: header_coach_info req(data) passed")
     req(is.list(data))
+    message("DEBUG: header_coach_info req(is.list(data)) passed")
 
     # Validate required fields exist
     if (!is.null(data$coach_name) && nzchar(data$coach_name)) {
+      message("DEBUG: header_coach_info rendering coach info")
       tagList(
         icon("user-tie"), " ", strong(data$coach_name), " | ",
         icon("users"), " ", data$stats$total, " residents"
       )
+    } else {
+      message("DEBUG: header_coach_info no coach name, returning NULL")
+      NULL
     }
   })
   
@@ -291,20 +314,24 @@ server <- function(input, output, session) {
   # ==========================================================================
   
   output$main_content <- renderUI({
-    
-    message(sprintf("=== Rendering main_content, current_view: %s ===", app_state$current_view))
-    
+
+    message(sprintf("=== Rendering main_content START, current_view: %s ===", app_state$current_view))
+
+    tryCatch({
+
     # Show login screen if not authenticated
     if (!app_state$authenticated) {
+      message("DEBUG: Rendering login view")
       return(
         fluidRow(
           column(12, mod_login_ui("login"))
         )
       )
     }
-    
+
     # Show loading screen if data not loaded
     if (!app_state$data_loaded) {
+      message("DEBUG: Rendering loading view")
       return(
         fluidRow(
           column(
@@ -318,15 +345,18 @@ server <- function(input, output, session) {
         )
       )
     }
-    
+
+    message("DEBUG: About to enter switch for view: ", app_state$current_view)
+
     # Router based on current view
     switch(
       app_state$current_view,
-      
+
       # Coach selection view
       "coach_select" = {
-        fluidRow(
-          column(12, 
+        message("DEBUG: Building coach_select UI")
+        ui_result <- fluidRow(
+          column(12,
             div(
               style = "max-width: 800px; margin: 20px auto;",
               h3(
@@ -342,6 +372,8 @@ server <- function(input, output, session) {
             )
           )
         )
+        message("DEBUG: coach_select UI built successfully")
+        ui_result
       },
       
       # Resident table view
@@ -385,8 +417,30 @@ server <- function(input, output, session) {
         )
       }
     )
+
+    }, error = function(e) {
+      message("FATAL ERROR in main_content renderUI: ", e$message)
+      print(e)
+      traceback()
+      # Return error UI
+      fluidRow(
+        column(12,
+          div(
+            style = "text-align: center; margin-top: 100px; color: red;",
+            h3("Error Loading Interface"),
+            p(e$message),
+            actionButton(
+              "reload_app",
+              "Reload",
+              icon = icon("refresh"),
+              onclick = "location.reload();"
+            )
+          )
+        )
+      )
+    })
   })
-  
+
   # ==========================================================================
   # LEGACY NAVIGATION BUTTONS (from old UI - can be removed)
   # ==========================================================================
