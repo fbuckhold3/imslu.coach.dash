@@ -85,7 +85,17 @@ mod_resident_table_ui <- function(id) {
       
       div(
         class = "resident-table-header",
-        h4(icon("users"), " Your Residents")
+        div(
+          h4(icon("users"), " Your Residents")
+        ),
+        div(
+          actionButton(
+            ns("back_to_coach_select"),
+            "← Back to Coach Selection",
+            class = "btn-secondary",
+            icon = icon("user-tie")
+          )
+        )
       ),
       
       # Main resident table
@@ -362,6 +372,24 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
       )
     }
     
+    # Back to coach selection button
+    back_to_coach_clicked <- reactive({
+      input$back_to_coach_select
+    })
+
+    observeEvent(input$back_to_coach_select, {
+      message(sprintf(
+        "[%s] Back to coach selection button clicked",
+        format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+      ))
+
+      showNotification(
+        "Returning to coach selection",
+        type = "message",
+        duration = 2
+      )
+    })
+
     # Ad hoc review button (placeholder for future)
     observeEvent(input$ad_hoc_btn, {
       showNotification(
@@ -370,14 +398,15 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
         duration = 3
       )
     })
-    
+
     # Return reactive values and functions
     return(
       list(
         selected_resident = selected_resident,
         selected_period = selected_period,
         current_period = reactive({ get_period_number(selected_period()) }),  # Add this for compatibility
-        clear_selection = deselect_resident  # Renamed for clarity
+        clear_selection = deselect_resident,  # Renamed for clarity
+        back_to_coach_clicked = back_to_coach_clicked  # Add back button reactive
       )
     )
   })

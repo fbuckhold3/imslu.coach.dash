@@ -271,6 +271,20 @@ server <- function(input, output, session) {
       # Silently ignore - this is legacy code
     })
   })
+
+  # Handle "Back to Coach Selection" button from resident table
+  observe({
+    tryCatch({
+      if (!is.null(resident_selection$back_to_coach_clicked) && is.function(resident_selection$back_to_coach_clicked)) {
+        clicked_count <- resident_selection$back_to_coach_clicked()
+        if (!is.null(clicked_count) && clicked_count > 0) {
+          app_state$current_view <- "coach_select"
+        }
+      }
+    }, error = function(e) {
+      # Silently handle errors
+    })
+  })
   
   # ==========================================================================
   # HEADER INFO
