@@ -143,36 +143,24 @@ mod_resident_table_ui <- function(id) {
 #' @return Reactive list with selected resident and period information
 #' @export
 mod_resident_table_server <- function(id, coach_data, app_data) {
-  message("DEBUG: mod_resident_table_server FUNCTION CALLED with id=", id)
-  message("DEBUG: coach_data class: ", paste(class(coach_data), collapse=", "))
-  message("DEBUG: app_data class: ", paste(class(app_data), collapse=", "))
-
   moduleServer(id, function(input, output, session) {
-    message("DEBUG: mod_resident_table_server moduleServer inner STARTING")
     ns <- session$ns
 
     # Selected resident state
     selected_resident <- reactiveVal(NULL)
 
     # Auto-detect current period (no user selection)
-    message("DEBUG: Getting current period...")
     current_period <- get_current_period()
-    message("DEBUG: Current period: ", current_period)
     selected_period <- reactiveVal(current_period)
-
-    message(sprintf("DEBUG: Resident table initialized with period: %s", current_period))
     
     # Build table data with completion status
     table_data <- reactive({
-      message("=== table_data reactive triggered ===")
-
       req(app_data(), selected_period())
 
       # Safely get coach data
       coach_info <- tryCatch({
         coach_data()
       }, error = function(e) {
-        message("Error accessing coach_data in table_data: ", e$message)
         return(NULL)
       })
 
@@ -181,22 +169,10 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
       req(!is.null(coach_info$coach_name))
       req(nzchar(coach_info$coach_name))
 
-      message("  coach_data available: ", !is.null(coach_info))
-      message("  app_data available: ", !is.null(app_data()))
-      message("  selected_period: ", selected_period())
-
       tryCatch({
         residents <- coach_info$residents
         coach_name <- coach_info$coach_name
         period_num <- get_period_number(selected_period())
-        
-        message(sprintf(
-          "Building table: %d residents for coach '%s', period %s (%d)",
-          nrow(residents),
-          coach_name,
-          selected_period(),
-          period_num
-        ))
         
         # For each resident, check completion status
         table_df <- residents %>%
@@ -239,37 +215,23 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
             second_complete
           ) %>%
           arrange(display_name)  # Sort by name instead of level
-        
-        message("  Table built successfully: ", nrow(table_df), " rows")
-        
+
         return(table_df)
-        
+
       }, error = function(e) {
-        message("ERROR building table: ", e$message)
-        print(e)
         return(NULL)
       })
     })
-    
+
     # Render interactive DataTable
     output$resident_table <- DT::renderDT({
-      message("DEBUG: renderDT called for resident_table")
-
       req(table_data())
-
-      message("DEBUG: renderDT req(table_data()) passed")
-
       df <- table_data()
 
-      message("DEBUG: renderDT got table_data, rows: ", if(is.null(df)) "NULL" else nrow(df))
-      
       # Check if NULL (error in building)
       if (is.null(df)) {
-        message("ERROR: table_data returned NULL")
         return(NULL)
       }
-      
-      message("Rendering table with ", nrow(df), " residents")
       
       tryCatch({
       df <- df %>%
@@ -347,15 +309,8 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
     
     # Handle row selection
     observeEvent(input$resident_table_rows_selected, {
-      message("DEBUG: observeEvent resident_table_rows_selected triggered")
-      message("DEBUG: About to req(table_data())...")
-
       req(table_data())
-
-      message("DEBUG: req(table_data()) passed")
-
       selected_row <- input$resident_table_rows_selected
-      message("DEBUG: Selected row: ", selected_row)
       
       if (length(selected_row) > 0) {
         df <- table_data()

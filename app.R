@@ -168,43 +168,28 @@ server <- function(input, output, session) {
   
   # Update view when coach is selected
   observe({
-    message("DEBUG: Navigation observe() triggered")
-
     # Validate coach_data first
     data <- tryCatch({
-      message("DEBUG: Navigation calling coach_data()")
-      result <- coach_data()
-      message("DEBUG: Navigation got coach_data")
-      result
+      coach_data()
     }, error = function(e) {
-      message("ERROR accessing coach_data in navigation: ", e$message)
-      print(e)
       NULL
     })
 
-    message("DEBUG: Navigation about to req(data)")
     # Only proceed if we have valid data
     req(data)
-    message("DEBUG: Navigation req(data) passed")
     req(is.list(data))
-    message("DEBUG: Navigation req(is.list(data)) passed")
 
     # Safely access coach_name
     coach_name <- data$coach_name
-    message("Coach data changed, coach_name: ", if(!is.null(coach_name)) coach_name else "NULL")
 
     if (!is.null(coach_name) && nzchar(coach_name)) {
-      message("=== Changing view to resident_table ===")
       app_state$current_view <- "resident_table"
     }
-    message("DEBUG: Navigation observe() completed")
   })
   
   # ==========================================================================
   # RESIDENT SELECTION
   # ==========================================================================
-
-  message("DEBUG: About to call mod_resident_table_server...")
 
   resident_selection <- mod_resident_table_server(
     "resident_table",
@@ -212,13 +197,9 @@ server <- function(input, output, session) {
     app_data
   )
 
-  message("DEBUG: mod_resident_table_server call completed, returned: ", class(resident_selection)[1])
-  
   # ==========================================================================
   # REVIEW INTERFACE (PHASE 2)
   # ==========================================================================
-
-  message("DEBUG: About to call mod_review_interface_server...")
 
   review_interface <- mod_review_interface_server(
     "review",
@@ -226,29 +207,19 @@ server <- function(input, output, session) {
     rdm_data = app_data,
     current_period = resident_selection$current_period  # CORRECT - pass the reactive itself
   )
-
-  message("DEBUG: mod_review_interface_server call completed")
   
   # Update view when resident is selected
   observe({
-    message("DEBUG: Resident selection observe() triggered")
-
     tryCatch({
       selected_res <- resident_selection$selected_resident
-      message("DEBUG: Got selected_resident reference, class: ", paste(class(selected_res), collapse=", "))
 
       if (is.function(selected_res)) {
-        message("DEBUG: Calling selected_resident()")
         res_value <- selected_res()
-        message("DEBUG: selected_resident() returned: ", !is.null(res_value))
         req(res_value)
         app_state$current_view <- "review"
-      } else {
-        message("ERROR: selected_resident is not a function, it's a: ", paste(class(selected_res), collapse=", "))
       }
     }, error = function(e) {
-      message("ERROR in resident selection observe(): ", e$message)
-      print(e)
+      # Silently handle errors during reactive access
     })
   })
   
@@ -257,54 +228,41 @@ server <- function(input, output, session) {
   # ==========================================================================
   
   # Handle "Back to Residents" button from review interface
-  # SAFELY access review_interface return values
   observe({
-    message("DEBUG: Setting up back_to_table handler")
     tryCatch({
       if (!is.null(review_interface$back_to_table_clicked) && is.function(review_interface$back_to_table_clicked)) {
         clicked_count <- review_interface$back_to_table_clicked()
         if (!is.null(clicked_count) && clicked_count > 0) {
-          message(sprintf(
-            "[%s] Navigation: Review -> Resident Table",
-            format(Sys.time(), "%Y-%m-%d %H:%M:%S")
-          ))
           resident_selection$clear_selection()
           app_state$current_view <- "resident_table"
         }
       }
     }, error = function(e) {
-      message("ERROR in back_to_table handler: ", e$message)
+      # Silently handle errors
     })
   })
 
   # Handle "Change Coach" button from review interface
   observe({
-    message("DEBUG: Setting up change_coach handler")
     tryCatch({
       if (!is.null(review_interface$change_coach_clicked) && is.function(review_interface$change_coach_clicked)) {
         clicked_count <- review_interface$change_coach_clicked()
         if (!is.null(clicked_count) && clicked_count > 0) {
-          message(sprintf(
-            "[%s] Navigation: Review -> Coach Selection",
-            format(Sys.time(), "%Y-%m-%d %H:%M:%S")
-          ))
           resident_selection$clear_selection()
           app_state$current_view <- "coach_select"
         }
       }
     }, error = function(e) {
-      message("ERROR in change_coach handler: ", e$message)
+      # Silently handle errors
     })
   })
   
   # LEGACY: Keep old back_clicked handler for compatibility
-  # (Remove this once you confirm new buttons work)
   observe({
     tryCatch({
       if (!is.null(review_interface$back_clicked) && is.function(review_interface$back_clicked)) {
         clicked_count <- review_interface$back_clicked()
         if (!is.null(clicked_count) && clicked_count > 0) {
-          message("WARNING: Using legacy back_clicked handler - should migrate to back_to_table_clicked")
           app_state$current_view <- "resident_table"
           resident_selection$clear_selection()
         }
@@ -319,36 +277,22 @@ server <- function(input, output, session) {
   # ==========================================================================
   
   output$header_coach_info <- renderUI({
-    message("DEBUG: header_coach_info renderUI START")
-
     # Safely access coach_data with error handling
     data <- tryCatch({
-      message("DEBUG: header_coach_info calling coach_data()")
-      result <- coach_data()
-      message("DEBUG: header_coach_info got coach_data")
-      result
+      coach_data()
     }, error = function(e) {
-      message("ERROR in header_coach_info: ", e$message)
-      print(e)
       NULL
     })
 
-    message("DEBUG: header_coach_info about to req(data)")
     req(data)
-    message("DEBUG: header_coach_info req(data) passed")
     req(is.list(data))
-    message("DEBUG: header_coach_info req(is.list(data)) passed")
 
     # Validate required fields exist
     if (!is.null(data$coach_name) && nzchar(data$coach_name)) {
-      message("DEBUG: header_coach_info rendering coach info")
       tagList(
         icon("user-tie"), " ", strong(data$coach_name), " | ",
         icon("users"), " ", data$stats$total, " residents"
       )
-    } else {
-      message("DEBUG: header_coach_info no coach name, returning NULL")
-      NULL
     }
   })
   
@@ -357,14 +301,10 @@ server <- function(input, output, session) {
   # ==========================================================================
   
   output$main_content <- renderUI({
-
-    message(sprintf("=== Rendering main_content START, current_view: %s ===", app_state$current_view))
-
     tryCatch({
 
     # Show login screen if not authenticated
     if (!app_state$authenticated) {
-      message("DEBUG: Rendering login view")
       return(
         fluidRow(
           column(12, mod_login_ui("login"))
@@ -374,7 +314,6 @@ server <- function(input, output, session) {
 
     # Show loading screen if data not loaded
     if (!app_state$data_loaded) {
-      message("DEBUG: Rendering loading view")
       return(
         fluidRow(
           column(
@@ -389,16 +328,13 @@ server <- function(input, output, session) {
       )
     }
 
-    message("DEBUG: About to enter switch for view: ", app_state$current_view)
-
     # Router based on current view
     switch(
       app_state$current_view,
 
       # Coach selection view
       "coach_select" = {
-        message("DEBUG: Building coach_select UI")
-        ui_result <- fluidRow(
+        fluidRow(
           column(12,
             div(
               style = "max-width: 800px; margin: 20px auto;",
@@ -415,8 +351,6 @@ server <- function(input, output, session) {
             )
           )
         )
-        message("DEBUG: coach_select UI built successfully")
-        ui_result
       },
       
       # Resident table view
@@ -462,9 +396,6 @@ server <- function(input, output, session) {
     )
 
     }, error = function(e) {
-      message("FATAL ERROR in main_content renderUI: ", e$message)
-      print(e)
-      traceback()
       # Return error UI
       fluidRow(
         column(12,
