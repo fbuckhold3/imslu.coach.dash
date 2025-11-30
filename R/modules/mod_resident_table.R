@@ -143,8 +143,12 @@ mod_resident_table_ui <- function(id) {
 #' @return Reactive list with selected resident and period information
 #' @export
 mod_resident_table_server <- function(id, coach_data, app_data) {
+  message("DEBUG: mod_resident_table_server FUNCTION CALLED with id=", id)
+  message("DEBUG: coach_data class: ", paste(class(coach_data), collapse=", "))
+  message("DEBUG: app_data class: ", paste(class(app_data), collapse=", "))
+
   moduleServer(id, function(input, output, session) {
-    message("DEBUG: mod_resident_table_server STARTING")
+    message("DEBUG: mod_resident_table_server moduleServer inner STARTING")
     ns <- session$ns
 
     # Selected resident state

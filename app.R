@@ -203,23 +203,31 @@ server <- function(input, output, session) {
   # ==========================================================================
   # RESIDENT SELECTION
   # ==========================================================================
-  
+
+  message("DEBUG: About to call mod_resident_table_server...")
+
   resident_selection <- mod_resident_table_server(
     "resident_table",
     coach_data,
     app_data
   )
+
+  message("DEBUG: mod_resident_table_server call completed, returned: ", class(resident_selection)[1])
   
   # ==========================================================================
   # REVIEW INTERFACE (PHASE 2)
   # ==========================================================================
-  
+
+  message("DEBUG: About to call mod_review_interface_server...")
+
   review_interface <- mod_review_interface_server(
     "review",
     selected_resident = reactive({ resident_selection$selected_resident() }),
     rdm_data = app_data,
     current_period = resident_selection$current_period  # CORRECT - pass the reactive itself
   )
+
+  message("DEBUG: mod_review_interface_server call completed")
   
   # Update view when resident is selected
   observe({
