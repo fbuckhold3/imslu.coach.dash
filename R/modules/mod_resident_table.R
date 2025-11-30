@@ -144,16 +144,19 @@ mod_resident_table_ui <- function(id) {
 #' @export
 mod_resident_table_server <- function(id, coach_data, app_data) {
   moduleServer(id, function(input, output, session) {
+    message("DEBUG: mod_resident_table_server STARTING")
     ns <- session$ns
-    
+
     # Selected resident state
     selected_resident <- reactiveVal(NULL)
-    
+
     # Auto-detect current period (no user selection)
+    message("DEBUG: Getting current period...")
     current_period <- get_current_period()
+    message("DEBUG: Current period: ", current_period)
     selected_period <- reactiveVal(current_period)
-    
-    message(sprintf("Resident table initialized with period: %s", current_period))
+
+    message(sprintf("DEBUG: Resident table initialized with period: %s", current_period))
     
     # Build table data with completion status
     table_data <- reactive({
@@ -250,9 +253,15 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
     
     # Render interactive DataTable
     output$resident_table <- DT::renderDT({
+      message("DEBUG: renderDT called for resident_table")
+
       req(table_data())
-      
+
+      message("DEBUG: renderDT req(table_data()) passed")
+
       df <- table_data()
+
+      message("DEBUG: renderDT got table_data, rows: ", if(is.null(df)) "NULL" else nrow(df))
       
       # Check if NULL (error in building)
       if (is.null(df)) {
@@ -338,9 +347,15 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
     
     # Handle row selection
     observeEvent(input$resident_table_rows_selected, {
+      message("DEBUG: observeEvent resident_table_rows_selected triggered")
+      message("DEBUG: About to req(table_data())...")
+
       req(table_data())
-      
+
+      message("DEBUG: req(table_data()) passed")
+
       selected_row <- input$resident_table_rows_selected
+      message("DEBUG: Selected row: ", selected_row)
       
       if (length(selected_row) > 0) {
         df <- table_data()
