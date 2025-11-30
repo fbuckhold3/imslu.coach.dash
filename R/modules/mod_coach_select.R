@@ -295,10 +295,35 @@ mod_coach_select_server <- function(id, app_data) {
     # Return reactive values
     return(
       reactive({
+        # Only return valid data if coach is selected
+        coach <- selected_coach()
+        if (is.null(coach) || !nzchar(coach)) {
+          return(list(
+            coach_name = NULL,
+            residents = data.frame(),
+            stats = list(total = 0, primary = 0, secondary = 0, by_level = data.frame())
+          ))
+        }
+
+        # Safely get residents and stats
+        residents <- tryCatch({
+          coach_residents()
+        }, error = function(e) {
+          message("Error getting coach residents: ", e$message)
+          data.frame()
+        })
+
+        stats <- tryCatch({
+          coach_stats()
+        }, error = function(e) {
+          message("Error getting coach stats: ", e$message)
+          list(total = 0, primary = 0, secondary = 0, by_level = data.frame())
+        })
+
         list(
-          coach_name = selected_coach(),
-          residents = coach_residents(),
-          stats = coach_stats()
+          coach_name = coach,
+          residents = residents,
+          stats = stats
         )
       })
     )

@@ -168,9 +168,23 @@ server <- function(input, output, session) {
   
   # Update view when coach is selected
   observe({
-    req(coach_data())
-    message("Coach data changed, coach_name: ", coach_data()$coach_name)
-    if (!is.null(coach_data()$coach_name)) {
+    # Validate coach_data first
+    data <- tryCatch({
+      coach_data()
+    }, error = function(e) {
+      message("Error accessing coach_data: ", e$message)
+      NULL
+    })
+
+    # Only proceed if we have valid data
+    req(data)
+    req(is.list(data))
+
+    # Safely access coach_name
+    coach_name <- data$coach_name
+    message("Coach data changed, coach_name: ", if(!is.null(coach_name)) coach_name else "NULL")
+
+    if (!is.null(coach_name) && nzchar(coach_name)) {
       message("=== Changing view to resident_table ===")
       app_state$current_view <- "resident_table"
     }
@@ -252,11 +266,22 @@ server <- function(input, output, session) {
   # ==========================================================================
   
   output$header_coach_info <- renderUI({
-    req(coach_data())
-    if (!is.null(coach_data()$coach_name)) {
+    # Safely access coach_data with error handling
+    data <- tryCatch({
+      coach_data()
+    }, error = function(e) {
+      message("Error in header_coach_info: ", e$message)
+      NULL
+    })
+
+    req(data)
+    req(is.list(data))
+
+    # Validate required fields exist
+    if (!is.null(data$coach_name) && nzchar(data$coach_name)) {
       tagList(
-        icon("user-tie"), " ", strong(coach_data()$coach_name), " | ",
-        icon("users"), " ", coach_data()$stats$total, " residents"
+        icon("user-tie"), " ", strong(data$coach_name), " | ",
+        icon("users"), " ", data$stats$total, " residents"
       )
     }
   })
