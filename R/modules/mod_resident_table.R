@@ -222,13 +222,9 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
               period_num
             ),
             
-            # Format for display - FIXED: ensure current_level is properly displayed
+            # Format for display - use Level field directly
             display_name = full_name,
-            display_level = if_else(
-              !is.na(current_level) && current_level != "",
-              current_level,
-              Level  # Fallback to Level field if current_level is missing
-            ),
+            display_level = Level,  # Use Level field from gmed package
             display_period = selected_period()
           ) %>%
           ungroup() %>%
