@@ -1,23 +1,42 @@
 # Review Interface Module
 # Displays accordion with 8 review sections when resident is selected
+#
+# FIXES APPLIED:
+# 1. Added "Back to Resident Table" button that works
+# 2. Added "Change Coach" button to return to coach selection
+# 3. Improved header layout with both navigation options
 
 mod_review_interface_ui <- function(id) {
   ns <- NS(id)
   
   tagList(
-    # Header with resident info and back button
+    # Header with resident info and navigation buttons
     fluidRow(
       column(
         width = 12,
         div(
-          style = "margin-bottom: 20px;",
-          actionButton(
-            ns("back_to_table"),
-            "← Back to Resident Table",
-            class = "btn-secondary"
-          ),
+          style = "margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;",
+          
+          # Left side: Navigation buttons
           div(
-            style = "float: right; font-size: 16px; font-weight: bold;",
+            style = "display: flex; gap: 10px;",
+            actionButton(
+              ns("back_to_table"),
+              "← Back to Residents",
+              class = "btn-secondary",
+              icon = icon("table")
+            ),
+            actionButton(
+              ns("change_coach"),
+              "Change Coach",
+              class = "btn-outline-secondary",
+              icon = icon("user-tie")
+            )
+          ),
+          
+          # Right side: Resident info header
+          div(
+            style = "font-size: 16px; font-weight: bold;",
             uiOutput(ns("resident_header"))
           )
         )
@@ -102,7 +121,14 @@ mod_review_interface_ui <- function(id) {
             ns("submit_review"),
             "Submit Review",
             class = "btn-primary btn-lg",
-            style = "padding: 10px 30px;"
+            style = "padding: 10px 30px;",
+            icon = icon("check-circle")
+          ),
+          br(),
+          br(),
+          p(
+            style = "color: #666; font-size: 14px;",
+            "Complete all required sections before submitting"
           )
         )
       )
@@ -142,7 +168,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       period_num <- current_period()
       
       HTML(sprintf(
-        "<span style='color: #2c3e50;'>%s</span> | <span style='color: #7f8c8d;'>PGY-%s | Period: %s</span>",
+        "<span style='color: #2c3e50;'>%s</span> | <span style='color: #7f8c8d;'>%s | Period: %s</span>",
         res_data$full_name,
         res_data$current_level,
         PERIOD_NAMES[period_num + 1]
@@ -156,14 +182,47 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       current_period = current_period
     )
     
-    # Back button
-    back_clicked <- reactive({
+    # Back to table button - returns reactive that triggers navigation
+    back_to_table_clicked <- reactive({
       input$back_to_table
+    })
+    
+    # Change coach button - returns reactive that triggers navigation to coach select
+    change_coach_clicked <- reactive({
+      input$change_coach
     })
     
     # Submit button
     submit_clicked <- reactive({
       input$submit_review
+    })
+    
+    # Handle back to table
+    observeEvent(input$back_to_table, {
+      message(sprintf(
+        "[%s] Back to table button clicked",
+        format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+      ))
+      
+      showNotification(
+        "Returning to resident table",
+        type = "message",
+        duration = 2
+      )
+    })
+    
+    # Handle change coach
+    observeEvent(input$change_coach, {
+      message(sprintf(
+        "[%s] Change coach button clicked",
+        format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+      ))
+      
+      showNotification(
+        "Returning to coach selection",
+        type = "message",
+        duration = 2
+      )
     })
     
     # Handle submission
@@ -176,16 +235,17 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       # TODO: Submit to coach_rev form
       
       showNotification(
-        "Review submission not yet implemented",
+        "Review submission not yet implemented. This will collect data from all 8 sections and submit to REDCap.",
         type = "warning",
-        duration = 3
+        duration = 5
       )
     })
     
     # Return reactive values
     return(
       list(
-        back_clicked = back_clicked,
+        back_to_table_clicked = back_to_table_clicked,
+        change_coach_clicked = change_coach_clicked,
         submit_clicked = submit_clicked
       )
     )

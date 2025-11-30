@@ -7,6 +7,10 @@
 # Phase 1: Login, coach selection, resident table
 # Phase 2: Review interface with accordion sections
 #
+# UPDATES:
+# - Fixed navigation handlers for back_to_table and change_coach buttons
+# - Properly integrated review_interface navigation
+#
 # ==============================================================================
 
 # Load globals and modules
@@ -187,11 +191,11 @@ server <- function(input, output, session) {
   # ==========================================================================
   
   review_interface <- mod_review_interface_server(
-  "review",
-  selected_resident = reactive({ resident_selection$selected_resident() }),
-  rdm_data = app_data,
-  current_period = resident_selection$current_period  # CORRECT - pass the reactive itself
-)
+    "review",
+    selected_resident = reactive({ resident_selection$selected_resident() }),
+    rdm_data = app_data,
+    current_period = resident_selection$current_period  # CORRECT - pass the reactive itself
+  )
   
   # Update view when resident is selected
   observe({
@@ -199,10 +203,48 @@ server <- function(input, output, session) {
     app_state$current_view <- "review"
   })
   
-  # Handle back button from review
-  observeEvent(review_interface$back_clicked(), {
+  # ==========================================================================
+  # NAVIGATION HANDLERS - UPDATED FOR NEW BUTTONS
+  # ==========================================================================
+  
+  # Handle "Back to Residents" button from review interface
+  observeEvent(review_interface$back_to_table_clicked(), {
+    req(review_interface$back_to_table_clicked() > 0)
+    
+    message(sprintf(
+      "[%s] Navigation: Review -> Resident Table",
+      format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+    ))
+    
+    # Clear the selected resident
+    resident_selection$clear_selection()
+    
+    # Switch view back to table
     app_state$current_view <- "resident_table"
-    resident_selection$clear_selection()  # Clear resident selection
+  })
+  
+  # Handle "Change Coach" button from review interface
+  observeEvent(review_interface$change_coach_clicked(), {
+    req(review_interface$change_coach_clicked() > 0)
+    
+    message(sprintf(
+      "[%s] Navigation: Review -> Coach Selection",
+      format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+    ))
+    
+    # Clear the selected resident
+    resident_selection$clear_selection()
+    
+    # Switch view back to coach selection
+    app_state$current_view <- "coach_select"
+  })
+  
+  # LEGACY: Keep old back_clicked handler for compatibility
+  # (Remove this once you confirm new buttons work)
+  observeEvent(review_interface$back_clicked(), {
+    message("WARNING: Using legacy back_clicked handler - should migrate to back_to_table_clicked")
+    app_state$current_view <- "resident_table"
+    resident_selection$clear_selection()
   })
   
   # ==========================================================================
@@ -321,16 +363,18 @@ server <- function(input, output, session) {
   })
   
   # ==========================================================================
-  # NAVIGATION BUTTONS
+  # LEGACY NAVIGATION BUTTONS (from old UI - can be removed)
   # ==========================================================================
   
   # Back to coach selection
   observeEvent(input$back_to_coach, {
+    message("WARNING: Using legacy back_to_coach button - should migrate to change_coach")
     app_state$current_view <- "coach_select"
   })
   
   # Back to resident table
   observeEvent(input$back_to_table, {
+    message("WARNING: Using legacy back_to_table button - should migrate to new navigation")
     app_state$current_view <- "resident_table"
     resident_selection$clear_selection()
   })

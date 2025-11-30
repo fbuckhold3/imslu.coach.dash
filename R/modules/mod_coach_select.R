@@ -1,10 +1,9 @@
 # ==============================================================================
-# COACH SELECTION MODULE
+# COACH SELECTION MODULE - FINAL FIX
 # R/modules/mod_coach_select.R
 # ==============================================================================
 #
-# Dropdown for coach to select their identity
-# Filters resident list based on coach assignment
+# FINAL FIX: Replaced apply() with safer for loop in renderUI
 #
 # ==============================================================================
 
@@ -150,7 +149,7 @@ mod_coach_select_server <- function(id, app_data) {
       return(residents)
     })
     
-    # Calculate coach statistics
+    # Calculate coach statistics - SAFE VERSION
     coach_stats <- reactive({
       req(coach_residents())
       
@@ -163,10 +162,38 @@ mod_coach_select_server <- function(id, app_data) {
         na.rm = TRUE
       )
       
-      # Count by level
-      level_counts <- residents %>%
-        count(current_level) %>%
-        arrange(current_level)
+      # Count by level - SAFE with base R table()
+      level_counts <- tryCatch({
+        # Use whichever level field exists
+        if ("Level" %in% names(residents) && any(!is.na(residents$Level))) {
+          tbl <- table(residents$Level, useNA = "no")
+          data.frame(
+            level = names(tbl),
+            n = as.integer(tbl),
+            stringsAsFactors = FALSE
+          )
+        } else if ("current_level" %in% names(residents) && any(!is.na(residents$current_level))) {
+          tbl <- table(residents$current_level, useNA = "no")
+          data.frame(
+            level = names(tbl),
+            n = as.integer(tbl),
+            stringsAsFactors = FALSE
+          )
+        } else {
+          data.frame(
+            level = "Unknown",
+            n = nrow(residents),
+            stringsAsFactors = FALSE
+          )
+        }
+      }, error = function(e) {
+        message("ERROR counting by level: ", e$message)
+        data.frame(
+          level = "Unknown",
+          n = nrow(residents),
+          stringsAsFactors = FALSE
+        )
+      })
       
       list(
         total = nrow(residents),
@@ -176,11 +203,33 @@ mod_coach_select_server <- function(id, app_data) {
       )
     })
     
-    # Render coach information panel
+    # Render coach information panel - SAFE VERSION
     output$coach_info <- renderUI({
       req(selected_coach(), coach_stats())
       
       stats <- coach_stats()
+      
+      # Build level summary SAFELY - avoid apply()
+      level_summary <- tryCatch({
+        if (nrow(stats$by_level) > 0) {
+          # Use simple for loop instead of apply()
+          level_parts <- character(nrow(stats$by_level))
+          for (i in 1:nrow(stats$by_level)) {
+            level_parts[i] <- paste0(
+              stats$by_level$level[i], 
+              " (", 
+              stats$by_level$n[i], 
+              ")"
+            )
+          }
+          paste(level_parts, collapse = " • ")
+        } else {
+          "No level data"
+        }
+      }, error = function(e) {
+        message("ERROR building level summary: ", e$message)
+        "Error displaying levels"
+      })
       
       tagList(
         div(
@@ -206,12 +255,7 @@ mod_coach_select_server <- function(id, app_data) {
           div(
             style = "margin-top: 10px;",
             strong("By Level: "),
-            paste(
-              apply(stats$by_level, 1, function(x) {
-                sprintf("%s (%s)", x[1], x[2])
-              }),
-              collapse = " • "
-            )
+            level_summary
           )
         )
       )

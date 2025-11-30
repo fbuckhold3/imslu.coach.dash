@@ -256,25 +256,33 @@ load_coaching_data <- function(
     }
   }
   
-  message("  -> Step 3/4: Adding convenience fields...")
-  
-  # Add convenience fields for coaching
-  rdm_data$residents <- rdm_data$residents %>%
-    mutate(
-      # Full name for display
-      full_name = if_else(
-        !is.na(first_name) & !is.na(last_name),
-        paste(first_name, last_name),
-        name
-      ),
-      # Current level (should already be in data from gmed)
-      current_level = case_when(
-        grepl("PGY-?1|Intern", Level, ignore.case = TRUE) ~ "Intern",
-        grepl("PGY-?2", Level, ignore.case = TRUE) ~ "PGY2",
-        grepl("PGY-?3", Level, ignore.case = TRUE) ~ "PGY3",
-        TRUE ~ Level
-      )
+  # ==============================================================================
+# SIMPLEST FIX for R/globals.R lines 254-270
+# Just let gmed's Level field be used as-is
+# ==============================================================================
+
+message("  -> Step 3/4: Adding convenience fields...")
+
+# gmed's load_rdm_complete() has already calculated Level field
+# We just need to add full_name
+
+rdm_data$residents <- rdm_data$residents %>%
+  mutate(
+    # Full name for display
+    full_name = if_else(
+      !is.na(first_name) & !is.na(last_name),
+      paste(first_name, last_name),
+      name
     )
+    # Don't create current_level - just use Level directly everywhere
+  )
+
+# Debug: Show what Level looks like
+if ("Level" %in% names(rdm_data$residents)) {
+  message("  Level field exists - sample values: ", paste(head(rdm_data$residents$Level, 5), collapse = ", "))
+} else {
+  message("  WARNING: Level field not found in residents data!")
+}
   
   message("  -> Step 4/4: Finalizing...")
   message(sprintf(

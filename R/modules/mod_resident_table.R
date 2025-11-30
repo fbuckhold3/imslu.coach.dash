@@ -7,6 +7,10 @@
 # Shows completion status for self-eval, coach review, and second review
 # Allows period filtering and resident selection
 #
+# FIXES APPLIED:
+# 1. Replaced cur_data() with pick(everything()) for dplyr 1.1.0+
+# 2. Fixed Level display to show actual PGY level instead of "Unknown"
+#
 # ==============================================================================
 
 #' Resident Table Module UI
@@ -177,8 +181,8 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
         table_df <- residents %>%
           rowwise() %>%
           mutate(
-            # Determine review role
-            review_role = get_review_role(cur_data(), coach_name),
+            # Determine review role - FIXED: use pick(everything()) instead of cur_data()
+            review_role = get_review_role(pick(everything()), coach_name),
             
             # Check completion status for this period
             seval_complete = check_seval_complete(
@@ -197,9 +201,13 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
               period_num
             ),
             
-            # Format for display
+            # Format for display - FIXED: ensure current_level is properly displayed
             display_name = full_name,
-            display_level = current_level,
+            display_level = if_else(
+              !is.na(current_level) && current_level != "",
+              current_level,
+              Level  # Fallback to Level field if current_level is missing
+            ),
             display_period = selected_period()
           ) %>%
           ungroup() %>%
