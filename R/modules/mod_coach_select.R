@@ -305,16 +305,22 @@ mod_coach_select_server <- function(id, app_data) {
           ))
         }
 
-        # Safely get residents and stats
+        # Safely get residents and stats - handle both errors AND NULL returns from req()
         residents <- tryCatch({
-          coach_residents()
+          res <- coach_residents()
+          if (is.null(res)) data.frame() else res
         }, error = function(e) {
           message("Error getting coach residents: ", e$message)
           data.frame()
         })
 
         stats <- tryCatch({
-          coach_stats()
+          st <- coach_stats()
+          if (is.null(st)) {
+            list(total = 0, primary = 0, secondary = 0, by_level = data.frame())
+          } else {
+            st
+          }
         }, error = function(e) {
           message("Error getting coach stats: ", e$message)
           list(total = 0, primary = 0, secondary = 0, by_level = data.frame())

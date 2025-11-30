@@ -158,15 +158,29 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
     # Build table data with completion status
     table_data <- reactive({
       message("=== table_data reactive triggered ===")
-      message("  coach_data available: ", !is.null(coach_data()))
+
+      req(app_data(), selected_period())
+
+      # Safely get coach data
+      coach_info <- tryCatch({
+        coach_data()
+      }, error = function(e) {
+        message("Error accessing coach_data in table_data: ", e$message)
+        return(NULL)
+      })
+
+      # Require valid coach data with a selected coach
+      req(coach_info)
+      req(!is.null(coach_info$coach_name))
+      req(nzchar(coach_info$coach_name))
+
+      message("  coach_data available: ", !is.null(coach_info))
       message("  app_data available: ", !is.null(app_data()))
       message("  selected_period: ", selected_period())
-      
-      req(coach_data(), app_data(), selected_period())
-      
+
       tryCatch({
-        residents <- coach_data()$residents
-        coach_name <- coach_data()$coach_name
+        residents <- coach_info$residents
+        coach_name <- coach_info$coach_name
         period_num <- get_period_number(selected_period())
         
         message(sprintf(
