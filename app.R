@@ -231,8 +231,25 @@ server <- function(input, output, session) {
   
   # Update view when resident is selected
   observe({
-    req(resident_selection$selected_resident())
-    app_state$current_view <- "review"
+    message("DEBUG: Resident selection observe() triggered")
+
+    tryCatch({
+      selected_res <- resident_selection$selected_resident
+      message("DEBUG: Got selected_resident reference, class: ", paste(class(selected_res), collapse=", "))
+
+      if (is.function(selected_res)) {
+        message("DEBUG: Calling selected_resident()")
+        res_value <- selected_res()
+        message("DEBUG: selected_resident() returned: ", !is.null(res_value))
+        req(res_value)
+        app_state$current_view <- "review"
+      } else {
+        message("ERROR: selected_resident is not a function, it's a: ", paste(class(selected_res), collapse=", "))
+      }
+    }, error = function(e) {
+      message("ERROR in resident selection observe(): ", e$message)
+      print(e)
+    })
   })
   
   # ==========================================================================
@@ -240,43 +257,61 @@ server <- function(input, output, session) {
   # ==========================================================================
   
   # Handle "Back to Residents" button from review interface
-  observeEvent(review_interface$back_to_table_clicked(), {
-    req(review_interface$back_to_table_clicked() > 0)
-    
-    message(sprintf(
-      "[%s] Navigation: Review -> Resident Table",
-      format(Sys.time(), "%Y-%m-%d %H:%M:%S")
-    ))
-    
-    # Clear the selected resident
-    resident_selection$clear_selection()
-    
-    # Switch view back to table
-    app_state$current_view <- "resident_table"
+  # SAFELY access review_interface return values
+  observe({
+    message("DEBUG: Setting up back_to_table handler")
+    tryCatch({
+      if (!is.null(review_interface$back_to_table_clicked) && is.function(review_interface$back_to_table_clicked)) {
+        clicked_count <- review_interface$back_to_table_clicked()
+        if (!is.null(clicked_count) && clicked_count > 0) {
+          message(sprintf(
+            "[%s] Navigation: Review -> Resident Table",
+            format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+          ))
+          resident_selection$clear_selection()
+          app_state$current_view <- "resident_table"
+        }
+      }
+    }, error = function(e) {
+      message("ERROR in back_to_table handler: ", e$message)
+    })
   })
-  
+
   # Handle "Change Coach" button from review interface
-  observeEvent(review_interface$change_coach_clicked(), {
-    req(review_interface$change_coach_clicked() > 0)
-    
-    message(sprintf(
-      "[%s] Navigation: Review -> Coach Selection",
-      format(Sys.time(), "%Y-%m-%d %H:%M:%S")
-    ))
-    
-    # Clear the selected resident
-    resident_selection$clear_selection()
-    
-    # Switch view back to coach selection
-    app_state$current_view <- "coach_select"
+  observe({
+    message("DEBUG: Setting up change_coach handler")
+    tryCatch({
+      if (!is.null(review_interface$change_coach_clicked) && is.function(review_interface$change_coach_clicked)) {
+        clicked_count <- review_interface$change_coach_clicked()
+        if (!is.null(clicked_count) && clicked_count > 0) {
+          message(sprintf(
+            "[%s] Navigation: Review -> Coach Selection",
+            format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+          ))
+          resident_selection$clear_selection()
+          app_state$current_view <- "coach_select"
+        }
+      }
+    }, error = function(e) {
+      message("ERROR in change_coach handler: ", e$message)
+    })
   })
   
   # LEGACY: Keep old back_clicked handler for compatibility
   # (Remove this once you confirm new buttons work)
-  observeEvent(review_interface$back_clicked(), {
-    message("WARNING: Using legacy back_clicked handler - should migrate to back_to_table_clicked")
-    app_state$current_view <- "resident_table"
-    resident_selection$clear_selection()
+  observe({
+    tryCatch({
+      if (!is.null(review_interface$back_clicked) && is.function(review_interface$back_clicked)) {
+        clicked_count <- review_interface$back_clicked()
+        if (!is.null(clicked_count) && clicked_count > 0) {
+          message("WARNING: Using legacy back_clicked handler - should migrate to back_to_table_clicked")
+          app_state$current_view <- "resident_table"
+          resident_selection$clear_selection()
+        }
+      }
+    }, error = function(e) {
+      # Silently ignore - this is legacy code
+    })
   })
   
   # ==========================================================================
