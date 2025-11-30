@@ -95,24 +95,35 @@ mod_coach_select_server <- function(id, app_data) {
     # Update coach choices when data loads
     observe({
       req(app_data())
-      
+
+      message("DEBUG: Updating coach choices...")
+
       # Get unique coaches from resident data
-      coaches <- app_data()$residents %>%
-        filter(!is.na(coach) & coach != "") %>%
-        pull(coach) %>%
-        unique() %>%
-        sort()
-      
-      # Add "Select coach..." placeholder
-      coach_choices <- c("Select coach..." = "", setNames(coaches, coaches))
-      
-      # Update dropdown
-      updateSelectInput(
-        session,
-        "coach_name",
-        choices = coach_choices,
-        selected = selected_coach()
-      )
+      tryCatch({
+        coaches <- app_data()$residents %>%
+          filter(!is.na(coach) & coach != "") %>%
+          pull(coach) %>%
+          unique() %>%
+          sort()
+
+        message("DEBUG: Found ", length(coaches), " coaches")
+
+        # Add "Select coach..." placeholder
+        coach_choices <- c("Select coach..." = "", setNames(coaches, coaches))
+
+        # Update dropdown
+        updateSelectInput(
+          session,
+          "coach_name",
+          choices = coach_choices,
+          selected = selected_coach()
+        )
+
+        message("DEBUG: Coach dropdown updated successfully")
+      }, error = function(e) {
+        message("ERROR in coach choice update: ", e$message)
+        print(e)
+      })
     })
     
     # Update selected coach when dropdown changes
@@ -205,9 +216,13 @@ mod_coach_select_server <- function(id, app_data) {
     
     # Render coach information panel - SAFE VERSION
     output$coach_info <- renderUI({
+      message("DEBUG: coach_info renderUI called")
+
       req(selected_coach(), coach_stats())
-      
+
+      message("DEBUG: coach_info - getting stats...")
       stats <- coach_stats()
+      message("DEBUG: coach_info - stats retrieved")
       
       # Build level summary SAFELY - avoid apply()
       level_summary <- tryCatch({
@@ -295,9 +310,14 @@ mod_coach_select_server <- function(id, app_data) {
     # Return reactive values
     return(
       reactive({
+        message("DEBUG: coach_data return reactive called")
+
         # Only return valid data if coach is selected
         coach <- selected_coach()
+        message("DEBUG: selected_coach = ", if(is.null(coach)) "NULL" else coach)
+
         if (is.null(coach) || !nzchar(coach)) {
+          message("DEBUG: No coach selected, returning empty structure")
           return(list(
             coach_name = NULL,
             residents = data.frame(),
@@ -305,27 +325,37 @@ mod_coach_select_server <- function(id, app_data) {
           ))
         }
 
+        message("DEBUG: Getting residents for coach: ", coach)
+
         # Safely get residents and stats - handle both errors AND NULL returns from req()
         residents <- tryCatch({
+          message("DEBUG: Calling coach_residents()...")
           res <- coach_residents()
+          message("DEBUG: coach_residents() returned ", if(is.null(res)) "NULL" else nrow(res), " rows")
           if (is.null(res)) data.frame() else res
         }, error = function(e) {
-          message("Error getting coach residents: ", e$message)
+          message("ERROR getting coach residents: ", e$message)
+          print(e)
           data.frame()
         })
 
+        message("DEBUG: Getting stats...")
         stats <- tryCatch({
+          message("DEBUG: Calling coach_stats()...")
           st <- coach_stats()
+          message("DEBUG: coach_stats() returned")
           if (is.null(st)) {
             list(total = 0, primary = 0, secondary = 0, by_level = data.frame())
           } else {
             st
           }
         }, error = function(e) {
-          message("Error getting coach stats: ", e$message)
+          message("ERROR getting coach stats: ", e$message)
+          print(e)
           list(total = 0, primary = 0, secondary = 0, by_level = data.frame())
         })
 
+        message("DEBUG: Returning coach_data with coach_name = ", coach)
         list(
           coach_name = coach,
           residents = residents,
