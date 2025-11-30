@@ -306,7 +306,21 @@ ui <- tryCatch({
           )
         )
       ),
-      
+
+      # Back button to return to coach table
+      fluidRow(
+        column(
+          width = 12,
+          div(
+            class = "mb-3 text-center",
+            actionButton("back_to_coach_table",
+                        "← Back to Coach Table",
+                        class = "btn-secondary",
+                        icon = icon("arrow-left"))
+          )
+        )
+      ),
+
       # Enhanced progress indicator with gmed styling
       fluidRow(
         column(

@@ -392,7 +392,21 @@ server <- function(input, output, session) {
       type = "message"
     )
   })
-  
+
+  # Handle back button to return to coach table
+  observeEvent(input$back_to_coach_table, {
+    # Hide review pages
+    shinyjs::hide("review-pages")
+    shinyjs::hide("primary-review-content")
+    shinyjs::hide("second-review-content")
+
+    # Show coach selection page with table
+    shinyjs::show("coach-selection-page")
+
+    # Show notification
+    showNotification("Returned to coach table", type = "message", duration = 2)
+  })
+
   # ============================================================================
   # RESIDENT INFO DISPLAY
   # ============================================================================
