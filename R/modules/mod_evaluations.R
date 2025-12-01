@@ -323,7 +323,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data) 
     })
 
     # Call gmed modules with exact same pattern as working app
-    
+
     # Assessment charts
     gmed::assessment_viz_server(
       "charts",
@@ -331,15 +331,16 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data) 
       record_id = record_id,
       resident_name = resident_name
     )
-    
-    # Custom detail viz - pass data_dict as reactive
-    gmed::mod_assessment_detail_custom_server(
-      "custom_detail",
-      rdm_data = combined_data,
-      record_id = record_id,
-      data_dict = data_dict_data  # Pass as reactive (defined above)
-    )
-    
+
+    # TEMPORARILY COMMENTED OUT TO DEBUG - Testing if this module causes the error
+    # # Custom detail viz - pass data_dict as reactive
+    # gmed::mod_assessment_detail_custom_server(
+    #   "custom_detail",
+    #   rdm_data = combined_data,
+    #   record_id = record_id,
+    #   data_dict = data_dict_data  # Pass as reactive (defined above)
+    # )
+
     # CC Completion Status
     gmed::mod_cc_completion_server(
       "cc_completion",
@@ -347,7 +348,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data) 
       record_id = record_id,
       resident_data = resident_info_data
     )
-    
+
     # Plus/Delta table
     gmed::mod_plus_delta_table_server(
       "plus_delta",
