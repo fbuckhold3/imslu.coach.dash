@@ -62,7 +62,7 @@ mod_review_interface_ui <- function(id) {
       bslib::accordion_panel(
         title = "2. Evaluations & Feedback",
         value = "evaluations",
-        "Section 2 - Coming soon"
+        mod_evaluations_ui("evaluations")
       ),
 
       # Section 3: Learning & Board Preparation
@@ -178,6 +178,8 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     # Call Section 1 module
     wellness_data <- mod_wellness_server("wellness", resident_data, current_period, rdm_data)
 
+    # Call Section 2 module  
+    evaluations_data <- mod_evaluations_server("evaluations", resident_data, current_period, rdm_data)
     
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({
@@ -224,7 +226,15 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     
     # Handle submission
     observeEvent(input$submit_review, {
-      req(wellness_data())
+  req(wellness_data())
+  req(evaluations_data())
+  
+  # Collect data from all sections
+  review_data <- list(
+    wellness = wellness_data(),
+    evaluations = evaluations_data()
+    # ... more sections as you build them
+  )
       
       # TODO: Collect data from all sections
       # TODO: Validate required fields
