@@ -188,6 +188,65 @@ get_previous_period <- function(current_period) {
 }
 
 # ==============================================================================
+# PERIOD DETECTION HELPER
+# ==============================================================================
+
+#' Get Most Recent Period with Data for a Resident (Simple Version)
+#' 
+#' Checks s_eval form for most recent period with data
+#' 
+#' @param resident_info Single row of resident data as list
+#' @param app_data Full rdm_data object
+#' @param verbose Logical, print debug info
+#' @return Character period name or NULL
+get_most_recent_period_simple <- function(resident_info, app_data, verbose = FALSE) {
+  
+  rid <- resident_info$record_id
+  
+  if (verbose) {
+    cat(sprintf("\n[Period Detection] Checking resident %s\n", rid))
+  }
+  
+  # Get all s_eval records for this resident
+  if (is.null(app_data$all_forms$s_eval)) {
+    if (verbose) cat("  No s_eval data available\n")
+    return(NULL)
+  }
+  
+  s_eval_data <- app_data$all_forms$s_eval %>%
+    filter(record_id == rid, !is.na(s_e_period))
+  
+  if (nrow(s_eval_data) == 0) {
+    if (verbose) cat(sprintf("  No s_eval records found for resident %s\n", rid))
+    return(NULL)
+  }
+  
+  # Get the most recent period by sorting periods
+  periods <- unique(s_eval_data$s_e_period)
+  
+  if (verbose) {
+    cat(sprintf("  Found periods: %s\n", paste(periods, collapse=", ")))
+  }
+  
+  period_numbers <- sapply(periods, get_period_number)
+  
+  if (all(is.na(period_numbers))) {
+    if (verbose) cat("  Could not convert periods to numbers\n")
+    return(NULL)
+  }
+  
+  # Return the period with highest number
+  max_period_num <- max(period_numbers, na.rm = TRUE)
+  max_period_name <- get_period_name(max_period_num)
+  
+  if (verbose) {
+    cat(sprintf("  Most recent period: %s (number %d)\n", max_period_name, max_period_num))
+  }
+  
+  return(max_period_name)
+}
+
+# ==============================================================================
 # DATA LOADING FUNCTION
 # ==============================================================================
 
@@ -255,6 +314,7 @@ load_coaching_data <- function(
       }
     }
   }
+
   
   # ==============================================================================
 # SIMPLEST FIX for R/globals.R lines 254-270
@@ -265,6 +325,41 @@ message("  -> Step 3/4: Adding convenience fields...")
 
 # gmed's load_rdm_complete() has already calculated Level field
 # We just need to add full_name
+  
+# === AUTO-DETECT PERIOD FOR EACH RESIDENT ===
+message("  -> Detecting current period for each resident...")
+
+rdm_data$residents <- rdm_data$residents %>%
+  rowwise() %>%
+  mutate(
+    current_period = {
+      # Auto-detect most recent period with data
+      resident_info_list <- as.list(pick(everything()))
+      
+      tryCatch({
+        detected <- get_most_recent_period_simple(
+          resident_info = resident_info_list,
+          app_data = rdm_data,
+          verbose = FALSE  # Set to TRUE for debugging
+        )
+        
+        if (!is.null(detected) && !is.na(detected)) {
+          detected
+        } else {
+          "Mid PGY3"  # Fallback
+        }
+      }, error = function(e) {
+        "Mid PGY3"  # Fallback on error
+      })
+    },
+    current_period_num = get_period_number(current_period)
+  ) %>%
+  ungroup()
+
+message(sprintf(
+  "  Period detection complete. Sample: %s",
+  paste(head(rdm_data$residents$current_period, 3), collapse=", ")
+))
 
 rdm_data$residents <- rdm_data$residents %>%
   mutate(
@@ -428,29 +523,152 @@ check_second_review_complete <- function(all_forms, record_id, period_number) {
          nzchar(second_data$second_comments[1]))
 }
 
+#' Get Form Data for Resident and Period
+#' 
+#' Handles different period field names and logic for each form
+#' 
+#' @param all_forms List of all form data
+#' @param form_name Name of the form
+#' @param record_id Resident record ID
+#' @param period_name Period name (e.g., "Mid PGY3")
+#' @return Filtered data frame
+get_form_data_for_period <- function(all_forms, form_name, record_id, period_name) {
+  
+  # Return empty if form doesn't exist
+  if (is.null(all_forms[[form_name]])) {
+    return(data.frame())
+  }
+  
+  # Get base data for this resident
+  form_data <- all_forms[[form_name]] %>%
+    filter(record_id == !!record_id)
+  
+  # Form-specific period filtering
+  filtered_data <- switch(
+    form_name,
+    
+    # S Eval uses s_e_period
+    "s_eval" = {
+      if ("s_e_period" %in% names(form_data)) {
+        form_data %>%
+          filter(redcap_repeat_instrument == "S Eval") %>%
+          filter(!is.na(s_e_period), s_e_period == !!period_name)
+      } else {
+        form_data %>%
+          filter(redcap_repeat_instrument == "S Eval")
+      }
+    },
+    
+    # Coach Rev uses coach_period
+    "coach_rev" = {
+      if ("coach_period" %in% names(form_data)) {
+        form_data %>%
+          filter(redcap_repeat_instrument == "Coach Rev") %>%
+          filter(!is.na(coach_period), coach_period == !!period_name)
+      } else {
+        form_data %>%
+          filter(redcap_repeat_instrument == "Coach Rev")
+      }
+    },
+    
+    # Second Review uses second_period
+    "second_review" = {
+      if ("second_period" %in% names(form_data)) {
+        form_data %>%
+          filter(redcap_repeat_instrument == "Second Review") %>%
+          filter(!is.na(second_period), second_period == !!period_name)
+      } else {
+        form_data %>%
+          filter(redcap_repeat_instrument == "Second Review")
+      }
+    },
+    
+    # ILP uses year_resident
+    "ilp" = {
+      if ("year_resident" %in% names(form_data)) {
+        form_data %>%
+          filter(redcap_repeat_instrument == "ILP") %>%
+          filter(!is.na(year_resident), year_resident == !!period_name)
+      } else {
+        form_data %>%
+          filter(redcap_repeat_instrument == "ILP")
+      }
+    },
+    
+    # Milestone Entry uses prog_mile_period
+    "milestone_entry" = {
+      if ("prog_mile_period" %in% names(form_data)) {
+        form_data %>%
+          filter(redcap_repeat_instrument == "Milestone Entry") %>%
+          filter(!is.na(prog_mile_period), prog_mile_period == !!period_name)
+      } else {
+        form_data %>%
+          filter(redcap_repeat_instrument == "Milestone Entry")
+      }
+    },
+    
+    # Milestone Self-Evaluation uses prog_mile_period_self
+    "milestone_selfevaluation_c33c" = {
+      if ("prog_mile_period_self" %in% names(form_data)) {
+        form_data %>%
+          filter(redcap_repeat_instrument == "Milestone Self-evaluation") %>%
+          filter(!is.na(prog_mile_period_self), prog_mile_period_self == !!period_name)
+      } else {
+        form_data %>%
+          filter(redcap_repeat_instrument == "Milestone Self-evaluation")
+      }
+    },
+    
+    # ACGME Miles uses acgme_mile_period
+    "acgme_miles" = {
+      if ("acgme_mile_period" %in% names(form_data)) {
+        form_data %>%
+          filter(redcap_repeat_instrument == "ACGME Miles") %>%
+          filter(!is.na(acgme_mile_period), acgme_mile_period == !!period_name)
+      } else {
+        form_data %>%
+          filter(redcap_repeat_instrument == "ACGME Miles")
+      }
+    },
+    
+    # CCC Review uses ccc_session
+    "ccc_review" = {
+      if ("ccc_session" %in% names(form_data)) {
+        form_data %>%
+          filter(redcap_repeat_instrument == "CCC Review") %>%
+          filter(!is.na(ccc_session), ccc_session == !!period_name)
+      } else {
+        form_data %>%
+          filter(redcap_repeat_instrument == "CCC Review")
+      }
+    },
+    
+    # Default: no period filtering, just return resident's data
+    {
+      form_data
+    }
+  )
+  
+  return(filtered_data)
+}
+
 get_resident_period_data <- function(rdm_data, record_id, current_period, include_previous = TRUE) {
   
-  # Automatically unwrap ALL reactive values
+  # Unwrap reactive values
   data <- rdm_data
-  while (is.function(data)) {
-    data <- data()
-  }
+  while (is.function(data)) data <- data()
   
-  # Unwrap record_id if it's reactive
   rid <- record_id
-  while (is.function(rid)) {
-    rid <- rid()
-  }
+  while (is.function(rid)) rid <- rid()
   
-  # Unwrap current_period if it's reactive
   period <- current_period
-  while (is.function(period)) {
-    period <- period()
-  }
+  while (is.function(period)) period <- period()
   
-  # Convert period name to number if needed
-  if (is.character(period)) {
-    period <- get_period_number(period)
+  # Convert to period name
+  period_name <- if (is.numeric(period)) {
+    get_period_name(period)
+  } else {
+    period
   }
   
   # Get resident info
@@ -458,73 +676,32 @@ get_resident_period_data <- function(rdm_data, record_id, current_period, includ
     filter(record_id == !!rid) %>%
     slice(1)
   
-  # Get current period data from all_forms
-  current_s_eval <- if (!is.null(data$all_forms$s_eval)) {
-    data$all_forms$s_eval %>%
-      filter(record_id == !!rid, redcap_repeat_instrument == "s_eval") %>%
-      filter(!is.na(s_e_period), s_e_period == !!period)
-  } else {
-    data.frame()
-  }
-  
-  current_coach_rev <- if (!is.null(data$all_forms$coach_rev)) {
-    data$all_forms$coach_rev %>%
-      filter(record_id == !!rid, redcap_repeat_instrument == "coach_rev") %>%
-      filter(!is.na(coach_period), coach_period == !!period)
-  } else {
-    data.frame()
-  }
-  
-  current_ilp <- if (!is.null(data$all_forms$ilp)) {
-    data$all_forms$ilp %>%
-      filter(record_id == !!rid, redcap_repeat_instrument == "ilp") %>%
-      filter(!is.na(ilp_period), ilp_period == !!period)
-  } else {
-    data.frame()
-  }
-  
-  current_milestone <- if (!is.null(data$all_forms$milestone_entry)) {
-    data$all_forms$milestone_entry %>%
-      filter(record_id == !!rid, redcap_repeat_instrument == "milestone_entry") %>%
-      filter(!is.na(prog_mile_period), prog_mile_period == !!period)
-  } else {
-    data.frame()
-  }
-  
+  # Get current period data using helper
   result <- list(
     resident_info = resident_info,
     current_period = list(
-      s_eval = current_s_eval,
-      coach_rev = current_coach_rev,
-      ilp = current_ilp,
-      milestone_entry = current_milestone
+      s_eval = get_form_data_for_period(data$all_forms, "s_eval", rid, period_name),
+      coach_rev = get_form_data_for_period(data$all_forms, "coach_rev", rid, period_name),
+      ilp = get_form_data_for_period(data$all_forms, "ilp", rid, period_name),
+      milestone_entry = get_form_data_for_period(data$all_forms, "milestone_entry", rid, period_name),
+      milestone_selfevaluation = get_form_data_for_period(data$all_forms, "milestone_selfevaluation_c33c", rid, period_name),
+      second_review = get_form_data_for_period(data$all_forms, "second_review", rid, period_name)
     )
   )
   
   # Add previous period if requested
-  if (include_previous && period > 0) {
-    prev_period <- period - 1
+  if (include_previous && !is.na(period_name)) {
+    prev_period_name <- get_previous_period(period_name)
     
-    prev_s_eval <- if (!is.null(data$all_forms$s_eval)) {
-      data$all_forms$s_eval %>%
-        filter(record_id == !!rid, redcap_repeat_instrument == "s_eval") %>%
-        filter(!is.na(s_e_period), s_e_period == !!prev_period)
-    } else {
-      data.frame()
+    if (!is.na(prev_period_name)) {
+      result$previous_period <- list(
+        s_eval = get_form_data_for_period(data$all_forms, "s_eval", rid, prev_period_name),
+        coach_rev = get_form_data_for_period(data$all_forms, "coach_rev", rid, prev_period_name),
+        ilp = get_form_data_for_period(data$all_forms, "ilp", rid, prev_period_name),
+        acgme_miles = get_form_data_for_period(data$all_forms, "acgme_miles", rid, prev_period_name),
+        ccc_review = get_form_data_for_period(data$all_forms, "ccc_review", rid, prev_period_name)
+      )
     }
-    
-    prev_coach_rev <- if (!is.null(data$all_forms$coach_rev)) {
-      data$all_forms$coach_rev %>%
-        filter(record_id == !!rid, redcap_repeat_instrument == "coach_rev") %>%
-        filter(!is.na(coach_period), coach_period == !!prev_period)
-    } else {
-      data.frame()
-    }
-    
-    result$previous_period <- list(
-      s_eval = prev_s_eval,
-      coach_rev = prev_coach_rev
-    )
   } else {
     result$previous_period <- NULL
   }

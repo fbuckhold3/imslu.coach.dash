@@ -158,80 +158,82 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
 
     # Selected resident state
     selected_resident <- reactiveVal(NULL)
-
-    # Auto-detect current period (no user selection)
-    current_period <- get_current_period()
-    selected_period <- reactiveVal(current_period)
+    selected_period <- reactiveVal(NULL)
     
     # Build table data with completion status
     table_data <- reactive({
-      req(app_data(), selected_period())
+  req(app_data())  # REMOVED selected_period() requirement
 
-      # Safely get coach data
-      coach_info <- tryCatch({
-        coach_data()
-      }, error = function(e) {
-        return(NULL)
-      })
+  # Safely get coach data
+  coach_info <- tryCatch({
+    coach_data()
+  }, error = function(e) {
+    return(NULL)
+  })
 
-      # Require valid coach data with a selected coach
-      req(coach_info)
-      req(!is.null(coach_info$coach_name))
-      req(nzchar(coach_info$coach_name))
+  # Require valid coach data with a selected coach
+  req(coach_info)
+  req(!is.null(coach_info$coach_name))
+  req(nzchar(coach_info$coach_name))
 
-      tryCatch({
-        residents <- coach_info$residents
-        coach_name <- coach_info$coach_name
-        period_num <- get_period_number(selected_period())
+  tryCatch({
+    residents <- coach_info$residents
+    coach_name <- coach_info$coach_name
+    # REMOVED: period_num <- get_period_number(selected_period())
+    
+    # For each resident, check completion status using THEIR detected period
+    table_df <- residents %>%
+      rowwise() %>%
+      mutate(
+        # Determine review role
+        review_role = get_review_role(pick(everything()), coach_name),
         
-        # For each resident, check completion status
-        table_df <- residents %>%
-          rowwise() %>%
-          mutate(
-            # Determine review role - FIXED: use pick(everything()) instead of cur_data()
-            review_role = get_review_role(pick(everything()), coach_name),
-            
-            # Check completion status for this period
-            seval_complete = check_seval_complete(
-              app_data()$all_forms,
-              record_id,
-              period_num
-            ),
-            coach_complete = check_coach_review_complete(
-              app_data()$all_forms,
-              record_id,
-              period_num
-            ),
-            second_complete = check_second_review_complete(
-              app_data()$all_forms,
-              record_id,
-              period_num
-            ),
-            
-            # Format for display - use Level field directly
-            display_name = full_name,
-            display_level = Level,  # Use Level field from gmed package
-            display_period = selected_period()
-          ) %>%
-          ungroup() %>%
-          select(
-            record_id,
-            display_name,
-            display_level,
-            display_period,
-            review_role,
-            seval_complete,
-            coach_complete,
-            second_complete
-          ) %>%
-          arrange(display_name)  # Sort by name instead of level
+        # Use the PRE-DETECTED period for this resident
+        period_num = current_period_num,
+        
+        # Check completion status for THIS resident's period
+        seval_complete = check_seval_complete(
+          app_data()$all_forms,
+          record_id,
+          period_num
+        ),
+        coach_complete = check_coach_review_complete(
+          app_data()$all_forms,
+          record_id,
+          period_num
+        ),
+        second_complete = check_second_review_complete(
+          app_data()$all_forms,
+          record_id,
+          period_num
+        ),
+        
+        # Format for display
+        display_name = full_name,
+        display_level = Level,
+        display_period = current_period  # Show detected period
+      ) %>%
+      ungroup() %>%
+      select(
+        record_id,
+        display_name,
+        display_level,
+        display_period,
+        review_role,
+        seval_complete,
+        coach_complete,
+        second_complete
+      ) %>%
+      arrange(display_name)
 
-        return(table_df)
+    return(table_df)
 
-      }, error = function(e) {
-        return(NULL)
-      })
-    })
+  }, error = function(e) {
+    message("ERROR in table_data: ", e$message)
+    return(NULL)
+  })
+})
+
 
     # Render interactive DataTable
     output$resident_table <- DT::renderDT({
@@ -318,50 +320,57 @@ mod_resident_table_server <- function(id, coach_data, app_data) {
     })
     
     # Handle row selection
-    observeEvent(input$resident_table_rows_selected, {
-      req(table_data())
-      selected_row <- input$resident_table_rows_selected
-      
-      if (length(selected_row) > 0) {
-        df <- table_data()
-        selected_resident_id <- df$record_id[selected_row]
-        
-        # Get full resident info
-        resident_info <- app_data()$residents %>%
-          filter(record_id == selected_resident_id) %>%
-          slice(1)
-        
-        # Set selected resident
-        selected_resident(list(
-          record_id = selected_resident_id,
-          name = df$display_name[selected_row],
-          level = df$display_level[selected_row],
-          role = df$review_role[selected_row],
-          period = selected_period(),
-          period_number = get_period_number(selected_period()),
-          resident_info = resident_info
-        ))
-        
-        message(sprintf(
-          "[%s] Resident selected: %s (ID: %s, Period: %s)",
-          format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-          df$display_name[selected_row],
-          selected_resident_id,
-          selected_period()
-        ))
-        
-        # Show confirmation
-        showNotification(
-          sprintf(
-            "Opening review for %s - %s",
-            df$display_name[selected_row],
-            selected_period()
-          ),
-          type = "message",
-          duration = 3
-        )
-      }
-    })
+    # Handle row selection
+observeEvent(input$resident_table_rows_selected, {
+  req(table_data())
+  selected_row <- input$resident_table_rows_selected
+  
+  if (length(selected_row) > 0) {
+    df <- table_data()
+    selected_resident_id <- df$record_id[selected_row]
+    
+    # Get full resident info
+    resident_info <- app_data()$residents %>%
+      filter(record_id == selected_resident_id) %>%
+      slice(1)
+    
+    # Use PRE-DETECTED period from resident_info
+    resident_period <- resident_info$current_period[1]
+    
+    # Update selected period
+    selected_period(resident_period)
+    
+    # Set selected resident
+    selected_resident(list(
+      record_id = selected_resident_id,
+      name = df$display_name[selected_row],
+      level = df$display_level[selected_row],
+      role = df$review_role[selected_row],
+      period = resident_period,
+      period_number = get_period_number(resident_period),
+      resident_info = resident_info
+    ))
+    
+    message(sprintf(
+      "[%s] Resident selected: %s (ID: %s, Period: %s [auto-detected])",
+      format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+      df$display_name[selected_row],
+      selected_resident_id,
+      resident_period
+    ))
+    
+    # Show confirmation
+    showNotification(
+      sprintf(
+        "Opening review for %s - %s (auto-detected)",
+        df$display_name[selected_row],
+        resident_period
+      ),
+      type = "message",
+      duration = 3
+    )
+  }
+})
     
     # Deselect resident (called externally when returning to table)
     deselect_resident <- function() {

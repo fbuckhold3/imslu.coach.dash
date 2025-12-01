@@ -170,17 +170,14 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       HTML(sprintf(
         "<span style='color: #2c3e50;'>%s</span> | <span style='color: #7f8c8d;'>%s | Period: %s</span>",
         res_data$full_name,
-        res_data$current_level,
+        res_data$Level,
         PERIOD_NAMES[period_num + 1]
       ))
     })
     
     # Call Section 1 module
-    wellness_data <- mod_wellness_server(
-      "wellness",
-      resident_data = resident_data,
-      current_period = current_period
-    )
+    wellness_data <- mod_wellness_server("wellness", resident_data, current_period, rdm_data)
+
     
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({
