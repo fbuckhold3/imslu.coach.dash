@@ -306,16 +306,22 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data) 
     # Prepare combined assessment + questions data with source_form indicator
     combined_data <- reactive({
       req(app_data())
-      
+
       # Add source_form while preserving redcap_repeat_instrument
       combined <- dplyr::bind_rows(
         app_data()$all_forms$assessment %>% dplyr::mutate(source_form = "assessment"),
         app_data()$all_forms$questions %>% dplyr::mutate(source_form = "questions")
       )
-      
+
       return(combined)
     })
-    
+
+    # Extract data dictionary as reactive (consistent with other parameters)
+    data_dict_data <- reactive({
+      req(app_data())
+      app_data()$data_dict
+    })
+
     # Call gmed modules with exact same pattern as working app
     
     # Assessment charts
@@ -331,7 +337,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data) 
       "custom_detail",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = reactive({ app_data()$data_dict })  # Pass as reactive
+      data_dict = data_dict_data  # Pass as reactive (defined above)
     )
     
     # CC Completion Status
