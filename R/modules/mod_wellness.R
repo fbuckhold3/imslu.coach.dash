@@ -61,92 +61,11 @@ mod_wellness_ui <- function(id) {
 mod_wellness_server <- function(id, resident_data, current_period, app_data) {
   moduleServer(id, function(input, output, session) {
     
-    # DIAGNOSTIC: Check what data we're receiving
-    observe({
-      req(resident_data())
-      
-      data <- resident_data()
-      
-      cat("\n=== WELLNESS MODULE DIAGNOSTIC ===\n")
-      cat("Structure of resident_data:\n")
-      cat("  Names:", paste(names(data), collapse=", "), "\n")
-      
-      if (!is.null(data$current_period)) {
-        cat("  current_period names:", paste(names(data$current_period), collapse=", "), "\n")
-        
-        if (!is.null(data$current_period$s_eval)) {
-          cat("  s_eval rows:", nrow(data$current_period$s_eval), "\n")
-          
-          if (nrow(data$current_period$s_eval) > 0) {
-            cat("  s_e_well value:", data$current_period$s_eval$s_e_well[1], "\n")
-            cat("  s_e_prog_assist value:", data$current_period$s_eval$s_e_prog_assist[1], "\n")
-          }
-        }
-      }
-      cat("=================================\n\n")
-    })
-
-    # EXTENDED DIAGNOSTIC - Check what period was used
-    observe({
-      req(resident_data())
-      req(current_period())
-      req(app_data())
-      
-      data <- resident_data()
-      period_val <- current_period()
-      
-      cat("\n=== PERIOD MATCHING DIAGNOSTIC ===\n")
-      cat("Period passed to filter:", period_val, "\n")
-      cat("Period class:", class(period_val), "\n")
-      
-      # Convert to period name if it's a number
-      if (is.numeric(period_val)) {
-        period_name <- get_period_name(period_val)
-        cat("Period name:", period_name, "\n")
-      } else {
-        period_name <- period_val
-      }
-      
-      # Check what's actually in s_eval for this resident
-      resident_id <- data$resident_info$record_id[1]
-      cat("Resident ID:", resident_id, "\n")
-      
-      # Look at raw s_eval data for this resident (before filtering)
-      if (!is.null(app_data()$all_forms$s_eval)) {
-        raw_s_eval <- app_data()$all_forms$s_eval %>%
-          filter(record_id == resident_id)
-        
-        cat("Total s_eval records for this resident:", nrow(raw_s_eval), "\n")
-        
-        if (nrow(raw_s_eval) > 0) {
-          cat("Available periods in s_eval:\n")
-          print(unique(raw_s_eval$s_e_period))
-          cat("Period we're filtering for:", period_name, "\n")
-          cat("Does it match?", period_name %in% raw_s_eval$s_e_period, "\n")
-        }
-      }
-      cat("=================================\n\n")
-    })
-    
     # Display current period wellness data
     output$previous_wellness <- renderUI({
       req(resident_data())
       
       curr_data <- resident_data()$current_period$s_eval
-      
-      # DIAGNOSTIC - what are we trying to render?
-      cat("\n=== RENDERING WELLNESS ===\n")
-      cat("curr_data is null?", is.null(curr_data), "\n")
-      if (!is.null(curr_data)) {
-        cat("curr_data rows:", nrow(curr_data), "\n")
-        if (nrow(curr_data) > 0) {
-          wellness_text <- curr_data$s_e_well[1]
-          cat("wellness_text:", wellness_text, "\n")
-          cat("is.na(wellness_text)?", is.na(wellness_text), "\n")
-          cat("wellness_text == ''?", wellness_text == "", "\n")
-        }
-      }
-      cat("==========================\n")
       
       if (is.null(curr_data) || nrow(curr_data) == 0) {
         return(
@@ -179,20 +98,6 @@ mod_wellness_server <- function(id, resident_data, current_period, app_data) {
       req(resident_data())
       
       curr_data <- resident_data()$current_period$s_eval
-      
-      # DIAGNOSTIC
-      cat("\n=== RENDERING PROGRESS ===\n")
-      cat("curr_data is null?", is.null(curr_data), "\n")
-      if (!is.null(curr_data)) {
-        cat("curr_data rows:", nrow(curr_data), "\n")
-        if (nrow(curr_data) > 0) {
-          progress_text <- curr_data$s_e_prog_assist[1]
-          cat("progress_text:", progress_text, "\n")
-          cat("is.na(progress_text)?", is.na(progress_text), "\n")
-          cat("trimws == ''?", trimws(progress_text) == "", "\n")
-        }
-      }
-      cat("==========================\n")
       
       if (is.null(curr_data) || nrow(curr_data) == 0) {
         return(
@@ -254,5 +159,5 @@ mod_wellness_server <- function(id, resident_data, current_period, app_data) {
         )
       })
     )
-  })  # <-- moduleServer ENDS HERE
+  })
 }
