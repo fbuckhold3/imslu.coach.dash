@@ -316,8 +316,8 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data) 
       return(combined)
     })
 
-    # Extract data dictionary as reactive (consistent with other parameters)
-    data_dict_data <- reactive({
+    # Get data dictionary from app_data (non-reactive extraction for gmed modules)
+    data_dict <- reactive({
       req(app_data())
       app_data()$data_dict
     })
@@ -332,14 +332,13 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data) 
       resident_name = resident_name
     )
 
-    # TEMPORARILY COMMENTED OUT TO DEBUG - Testing if this module causes the error
-    # # Custom detail viz - pass data_dict as reactive
-    # gmed::mod_assessment_detail_custom_server(
-    #   "custom_detail",
-    #   rdm_data = combined_data,
-    #   record_id = record_id,
-    #   data_dict = data_dict_data  # Pass as reactive (defined above)
-    # )
+    # Custom detail viz - MUST capture return value for proper reactive initialization
+    detail_viz_state <- gmed::mod_assessment_detail_custom_server(
+      "custom_detail",
+      rdm_data = combined_data,
+      record_id = record_id,
+      data_dict = data_dict  # Pass as reactive (matches working app pattern)
+    )
 
     # CC Completion Status
     gmed::mod_cc_completion_server(
