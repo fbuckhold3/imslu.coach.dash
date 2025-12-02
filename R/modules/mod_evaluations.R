@@ -317,6 +317,11 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
     })
 
     # NOTE: data_dict is now passed as parameter from parent (matches working app pattern)
+    # Extract the actual data_dict value safely within reactive context
+    data_dict_value <- reactive({
+      req(data_dict())
+      data_dict()
+    })
 
     # Call gmed modules with exact same pattern as working app
 
@@ -328,12 +333,12 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       resident_name = resident_name
     )
 
-    # Custom detail viz - data_dict must be UNWRAPPED (actual data, not reactive)
+    # Custom detail viz - pass unwrapped data_dict using isolate
     detail_viz_state <- gmed::mod_assessment_detail_custom_server(
       "custom_detail",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = data_dict()  # CRITICAL: Call () to unwrap reactive and pass actual data frame
+      data_dict = isolate(data_dict_value())  # Use isolate to safely unwrap without creating dependency
     )
 
     # CC Completion Status
