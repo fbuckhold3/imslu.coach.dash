@@ -44,67 +44,137 @@ mod_review_interface_ui <- function(id) {
     ),
     
     hr(),
-    
-    # Main accordion with 8 sections
-    bslib::accordion(
-      id = ns("review_accordion"),
-      open = "wellness",  # First section open by default
-      multiple = TRUE,   # Allow multiple sections open at once
+
+    # Vertical scroll layout - all sections visible
+    div(
+      style = "max-width: 1400px; margin: 0 auto;",
 
       # Section 1: Wellness & Progress
-      bslib::accordion_panel(
-        title = "1. Wellness & Progress",
-        value = "wellness",
-        mod_wellness_ui(ns("wellness"))
+      div(
+        class = "card mb-4",
+        style = "border-left: 4px solid #3498db;",
+        div(
+          class = "card-header",
+          style = "background-color: #ecf0f1; border-bottom: 2px solid #3498db;",
+          h4(style = "margin: 0; color: #2c3e50;",
+             icon("heart"), " 1. Wellness & Progress")
+        ),
+        div(
+          class = "card-body",
+          mod_wellness_ui(ns("wellness"))
+        )
       ),
 
       # Section 2: Evaluations & Feedback
-      bslib::accordion_panel(
-        title = "2. Evaluations & Feedback",
-        value = "evaluations",
-        mod_evaluations_ui(ns("evaluations"))
+      div(
+        class = "card mb-4",
+        style = "border-left: 4px solid #9b59b6;",
+        div(
+          class = "card-header",
+          style = "background-color: #ecf0f1; border-bottom: 2px solid #9b59b6;",
+          h4(style = "margin: 0; color: #2c3e50;",
+             icon("clipboard"), " 2. Evaluations & Feedback")
+        ),
+        div(
+          class = "card-body",
+          mod_evaluations_ui(ns("evaluations"))
+        )
       ),
 
       # Section 3: Learning & Board Preparation
-      bslib::accordion_panel(
-        title = "3. Learning & Board Preparation",
-        value = "learning",
-        "Section 3 - Coming soon"
+      div(
+        class = "card mb-4",
+        style = "border-left: 4px solid #e67e22;",
+        div(
+          class = "card-header",
+          style = "background-color: #ecf0f1; border-bottom: 2px solid #e67e22;",
+          h4(style = "margin: 0; color: #2c3e50;",
+             icon("book"), " 3. Learning & Board Preparation")
+        ),
+        div(
+          class = "card-body",
+          p("Section content coming soon")
+        )
       ),
 
       # Section 4: Scholarship
-      bslib::accordion_panel(
-        title = "4. Scholarship",
-        value = "scholarship",
-        "Section 4 - Coming soon"
+      div(
+        class = "card mb-4",
+        style = "border-left: 4px solid #16a085;",
+        div(
+          class = "card-header",
+          style = "background-color: #ecf0f1; border-bottom: 2px solid #16a085;",
+          h4(style = "margin: 0; color: #2c3e50;",
+             icon("graduation-cap"), " 4. Scholarship")
+        ),
+        div(
+          class = "card-body",
+          p("Section content coming soon")
+        )
       ),
 
       # Section 5: Career Planning
-      bslib::accordion_panel(
-        title = "5. Career Planning",
-        value = "career",
-        "Section 5 - Coming soon"
+      div(
+        class = "card mb-4",
+        style = "border-left: 4px solid #f39c12;",
+        div(
+          class = "card-header",
+          style = "background-color: #ecf0f1; border-bottom: 2px solid #f39c12;",
+          h4(style = "margin: 0; color: #2c3e50;",
+             icon("briefcase"), " 5. Career Planning")
+        ),
+        div(
+          class = "card-body",
+          p("Section content coming soon")
+        )
       ),
 
-      # Section 6: Goals & ILP Review
-      bslib::accordion_panel(
-        title = "6. Goals & ILP Review",
-        value = "goals",
-        "Section 6 - Coming soon"
+      # Section 6: Milestones
+      div(
+        class = "card mb-4",
+        style = "border-left: 4px solid #e74c3c;",
+        div(
+          class = "card-header",
+          style = "background-color: #ecf0f1; border-bottom: 2px solid #e74c3c;",
+          h4(style = "margin: 0; color: #2c3e50;",
+             icon("chart-line"), " 6. Milestones")
+        ),
+        div(
+          class = "card-body",
+          p("Section content coming soon")
+        )
       ),
 
-      # Section 7: ILP Summary
-      bslib::accordion_panel(
-        title = "7. ILP Summary",
-        value = "ilp_summary",
-        "Section 7 - Coming soon"
+      # Section 7: Goals & ILP
+      div(
+        class = "card mb-4",
+        style = "border-left: 4px solid #27ae60;",
+        div(
+          class = "card-header",
+          style = "background-color: #ecf0f1; border-bottom: 2px solid #27ae60;",
+          h4(style = "margin: 0; color: #2c3e50;",
+             icon("bullseye"), " 7. Goals & Individual Learning Plan")
+        ),
+        div(
+          class = "card-body",
+          p("Section content coming soon")
+        )
       ),
 
-      # Section 8: Milestone Entry
-      bslib::accordion_panel(
-        title = "8. Milestone Entry",
-        value = "milestones",
-        "Section 8 - Coming soon"
+      # Section 8: Summary
+      div(
+        class = "card mb-4",
+        style = "border-left: 4px solid #34495e;",
+        div(
+          class = "card-header",
+          style = "background-color: #ecf0f1; border-bottom: 2px solid #34495e;",
+          h4(style = "margin: 0; color: #2c3e50;",
+             icon("check-circle"), " 8. Summary & Submission")
+        ),
+        div(
+          class = "card-body",
+          p("Review summary and submission coming soon")
+        )
       )
     ),
     
