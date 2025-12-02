@@ -122,7 +122,10 @@ mod_review_interface_ui <- function(id) {
         div(
           id = ns("collapse3"),
           class = "collapse",
-          div(class = "card-body", p("Section content coming soon"))
+          div(
+            class = "card-body",
+            mod_learning_ui(ns("learning"))
+          )
         )
       ),
 
@@ -320,6 +323,9 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
 
     # Call Section 2 module - pass data_dict as separate parameter (matches working app)
     evaluations_data <- mod_evaluations_server("evaluations", resident_data, current_period, rdm_data, data_dict)
+
+    # Call Section 3 module
+    learning_data <- mod_learning_server("learning", resident_data, current_period, rdm_data)
     
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({
@@ -368,11 +374,13 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     observeEvent(input$submit_review, {
   req(wellness_data())
   req(evaluations_data())
-  
+  req(learning_data())
+
   # Collect data from all sections
   review_data <- list(
     wellness = wellness_data(),
-    evaluations = evaluations_data()
+    evaluations = evaluations_data(),
+    learning = learning_data()
     # ... more sections as you build them
   )
       

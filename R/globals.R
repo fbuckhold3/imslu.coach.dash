@@ -1010,6 +1010,7 @@ source("R/modules/mod_resident_table.R")
 source("R/modules/mod_wellness.R")
 source("R/modules/mod_review_interface.R")
 source("R/modules/mod_evaluations.R")
+source("R/modules/mod_learning.R")
 
 # ==============================================================================
 # STARTUP MESSAGE
