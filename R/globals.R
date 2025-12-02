@@ -338,25 +338,57 @@ if (current_month >= 7) {
 
 message("  Calculating resident levels (Academic Year: ", academic_year, ")...")
 
-rdm_data$residents <- rdm_data$residents %>%
-  mutate(
-    # Calculate Level based on year_started
-    Level = case_when(
-      is.na(year_started) | year_started == "" ~ "Unknown",
-      as.numeric(year_started) == academic_year ~ "Intern",
-      as.numeric(year_started) == academic_year - 1 ~ "PGY2",
-      as.numeric(year_started) == academic_year - 2 ~ "PGY3",
-      as.numeric(year_started) == academic_year - 3 ~ "PGY4",
-      as.numeric(year_started) < academic_year - 3 ~ "Graduated",
-      TRUE ~ "Unknown"
-    ),
-    # Full name for display
-    full_name = if_else(
-      !is.na(first_name) & !is.na(last_name),
-      paste(first_name, last_name),
-      name
+# Debug: Check available fields
+message("  Available fields in residents data: ", paste(head(names(rdm_data$residents), 20), collapse=", "))
+
+# Check for year_started field (might have different name in raw format)
+year_field <- if ("year_started" %in% names(rdm_data$residents)) {
+  "year_started"
+} else if ("res_year_started" %in% names(rdm_data$residents)) {
+  "res_year_started"
+} else if ("start_year" %in% names(rdm_data$residents)) {
+  "start_year"
+} else {
+  NA
+}
+
+if (!is.na(year_field)) {
+  message("  Using year field: ", year_field)
+
+  rdm_data$residents <- rdm_data$residents %>%
+    mutate(
+      # Calculate Level based on year_started
+      Level = case_when(
+        is.na(.data[[year_field]]) | .data[[year_field]] == "" ~ "Unknown",
+        as.numeric(.data[[year_field]]) == academic_year ~ "Intern",
+        as.numeric(.data[[year_field]]) == academic_year - 1 ~ "PGY2",
+        as.numeric(.data[[year_field]]) == academic_year - 2 ~ "PGY3",
+        as.numeric(.data[[year_field]]) == academic_year - 3 ~ "PGY4",
+        as.numeric(.data[[year_field]]) < academic_year - 3 ~ "Graduated",
+        TRUE ~ "Unknown"
+      ),
+      # Full name for display
+      full_name = if_else(
+        !is.na(first_name) & !is.na(last_name),
+        paste(first_name, last_name),
+        name
+      )
     )
-  )
+} else {
+  warning("Year started field not found - cannot calculate Level")
+  message("  WARNING: Cannot find year_started field, setting all to Unknown")
+
+  rdm_data$residents <- rdm_data$residents %>%
+    mutate(
+      Level = "Unknown",
+      # Full name for display
+      full_name = if_else(
+        !is.na(first_name) & !is.na(last_name),
+        paste(first_name, last_name),
+        name
+      )
+    )
+}
 
 # Translate coach codes to names using data_dict
 if (!is.null(rdm_data$data_dict)) {
