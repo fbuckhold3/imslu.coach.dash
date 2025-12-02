@@ -323,94 +323,73 @@ load_coaching_data <- function(
 
 message("  -> Step 3/4: Adding convenience fields...")
 
-# Calculate Level manually (gmed's calculation returns "Unknown" with raw format)
-# Calculate academic year level based on year_started and current date
+# Calculate Level using gmed's logic (which works correctly)
 current_date <- Sys.Date()
-current_year <- as.numeric(format(current_date, "%Y"))
-current_month <- as.numeric(format(current_date, "%m"))
 
-# Academic year starts July 1
-if (current_month >= 7) {
-  academic_year <- current_year
-} else {
-  academic_year <- current_year - 1
-}
+message("  Calculating resident levels using gmed logic...")
+message("  Current date: ", current_date)
 
-message("  Calculating resident levels (Academic Year: ", academic_year, ")...")
+# Check for required fields
+if ("type" %in% names(rdm_data$residents) && "grad_yr" %in% names(rdm_data$residents)) {
 
-# Debug: Check available fields
-message("  Available fields in residents data: ", paste(head(names(rdm_data$residents), 20), collapse=", "))
+  rdm_data$residents <- rdm_data$residents %>%
+    mutate(
+      # Calculate academic year for current date (July 1 start)
+      academic_year = ifelse(
+        format(current_date, "%m-%d") >= "07-01",
+        as.numeric(format(current_date, "%Y")),
+        as.numeric(format(current_date, "%Y")) - 1
+      ),
 
-# Check for year_started field (might have different name in raw format)
-year_field <- if ("year_started" %in% names(rdm_data$residents)) {
-  "year_started"
-} else if ("grad_yr" %in% names(rdm_data$residents)) {
-  "grad_yr"
-} else if ("res_year_started" %in% names(rdm_data$residents)) {
-  "res_year_started"
-} else if ("start_year" %in% names(rdm_data$residents)) {
-  "start_year"
-} else {
-  NA
-}
+      # Convert grad_yr to numeric
+      grad_yr_numeric = suppressWarnings(as.numeric(grad_yr)),
 
-if (!is.na(year_field)) {
-  message("  Using year field: ", year_field)
+      # Calculate level using gmed logic
+      Level = case_when(
+        # Missing data
+        is.na(type) | is.na(grad_yr_numeric) ~ "Unknown",
 
-  # Check if this is graduation year or start year
-  is_grad_year <- year_field == "grad_yr"
+        # Preliminary residents are always Intern
+        tolower(type) == "preliminary" ~ "Intern",
 
-  if (is_grad_year) {
-    message("  Calculating level from graduation year...")
-    rdm_data$residents <- rdm_data$residents %>%
-      mutate(
-        # Calculate Level based on graduation year (IM is 3-year program)
-        Level = case_when(
-          is.na(.data[[year_field]]) | .data[[year_field]] == "" ~ "Unknown",
-          as.numeric(.data[[year_field]]) == academic_year + 3 ~ "Intern",
-          as.numeric(.data[[year_field]]) == academic_year + 2 ~ "PGY2",
-          as.numeric(.data[[year_field]]) == academic_year + 1 ~ "PGY3",
-          as.numeric(.data[[year_field]]) == academic_year ~ "PGY4",
-          as.numeric(.data[[year_field]]) < academic_year ~ "Graduated",
-          TRUE ~ "Unknown"
-        ),
-        # Full name for display
-        full_name = if_else(
-          !is.na(first_name) & !is.na(last_name),
-          paste(first_name, last_name),
-          name
-        )
+        # Categorical residents - calculate based on years until graduation
+        tolower(type) == "categorical" ~ {
+          years_to_grad <- grad_yr_numeric - academic_year
+
+          case_when(
+            years_to_grad == 3 ~ "Intern",      # 3 years until graduation = PGY1
+            years_to_grad == 2 ~ "PGY2",        # 2 years until graduation = PGY2
+            years_to_grad == 1 ~ "PGY3",        # 1 year until graduation = PGY3
+            years_to_grad <= 0 ~ "Graduated",   # Past graduation
+            years_to_grad > 3 ~ "Pre-Intern",   # Before starting residency
+            TRUE ~ "Unknown"
+          )
+        },
+
+        # Rotators
+        tolower(type) == "rotator" ~ "Rotator",
+
+        TRUE ~ "Unknown"
+      ),
+
+      # Full name for display
+      full_name = if_else(
+        !is.na(first_name) & !is.na(last_name),
+        paste(first_name, last_name),
+        name
       )
-  } else {
-    message("  Calculating level from start year...")
-    rdm_data$residents <- rdm_data$residents %>%
-      mutate(
-        # Calculate Level based on start year
-        Level = case_when(
-          is.na(.data[[year_field]]) | .data[[year_field]] == "" ~ "Unknown",
-          as.numeric(.data[[year_field]]) == academic_year ~ "Intern",
-          as.numeric(.data[[year_field]]) == academic_year - 1 ~ "PGY2",
-          as.numeric(.data[[year_field]]) == academic_year - 2 ~ "PGY3",
-          as.numeric(.data[[year_field]]) == academic_year - 3 ~ "PGY4",
-          as.numeric(.data[[year_field]]) < academic_year - 3 ~ "Graduated",
-          TRUE ~ "Unknown"
-        ),
-        # Full name for display
-        full_name = if_else(
-          !is.na(first_name) & !is.na(last_name),
-          paste(first_name, last_name),
-          name
-        )
-      )
-  }
+    ) %>%
+    select(-academic_year, -grad_yr_numeric)  # Remove temporary columns
+
+  message("  Level calculation complete using type and grad_yr")
+
 } else {
-  warning("Year started field not found - cannot calculate Level")
-  message("  WARNING: Cannot find year_started field, setting all to Unknown")
+  warning("Required fields (type, grad_yr) not found - cannot calculate Level")
+  message("  WARNING: Missing type or grad_yr field, setting all to Unknown")
 
   rdm_data$residents <- rdm_data$residents %>%
     mutate(
       Level = "Unknown",
-      # Full name for display
       full_name = if_else(
         !is.na(first_name) & !is.na(last_name),
         paste(first_name, last_name),
@@ -494,21 +473,20 @@ message(sprintf(
   paste(head(rdm_data$residents$current_period, 3), collapse=", ")
 ))
 
-# Debug: Show what Level looks like with grad_yr values
-if ("grad_yr" %in% names(rdm_data$residents)) {
-  debug_sample <- rdm_data$residents %>%
-    select(name, grad_yr, Level) %>%
-    head(5)
-  message("  Level calculation debug:")
-  message("    Academic year: ", academic_year)
-  for (i in 1:min(nrow(debug_sample), 5)) {
-    message(sprintf("    %s: grad_yr=%s → Level=%s",
-                   debug_sample$name[i],
-                   debug_sample$grad_yr[i],
-                   debug_sample$Level[i]))
-  }
-} else {
-  message("  Level field - sample values: ", paste(head(rdm_data$residents$Level, 5), collapse = ", "))
+# Debug: Show Level calculation results
+message("  Level calculation debug (first 5 residents):")
+debug_sample <- rdm_data$residents %>%
+  select(name, any_of(c("type", "grad_yr")), Level) %>%
+  head(5)
+
+for (i in 1:min(nrow(debug_sample), 5)) {
+  type_val <- if("type" %in% names(debug_sample)) debug_sample$type[i] else "N/A"
+  grad_val <- if("grad_yr" %in% names(debug_sample)) debug_sample$grad_yr[i] else "N/A"
+  message(sprintf("    %s: type=%s, grad_yr=%s → Level=%s",
+                 debug_sample$name[i],
+                 type_val,
+                 grad_val,
+                 debug_sample$Level[i]))
 }
   
   message("  -> Step 4/4: Finalizing...")
