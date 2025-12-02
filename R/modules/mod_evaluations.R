@@ -52,6 +52,49 @@ mod_evaluations_ui <- function(id) {
 
     hr(),
 
+    # Assessment Visualizations Section
+    div(
+      class = "mb-4",
+      h5(icon("chart-bar"), " Assessment Data & Visualizations", style = "color: #2c3e50;"),
+
+      # Assessment progress charts
+      gmed::assessment_viz_ui(ns("charts"), title = "Assessment Progress"),
+
+      hr(),
+
+      # Custom detail viz from gmed
+      gmed::mod_assessment_detail_custom_ui(ns("custom_detail")),
+
+      hr(),
+
+      # Custom data display for selected evaluation
+      gmed::mod_assessment_data_display_ui(ns("data_display")),
+
+      hr(),
+
+      # CC Completion Status
+      gmed::mod_cc_completion_ui(ns("cc_completion")),
+
+      hr(),
+
+      # Conference attendance/questions
+      gmed::mod_questions_viz_ui(ns("questions"), title = "Conference Attendance by Rotation"),
+
+      hr(),
+
+      # Plus/Delta feedback table - collapsible
+      bslib::accordion(
+        id = ns("plus_delta_accordion"),
+        open = FALSE,
+        bslib::accordion_panel(
+          "Plus / Delta Feedback Details",
+          gmed::mod_plus_delta_table_ui(ns("plus_delta"), title = NULL)
+        )
+      )
+    ),
+
+    hr(),
+
     # Coach Entry for Current Period
     div(
       class = "mb-3",
@@ -164,6 +207,102 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
         HTML(gsub("\n", "<br>", eval_comments))
       )
     })
+
+    # ===== PREPARE DATA FOR GMED MODULES =====
+
+    # Extract record_id as separate reactive
+    record_id <- reactive({
+      req(resident_data())
+      resident_data()$resident_info$record_id
+    })
+
+    # Extract resident name as separate reactive
+    resident_name <- reactive({
+      req(resident_data())
+      resident_data()$resident_info$full_name
+    })
+
+    # Get resident info for CC completion
+    resident_info_data <- reactive({
+      req(app_data(), record_id())
+
+      app_data()$residents %>%
+        dplyr::filter(record_id == !!record_id()) %>%
+        dplyr::slice(1)
+    })
+
+    # Get raw assessment data for plus/delta table
+    raw_assessment_data <- reactive({
+      req(app_data())
+
+      if ("assessment" %in% names(app_data()$all_forms)) {
+        return(app_data()$all_forms$assessment)
+      } else {
+        return(data.frame())
+      }
+    })
+
+    # Prepare combined assessment + questions data
+    combined_data <- reactive({
+      req(app_data())
+
+      # Add source_form while preserving redcap_repeat_instrument
+      combined <- dplyr::bind_rows(
+        app_data()$all_forms$assessment %>% dplyr::mutate(source_form = "assessment"),
+        app_data()$all_forms$questions %>% dplyr::mutate(source_form = "questions")
+      )
+
+      return(combined)
+    })
+
+    # ===== CALL GMED MODULES =====
+
+    # Assessment charts
+    gmed::assessment_viz_server(
+      "charts",
+      data = combined_data,
+      record_id = record_id,
+      resident_name = resident_name
+    )
+
+    # Custom detail viz from gmed - returns reactive values for data display
+    detail_viz_state <- gmed::mod_assessment_detail_custom_server(
+      "custom_detail",
+      rdm_data = combined_data,
+      record_id = record_id,
+      data_dict = data_dict
+    )
+
+    # Custom data display for selected evaluation
+    gmed::mod_assessment_data_display_server(
+      "data_display",
+      selected_category = detail_viz_state$selected_category,
+      category_data = detail_viz_state$category_data,
+      data_dict = data_dict
+    )
+
+    # CC Completion Status
+    gmed::mod_cc_completion_server(
+      "cc_completion",
+      rdm_data = combined_data,
+      record_id = record_id,
+      resident_data = resident_info_data
+    )
+
+    # Questions/conference attendance
+    gmed::mod_questions_viz_server(
+      "questions",
+      rdm_data = combined_data,
+      record_id = record_id,
+      data_dict = data_dict
+    )
+
+    # Plus/Delta table
+    gmed::mod_plus_delta_table_server(
+      "plus_delta",
+      rdm_data = raw_assessment_data,
+      record_id = record_id
+    )
 
     # ===== CURRENT PERIOD RESIDENT REFLECTIONS =====
 
