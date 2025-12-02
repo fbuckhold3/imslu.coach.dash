@@ -323,9 +323,71 @@ load_coaching_data <- function(
 
 message("  -> Step 3/4: Adding convenience fields...")
 
-# gmed's load_rdm_complete() has already calculated Level field
-# We just need to add full_name
-  
+# Calculate Level manually (gmed's calculation returns "Unknown" with raw format)
+# Calculate academic year level based on year_started and current date
+current_date <- Sys.Date()
+current_year <- as.numeric(format(current_date, "%Y"))
+current_month <- as.numeric(format(current_date, "%m"))
+
+# Academic year starts July 1
+if (current_month >= 7) {
+  academic_year <- current_year
+} else {
+  academic_year <- current_year - 1
+}
+
+message("  Calculating resident levels (Academic Year: ", academic_year, ")...")
+
+rdm_data$residents <- rdm_data$residents %>%
+  mutate(
+    # Calculate Level based on year_started
+    Level = case_when(
+      is.na(year_started) | year_started == "" ~ "Unknown",
+      as.numeric(year_started) == academic_year ~ "Intern",
+      as.numeric(year_started) == academic_year - 1 ~ "PGY2",
+      as.numeric(year_started) == academic_year - 2 ~ "PGY3",
+      as.numeric(year_started) == academic_year - 3 ~ "PGY4",
+      as.numeric(year_started) < academic_year - 3 ~ "Graduated",
+      TRUE ~ "Unknown"
+    ),
+    # Full name for display
+    full_name = if_else(
+      !is.na(first_name) & !is.na(last_name),
+      paste(first_name, last_name),
+      name
+    )
+  )
+
+# Translate coach codes to names using data_dict
+if (!is.null(rdm_data$data_dict)) {
+  message("  Translating coach codes to names...")
+
+  # Get coach field choices from data_dict
+  coach_choices <- rdm_data$data_dict %>%
+    filter(`Variable / Field Name` == "coach") %>%
+    pull(`Choices, Calculations, OR Slider Labels`)
+
+  if (length(coach_choices) > 0 && !is.na(coach_choices[1])) {
+    # Parse choices (format: "1, Name 1 | 2, Name 2 | ...")
+    choice_pairs <- strsplit(coach_choices[1], "\\|")[[1]]
+    coach_map <- setNames(
+      sapply(choice_pairs, function(x) trimws(sub("^\\d+,\\s*", "", x))),
+      sapply(choice_pairs, function(x) trimws(sub(",.*", "", x)))
+    )
+
+    # Translate coach and second_rev fields
+    rdm_data$residents <- rdm_data$residents %>%
+      mutate(
+        coach = if_else(!is.na(coach) & coach %in% names(coach_map),
+                       coach_map[coach], coach),
+        second_rev = if_else(!is.na(second_rev) & second_rev %in% names(coach_map),
+                            coach_map[second_rev], second_rev)
+      )
+
+    message("  Coach translation complete")
+  }
+}
+
 # === AUTO-DETECT PERIOD FOR EACH RESIDENT ===
 message("  -> Detecting current period for each resident...")
 
@@ -335,14 +397,14 @@ rdm_data$residents <- rdm_data$residents %>%
     current_period = {
       # Auto-detect most recent period with data
       resident_info_list <- as.list(pick(everything()))
-      
+
       tryCatch({
         detected <- get_most_recent_period_simple(
           resident_info = resident_info_list,
           app_data = rdm_data,
           verbose = FALSE  # Set to TRUE for debugging
         )
-        
+
         if (!is.null(detected) && !is.na(detected)) {
           detected
         } else {
@@ -361,23 +423,8 @@ message(sprintf(
   paste(head(rdm_data$residents$current_period, 3), collapse=", ")
 ))
 
-rdm_data$residents <- rdm_data$residents %>%
-  mutate(
-    # Full name for display
-    full_name = if_else(
-      !is.na(first_name) & !is.na(last_name),
-      paste(first_name, last_name),
-      name
-    )
-    # Don't create current_level - just use Level directly everywhere
-  )
-
 # Debug: Show what Level looks like
-if ("Level" %in% names(rdm_data$residents)) {
-  message("  Level field exists - sample values: ", paste(head(rdm_data$residents$Level, 5), collapse = ", "))
-} else {
-  message("  WARNING: Level field not found in residents data!")
-}
+message("  Level field - sample values: ", paste(head(rdm_data$residents$Level, 5), collapse = ", "))
   
   message("  -> Step 4/4: Finalizing...")
   message(sprintf(
