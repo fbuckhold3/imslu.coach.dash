@@ -344,6 +344,8 @@ message("  Available fields in residents data: ", paste(head(names(rdm_data$resi
 # Check for year_started field (might have different name in raw format)
 year_field <- if ("year_started" %in% names(rdm_data$residents)) {
   "year_started"
+} else if ("grad_yr" %in% names(rdm_data$residents)) {
+  "grad_yr"
 } else if ("res_year_started" %in% names(rdm_data$residents)) {
   "res_year_started"
 } else if ("start_year" %in% names(rdm_data$residents)) {
@@ -355,25 +357,52 @@ year_field <- if ("year_started" %in% names(rdm_data$residents)) {
 if (!is.na(year_field)) {
   message("  Using year field: ", year_field)
 
-  rdm_data$residents <- rdm_data$residents %>%
-    mutate(
-      # Calculate Level based on year_started
-      Level = case_when(
-        is.na(.data[[year_field]]) | .data[[year_field]] == "" ~ "Unknown",
-        as.numeric(.data[[year_field]]) == academic_year ~ "Intern",
-        as.numeric(.data[[year_field]]) == academic_year - 1 ~ "PGY2",
-        as.numeric(.data[[year_field]]) == academic_year - 2 ~ "PGY3",
-        as.numeric(.data[[year_field]]) == academic_year - 3 ~ "PGY4",
-        as.numeric(.data[[year_field]]) < academic_year - 3 ~ "Graduated",
-        TRUE ~ "Unknown"
-      ),
-      # Full name for display
-      full_name = if_else(
-        !is.na(first_name) & !is.na(last_name),
-        paste(first_name, last_name),
-        name
+  # Check if this is graduation year or start year
+  is_grad_year <- year_field == "grad_yr"
+
+  if (is_grad_year) {
+    message("  Calculating level from graduation year...")
+    rdm_data$residents <- rdm_data$residents %>%
+      mutate(
+        # Calculate Level based on graduation year (IM is 3-year program)
+        Level = case_when(
+          is.na(.data[[year_field]]) | .data[[year_field]] == "" ~ "Unknown",
+          as.numeric(.data[[year_field]]) == academic_year + 3 ~ "Intern",
+          as.numeric(.data[[year_field]]) == academic_year + 2 ~ "PGY2",
+          as.numeric(.data[[year_field]]) == academic_year + 1 ~ "PGY3",
+          as.numeric(.data[[year_field]]) == academic_year ~ "PGY4",
+          as.numeric(.data[[year_field]]) < academic_year ~ "Graduated",
+          TRUE ~ "Unknown"
+        ),
+        # Full name for display
+        full_name = if_else(
+          !is.na(first_name) & !is.na(last_name),
+          paste(first_name, last_name),
+          name
+        )
       )
-    )
+  } else {
+    message("  Calculating level from start year...")
+    rdm_data$residents <- rdm_data$residents %>%
+      mutate(
+        # Calculate Level based on start year
+        Level = case_when(
+          is.na(.data[[year_field]]) | .data[[year_field]] == "" ~ "Unknown",
+          as.numeric(.data[[year_field]]) == academic_year ~ "Intern",
+          as.numeric(.data[[year_field]]) == academic_year - 1 ~ "PGY2",
+          as.numeric(.data[[year_field]]) == academic_year - 2 ~ "PGY3",
+          as.numeric(.data[[year_field]]) == academic_year - 3 ~ "PGY4",
+          as.numeric(.data[[year_field]]) < academic_year - 3 ~ "Graduated",
+          TRUE ~ "Unknown"
+        ),
+        # Full name for display
+        full_name = if_else(
+          !is.na(first_name) & !is.na(last_name),
+          paste(first_name, last_name),
+          name
+        )
+      )
+  }
 } else {
   warning("Year started field not found - cannot calculate Level")
   message("  WARNING: Cannot find year_started field, setting all to Unknown")
@@ -394,10 +423,10 @@ if (!is.na(year_field)) {
 if (!is.null(rdm_data$data_dict)) {
   message("  Translating coach codes to names...")
 
-  # Get coach field choices from data_dict
+  # Get coach field choices from data_dict (using API column names)
   coach_choices <- rdm_data$data_dict %>%
-    filter(`Variable / Field Name` == "coach") %>%
-    pull(`Choices, Calculations, OR Slider Labels`)
+    filter(field_name == "coach") %>%
+    pull(select_choices_or_calculations)
 
   if (length(coach_choices) > 0 && !is.na(coach_choices[1])) {
     # Parse choices (format: "1, Name 1 | 2, Name 2 | ...")
@@ -417,6 +446,8 @@ if (!is.null(rdm_data$data_dict)) {
       )
 
     message("  Coach translation complete")
+  } else {
+    message("  WARNING: Could not find coach field choices in data dictionary")
   }
 }
 
