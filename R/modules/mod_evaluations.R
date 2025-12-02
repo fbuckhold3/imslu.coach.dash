@@ -266,19 +266,21 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
     )
 
     # Custom detail viz from gmed - returns reactive values for data display
+    # CRITICAL: data_dict must be actual data (not reactive) - use isolate()
     detail_viz_state <- gmed::mod_assessment_detail_custom_server(
       "custom_detail",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = data_dict
+      data_dict = isolate(data_dict())  # Extract actual data frame
     )
 
     # Custom data display for selected evaluation
+    # CRITICAL: data_dict must be actual data (not reactive)
     gmed::mod_assessment_data_display_server(
       "data_display",
       selected_category = detail_viz_state$selected_category,
       category_data = detail_viz_state$category_data,
-      data_dict = data_dict
+      data_dict = isolate(data_dict())  # Extract actual data frame
     )
 
     # CC Completion Status
@@ -294,7 +296,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       "questions",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = data_dict
+      data_dict = isolate(data_dict())  # Extract actual data frame
     )
 
     # Plus/Delta table
