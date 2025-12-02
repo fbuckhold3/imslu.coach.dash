@@ -332,6 +332,63 @@ message("  Current date: ", current_date)
 # Check for required fields
 if ("type" %in% names(rdm_data$residents) && "grad_yr" %in% names(rdm_data$residents)) {
 
+  # Translate type and grad_yr from raw codes to actual values using data_dict
+  if (!is.null(rdm_data$data_dict)) {
+    message("  Translating type and grad_yr codes...")
+
+    # Get type field choices
+    type_choices <- rdm_data$data_dict %>%
+      filter(field_name == "type") %>%
+      pull(select_choices_or_calculations)
+
+    if (length(type_choices) > 0 && !is.na(type_choices[1])) {
+      choice_pairs <- strsplit(type_choices[1], "\\|")[[1]]
+      type_map <- list()
+      for (pair in choice_pairs) {
+        parts <- strsplit(trimws(pair), ",", fixed = TRUE)[[1]]
+        if (length(parts) >= 2) {
+          code <- trimws(parts[1])
+          label <- trimws(paste(parts[-1], collapse = ","))
+          type_map[[code]] <- label
+        }
+      }
+      type_map <- unlist(type_map)
+
+      rdm_data$residents <- rdm_data$residents %>%
+        mutate(
+          type = if_else(!is.na(type) & type %in% names(type_map),
+                        type_map[type], type)
+        )
+      message("    Type field translated")
+    }
+
+    # Get grad_yr field choices
+    grad_yr_choices <- rdm_data$data_dict %>%
+      filter(field_name == "grad_yr") %>%
+      pull(select_choices_or_calculations)
+
+    if (length(grad_yr_choices) > 0 && !is.na(grad_yr_choices[1])) {
+      choice_pairs <- strsplit(grad_yr_choices[1], "\\|")[[1]]
+      grad_yr_map <- list()
+      for (pair in choice_pairs) {
+        parts <- strsplit(trimws(pair), ",", fixed = TRUE)[[1]]
+        if (length(parts) >= 2) {
+          code <- trimws(parts[1])
+          year <- trimws(paste(parts[-1], collapse = ","))
+          grad_yr_map[[code]] <- year
+        }
+      }
+      grad_yr_map <- unlist(grad_yr_map)
+
+      rdm_data$residents <- rdm_data$residents %>%
+        mutate(
+          grad_yr = if_else(!is.na(grad_yr) & grad_yr %in% names(grad_yr_map),
+                           grad_yr_map[grad_yr], grad_yr)
+        )
+      message("    Grad_yr field translated")
+    }
+  }
+
   rdm_data$residents <- rdm_data$residents %>%
     mutate(
       # Calculate academic year for current date (July 1 start)
