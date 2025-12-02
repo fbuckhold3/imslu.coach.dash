@@ -52,43 +52,69 @@ mod_evaluations_ui <- function(id) {
 
     hr(),
 
-    # Assessment Visualizations Section
+    # Assessment Visualizations Section - Collapsible
     div(
       class = "mb-4",
-      h5(icon("chart-bar"), " Assessment Data & Visualizations", style = "color: #2c3e50;"),
 
-      # Assessment progress charts
-      gmed::assessment_viz_ui(ns("charts"), title = "Assessment Progress"),
+      # Clickable header to toggle visualizations
+      tags$a(
+        `data-toggle` = "collapse",
+        href = paste0("#", ns("viz_collapse")),
+        class = "text-decoration-none",
+        div(
+          style = "background-color: #e8f5e9; padding: 12px; border-radius: 4px; border-left: 4px solid #4caf50; cursor: pointer; margin-bottom: 10px;",
+          h5(
+            style = "margin: 0; color: #2c3e50;",
+            icon("chart-bar"), " Assessment Data & Visualizations ",
+            tags$small(
+              style = "float: right; color: #666;",
+              icon("chevron-down"), " Click to expand/collapse"
+            )
+          )
+        )
+      ),
 
-      hr(),
+      # Collapsible content (starts collapsed)
+      div(
+        id = ns("viz_collapse"),
+        class = "collapse",
+        div(
+          style = "border: 1px solid #e0e0e0; border-radius: 4px; padding: 15px; background-color: #fafafa;",
 
-      # Custom detail viz from gmed
-      gmed::mod_assessment_detail_custom_ui(ns("custom_detail")),
+          # Assessment progress charts
+          gmed::assessment_viz_ui(ns("charts"), title = "Assessment Progress"),
 
-      hr(),
+          hr(),
 
-      # Custom data display for selected evaluation
-      gmed::mod_assessment_data_display_ui(ns("data_display")),
+          # Custom detail viz from gmed
+          gmed::mod_assessment_detail_custom_ui(ns("custom_detail")),
 
-      hr(),
+          hr(),
 
-      # CC Completion Status
-      gmed::mod_cc_completion_ui(ns("cc_completion")),
+          # Custom data display for selected evaluation
+          gmed::mod_assessment_data_display_ui(ns("data_display")),
 
-      hr(),
+          hr(),
 
-      # Conference attendance/questions
-      gmed::mod_questions_viz_ui(ns("questions"), title = "Conference Attendance by Rotation"),
+          # CC Completion Status
+          gmed::mod_cc_completion_ui(ns("cc_completion")),
 
-      hr(),
+          hr(),
 
-      # Plus/Delta feedback table - collapsible
-      bslib::accordion(
-        id = ns("plus_delta_accordion"),
-        open = FALSE,
-        bslib::accordion_panel(
-          "Plus / Delta Feedback Details",
-          gmed::mod_plus_delta_table_ui(ns("plus_delta"), title = NULL)
+          # Conference attendance/questions
+          gmed::mod_questions_viz_ui(ns("questions"), title = "Conference Attendance by Rotation"),
+
+          hr(),
+
+          # Plus/Delta feedback table - collapsible
+          bslib::accordion(
+            id = ns("plus_delta_accordion"),
+            open = FALSE,
+            bslib::accordion_panel(
+              "Plus / Delta Feedback Details",
+              gmed::mod_plus_delta_table_ui(ns("plus_delta"), title = NULL)
+            )
+          )
         )
       )
     ),

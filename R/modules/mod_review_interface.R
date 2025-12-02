@@ -49,131 +49,195 @@ mod_review_interface_ui <- function(id) {
     div(
       style = "max-width: 1400px; margin: 0 auto;",
 
-      # Section 1: Wellness & Progress
+      # Section 1: Wellness & Progress (collapsible, starts expanded)
       div(
         class = "card mb-4",
         style = "border-left: 4px solid #3498db;",
-        div(
-          class = "card-header",
-          style = "background-color: #ecf0f1; border-bottom: 2px solid #3498db;",
-          h4(style = "margin: 0; color: #2c3e50;",
-             icon("heart"), " 1. Wellness & Progress")
+        tags$a(
+          `data-toggle` = "collapse",
+          href = paste0("#", ns("collapse1")),
+          class = "text-decoration-none",
+          div(
+            class = "card-header",
+            style = "background-color: #ecf0f1; border-bottom: 2px solid #3498db; cursor: pointer;",
+            h4(style = "margin: 0; color: #2c3e50;",
+               icon("heart"), " 1. Wellness & Progress ",
+               tags$small(class = "float-right", icon("chevron-down")))
+          )
         ),
         div(
-          class = "card-body",
-          mod_wellness_ui(ns("wellness"))
+          id = ns("collapse1"),
+          class = "collapse show",
+          div(
+            class = "card-body",
+            mod_wellness_ui(ns("wellness"))
+          )
         )
       ),
 
-      # Section 2: Evaluations & Feedback
+      # Section 2: Evaluations & Feedback (collapsible)
       div(
         class = "card mb-4",
         style = "border-left: 4px solid #9b59b6;",
-        div(
-          class = "card-header",
-          style = "background-color: #ecf0f1; border-bottom: 2px solid #9b59b6;",
-          h4(style = "margin: 0; color: #2c3e50;",
-             icon("clipboard"), " 2. Evaluations & Feedback")
+        tags$a(
+          `data-toggle` = "collapse",
+          href = paste0("#", ns("collapse2")),
+          class = "text-decoration-none",
+          div(
+            class = "card-header",
+            style = "background-color: #ecf0f1; border-bottom: 2px solid #9b59b6; cursor: pointer;",
+            h4(style = "margin: 0; color: #2c3e50;",
+               icon("clipboard"), " 2. Evaluations & Feedback ",
+               tags$small(class = "float-right", icon("chevron-down")))
+          )
         ),
         div(
-          class = "card-body",
-          mod_evaluations_ui(ns("evaluations"))
+          id = ns("collapse2"),
+          class = "collapse",
+          div(
+            class = "card-body",
+            mod_evaluations_ui(ns("evaluations"))
+          )
         )
       ),
 
-      # Section 3: Learning & Board Preparation
+      # Sections 3-8 (all collapsible, start collapsed)
+
+      # Section 3
       div(
         class = "card mb-4",
         style = "border-left: 4px solid #e67e22;",
-        div(
-          class = "card-header",
-          style = "background-color: #ecf0f1; border-bottom: 2px solid #e67e22;",
-          h4(style = "margin: 0; color: #2c3e50;",
-             icon("book"), " 3. Learning & Board Preparation")
+        tags$a(
+          `data-toggle` = "collapse",
+          href = paste0("#", ns("collapse3")),
+          class = "text-decoration-none",
+          div(
+            class = "card-header",
+            style = "background-color: #ecf0f1; border-bottom: 2px solid #e67e22; cursor: pointer;",
+            h4(style = "margin: 0; color: #2c3e50;",
+               icon("book"), " 3. Learning & Board Preparation ",
+               tags$small(class = "float-right", icon("chevron-down")))
+          )
         ),
         div(
-          class = "card-body",
-          p("Section content coming soon")
+          id = ns("collapse3"),
+          class = "collapse",
+          div(class = "card-body", p("Section content coming soon"))
         )
       ),
 
-      # Section 4: Scholarship
+      # Section 4
       div(
         class = "card mb-4",
         style = "border-left: 4px solid #16a085;",
-        div(
-          class = "card-header",
-          style = "background-color: #ecf0f1; border-bottom: 2px solid #16a085;",
-          h4(style = "margin: 0; color: #2c3e50;",
-             icon("graduation-cap"), " 4. Scholarship")
+        tags$a(
+          `data-toggle` = "collapse",
+          href = paste0("#", ns("collapse4")),
+          class = "text-decoration-none",
+          div(
+            class = "card-header",
+            style = "background-color: #ecf0f1; border-bottom: 2px solid #16a085; cursor: pointer;",
+            h4(style = "margin: 0; color: #2c3e50;",
+               icon("graduation-cap"), " 4. Scholarship ",
+               tags$small(class = "float-right", icon("chevron-down")))
+          )
         ),
         div(
-          class = "card-body",
-          p("Section content coming soon")
+          id = ns("collapse4"),
+          class = "collapse",
+          div(class = "card-body", p("Section content coming soon"))
         )
       ),
 
-      # Section 5: Career Planning
+      # Section 5
       div(
         class = "card mb-4",
         style = "border-left: 4px solid #f39c12;",
-        div(
-          class = "card-header",
-          style = "background-color: #ecf0f1; border-bottom: 2px solid #f39c12;",
-          h4(style = "margin: 0; color: #2c3e50;",
-             icon("briefcase"), " 5. Career Planning")
+        tags$a(
+          `data-toggle` = "collapse",
+          href = paste0("#", ns("collapse5")),
+          class = "text-decoration-none",
+          div(
+            class = "card-header",
+            style = "background-color: #ecf0f1; border-bottom: 2px solid #f39c12; cursor: pointer;",
+            h4(style = "margin: 0; color: #2c3e50;",
+               icon("briefcase"), " 5. Career Planning ",
+               tags$small(class = "float-right", icon("chevron-down")))
+          )
         ),
         div(
-          class = "card-body",
-          p("Section content coming soon")
+          id = ns("collapse5"),
+          class = "collapse",
+          div(class = "card-body", p("Section content coming soon"))
         )
       ),
 
-      # Section 6: Milestones
+      # Section 6
       div(
         class = "card mb-4",
         style = "border-left: 4px solid #e74c3c;",
-        div(
-          class = "card-header",
-          style = "background-color: #ecf0f1; border-bottom: 2px solid #e74c3c;",
-          h4(style = "margin: 0; color: #2c3e50;",
-             icon("chart-line"), " 6. Milestones")
+        tags$a(
+          `data-toggle` = "collapse",
+          href = paste0("#", ns("collapse6")),
+          class = "text-decoration-none",
+          div(
+            class = "card-header",
+            style = "background-color: #ecf0f1; border-bottom: 2px solid #e74c3c; cursor: pointer;",
+            h4(style = "margin: 0; color: #2c3e50;",
+               icon("chart-line"), " 6. Milestones ",
+               tags$small(class = "float-right", icon("chevron-down")))
+          )
         ),
         div(
-          class = "card-body",
-          p("Section content coming soon")
+          id = ns("collapse6"),
+          class = "collapse",
+          div(class = "card-body", p("Section content coming soon"))
         )
       ),
 
-      # Section 7: Goals & ILP
+      # Section 7
       div(
         class = "card mb-4",
         style = "border-left: 4px solid #27ae60;",
-        div(
-          class = "card-header",
-          style = "background-color: #ecf0f1; border-bottom: 2px solid #27ae60;",
-          h4(style = "margin: 0; color: #2c3e50;",
-             icon("bullseye"), " 7. Goals & Individual Learning Plan")
+        tags$a(
+          `data-toggle` = "collapse",
+          href = paste0("#", ns("collapse7")),
+          class = "text-decoration-none",
+          div(
+            class = "card-header",
+            style = "background-color: #ecf0f1; border-bottom: 2px solid #27ae60; cursor: pointer;",
+            h4(style = "margin: 0; color: #2c3e50;",
+               icon("bullseye"), " 7. Goals & ILP ",
+               tags$small(class = "float-right", icon("chevron-down")))
+          )
         ),
         div(
-          class = "card-body",
-          p("Section content coming soon")
+          id = ns("collapse7"),
+          class = "collapse",
+          div(class = "card-body", p("Section content coming soon"))
         )
       ),
 
-      # Section 8: Summary
+      # Section 8
       div(
         class = "card mb-4",
         style = "border-left: 4px solid #34495e;",
-        div(
-          class = "card-header",
-          style = "background-color: #ecf0f1; border-bottom: 2px solid #34495e;",
-          h4(style = "margin: 0; color: #2c3e50;",
-             icon("check-circle"), " 8. Summary & Submission")
+        tags$a(
+          `data-toggle` = "collapse",
+          href = paste0("#", ns("collapse8")),
+          class = "text-decoration-none",
+          div(
+            class = "card-header",
+            style = "background-color: #ecf0f1; border-bottom: 2px solid #34495e; cursor: pointer;",
+            h4(style = "margin: 0; color: #2c3e50;",
+               icon("check-circle"), " 8. Summary & Submission ",
+               tags$small(class = "float-right", icon("chevron-down")))
+          )
         ),
         div(
-          class = "card-body",
-          p("Review summary and submission coming soon")
+          id = ns("collapse8"),
+          class = "collapse",
+          div(class = "card-body", p("Review summary and submission coming soon"))
         )
       )
     ),
