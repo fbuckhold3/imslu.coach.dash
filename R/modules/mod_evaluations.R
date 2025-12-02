@@ -39,37 +39,42 @@ mod_evaluations_ui <- function(id) {
     ),
     
     hr(),
-    
-    # Assessment Visualizations
+
+    # SIMPLIFIED FOR DEBUGGING - Assessment Visualizations
     h4("Assessment Data & Visualizations", style = "color: #34495e; margin-top: 20px;"),
-    
+
     wellPanel(
       style = "background-color: #ffffff; border-left: 4px solid #9b59b6;",
-      
-      # Main assessment overview
-      gmed::assessment_viz_ui(ns("charts"), title = "Assessment Progress"),
-      
-      hr(),
-      
-      # Detailed assessment breakdown
-      gmed::mod_assessment_detail_custom_ui(ns("custom_detail")),
-      
-      hr(),
-      
-      # Core curriculum completion
-      gmed::mod_cc_completion_ui(ns("cc_completion")),
-      
-      hr(),
-      
-      # Plus/Delta feedback table (collapsible)
-      bslib::accordion(
-        id = ns("plus_delta_accordion"),
-        open = FALSE,
-        bslib::accordion_panel(
-          "Plus / Delta Feedback Details",
-          gmed::mod_plus_delta_table_ui(ns("plus_delta"), title = NULL)
-        )
-      )
+
+      p("Assessment visualizations will appear here."),
+
+      # TEMPORARILY COMMENTED OUT - Testing if gmed UI modules cause rendering issues
+      # # Main assessment overview
+      # gmed::assessment_viz_ui(ns("charts"), title = "Assessment Progress"),
+      #
+      # hr(),
+      #
+      # # Detailed assessment breakdown
+      # gmed::mod_assessment_detail_custom_ui(ns("custom_detail")),
+      #
+      # hr(),
+      #
+      # # Core curriculum completion
+      # gmed::mod_cc_completion_ui(ns("cc_completion")),
+      #
+      # hr(),
+      #
+      # # Plus/Delta feedback table (collapsible)
+      # bslib::accordion(
+      #   id = ns("plus_delta_accordion"),
+      #   open = FALSE,
+      #   bslib::accordion_panel(
+      #     "Plus / Delta Feedback Details",
+      #     gmed::mod_plus_delta_table_ui(ns("plus_delta"), title = NULL)
+      #   )
+      # )
+
+      uiOutput(ns("assessment_debug"))
     ),
     
     hr(),
@@ -323,38 +328,54 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       data_dict()
     })
 
-    # Call gmed modules with exact same pattern as working app
+    # DEBUGGING OUTPUT - Show what data is available
+    output$assessment_debug <- renderUI({
+      req(resident_data())
 
-    # Assessment charts
-    gmed::assessment_viz_server(
-      "charts",
-      data = combined_data,
-      record_id = record_id,
-      resident_name = resident_name
-    )
+      div(
+        style = "padding: 15px; background-color: #f0f0f0; border-radius: 5px;",
+        h5("Debug Info:"),
+        p(strong("Resident ID:"), resident_data()$resident_info$record_id),
+        p(strong("Period:"), current_period()),
+        p(strong("Data Dict Rows:"), nrow(data_dict())),
+        p(strong("Assessment Records:"), nrow(combined_data())),
+        p("✓ Module loaded successfully - gmed visualizations temporarily disabled for debugging")
+      )
+    })
 
-    # Custom detail viz - pass unwrapped data_dict using isolate
-    detail_viz_state <- gmed::mod_assessment_detail_custom_server(
-      "custom_detail",
-      rdm_data = combined_data,
-      record_id = record_id,
-      data_dict = isolate(data_dict_value())  # Use isolate to safely unwrap without creating dependency
-    )
-
-    # CC Completion Status
-    gmed::mod_cc_completion_server(
-      "cc_completion",
-      rdm_data = combined_data,
-      record_id = record_id,
-      resident_data = resident_info_data
-    )
-
-    # Plus/Delta table
-    gmed::mod_plus_delta_table_server(
-      "plus_delta",
-      rdm_data = raw_assessment_data,
-      record_id = record_id
-    )
+    # TEMPORARILY COMMENTED OUT - gmed module calls disabled for debugging
+    # # Call gmed modules with exact same pattern as working app
+    #
+    # # Assessment charts
+    # gmed::assessment_viz_server(
+    #   "charts",
+    #   data = combined_data,
+    #   record_id = record_id,
+    #   resident_name = resident_name
+    # )
+    #
+    # # Custom detail viz - pass unwrapped data_dict using isolate
+    # detail_viz_state <- gmed::mod_assessment_detail_custom_server(
+    #   "custom_detail",
+    #   rdm_data = combined_data,
+    #   record_id = record_id,
+    #   data_dict = isolate(data_dict_value())  # Use isolate to safely unwrap without creating dependency
+    # )
+    #
+    # # CC Completion Status
+    # gmed::mod_cc_completion_server(
+    #   "cc_completion",
+    #   rdm_data = combined_data,
+    #   record_id = record_id,
+    #   resident_data = resident_info_data
+    # )
+    #
+    # # Plus/Delta table
+    # gmed::mod_plus_delta_table_server(
+    #   "plus_delta",
+    #   rdm_data = raw_assessment_data,
+    #   record_id = record_id
+    # )
     
     # ===== CHARACTER COUNTS =====
     
