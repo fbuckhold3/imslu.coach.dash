@@ -274,12 +274,12 @@ load_coaching_data <- function(
   message("  -> Step 1/4: Connecting to REDCap API...")
   
   # Use gmed's data loading function
-  # NOTE: Using "label" for readable names. Checkbox fields will need special parsing.
-  # For checkbox fields, we'll need to query raw values separately when needed.
+  # CRITICAL: Must use "raw" format to preserve numerical data and checkbox codes
+  # Translation layers will be created in UI modules for display purposes
   rdm_data <- gmed::load_rdm_complete(
     redcap_url = redcap_url,
     rdm_token = rdm_token,
-    raw_or_label = "label"  # Use labels for readable display
+    raw_or_label = "raw"  # Use raw format (required for numeric fields and checkboxes)
   )
   
   message("  -> Step 2/4: Processing resident data...")
