@@ -431,10 +431,18 @@ if (!is.null(rdm_data$data_dict)) {
   if (length(coach_choices) > 0 && !is.na(coach_choices[1])) {
     # Parse choices (format: "1, Name 1 | 2, Name 2 | ...")
     choice_pairs <- strsplit(coach_choices[1], "\\|")[[1]]
-    coach_map <- setNames(
-      sapply(choice_pairs, function(x) trimws(sub("^\\d+,\\s*", "", x))),
-      sapply(choice_pairs, function(x) trimws(sub(",.*", "", x)))
-    )
+
+    # Build map: code -> name (extract just the name without number)
+    coach_map <- list()
+    for (pair in choice_pairs) {
+      parts <- strsplit(trimws(pair), ",", fixed = TRUE)[[1]]
+      if (length(parts) >= 2) {
+        code <- trimws(parts[1])
+        name <- trimws(paste(parts[-1], collapse = ","))
+        coach_map[[code]] <- name
+      }
+    }
+    coach_map <- unlist(coach_map)
 
     # Translate coach and second_rev fields
     rdm_data$residents <- rdm_data$residents %>%
@@ -486,8 +494,22 @@ message(sprintf(
   paste(head(rdm_data$residents$current_period, 3), collapse=", ")
 ))
 
-# Debug: Show what Level looks like
-message("  Level field - sample values: ", paste(head(rdm_data$residents$Level, 5), collapse = ", "))
+# Debug: Show what Level looks like with grad_yr values
+if ("grad_yr" %in% names(rdm_data$residents)) {
+  debug_sample <- rdm_data$residents %>%
+    select(name, grad_yr, Level) %>%
+    head(5)
+  message("  Level calculation debug:")
+  message("    Academic year: ", academic_year)
+  for (i in 1:min(nrow(debug_sample), 5)) {
+    message(sprintf("    %s: grad_yr=%s → Level=%s",
+                   debug_sample$name[i],
+                   debug_sample$grad_yr[i],
+                   debug_sample$Level[i]))
+  }
+} else {
+  message("  Level field - sample values: ", paste(head(rdm_data$residents$Level, 5), collapse = ", "))
+}
   
   message("  -> Step 4/4: Finalizing...")
   message(sprintf(
@@ -642,16 +664,31 @@ check_second_review_complete <- function(all_forms, record_id, period_number) {
 #' @param record_id Resident record ID
 #' @param period_name Period name (e.g., "Mid PGY3")
 #' @return Filtered data frame
-get_form_data_for_period <- function(all_forms, form_name, record_id, period_name) {
-  
+get_form_data_for_period <- function(all_forms, form_name, record_id, period_name, debug = FALSE) {
+
   # Return empty if form doesn't exist
   if (is.null(all_forms[[form_name]])) {
+    if (debug) message("DEBUG: Form ", form_name, " not found in all_forms")
     return(data.frame())
   }
-  
+
   # Get base data for this resident
   form_data <- all_forms[[form_name]] %>%
     filter(record_id == !!record_id)
+
+  if (debug) {
+    message(sprintf("DEBUG: get_form_data_for_period(form=%s, record_id=%s, period=%s)",
+                   form_name, record_id, period_name))
+    message("  Total rows for resident: ", nrow(form_data))
+    if (nrow(form_data) > 0) {
+      if ("redcap_repeat_instrument" %in% names(form_data)) {
+        message("  Instruments: ", paste(unique(form_data$redcap_repeat_instrument), collapse=", "))
+      }
+      if (form_name == "s_eval" && "s_e_period" %in% names(form_data)) {
+        message("  Periods in data: ", paste(unique(form_data$s_e_period), collapse=", "))
+      }
+    }
+  }
   
   # Form-specific period filtering
   filtered_data <- switch(
