@@ -1488,7 +1488,137 @@ server <- function(input, output, session) {
         show_evaluation_modal()
     })
     
-    # Card 4: Knowledge adn Board Prep
+    # Card 4: Knowledge and Board Prep
+
+    # Display previous period coach comments on topics and learning styles
+    output$prev_coach_topics_ui <- renderUI({
+        req(values$selected_resident)
+        req(values$current_period)
+
+        # Get previous period
+        prev_period <- get_previous_period(
+            values$current_period,
+            values$selected_resident$Level,
+            form_context = "coach_rev"
+        )
+
+        # If no previous period or Intern Intro, don't show
+        if(is.na(prev_period) || values$current_period == "Intern Intro") {
+            return(NULL)
+        }
+
+        # Get app data
+        data <- app_data()
+        resident_data <- data$resident_data
+
+        # Find record_id for this resident
+        record_id <- find_record_id(data, values$selected_resident$name)
+
+        # Map previous period to coach_rev instance
+        prev_instance <- tryCatch({
+            map_app_period_to_coach_period(prev_period, values$selected_resident$Level)
+        }, error = function(e) {
+            message("Error mapping previous period: ", e$message)
+            return(NA)
+        })
+
+        if(is.na(prev_instance)) {
+            return(NULL)
+        }
+
+        # Filter for previous period coach review
+        prev_coach_data <- resident_data %>%
+            filter(
+                name == values$selected_resident$name,
+                redcap_repeat_instrument == "coach_rev",
+                redcap_repeat_instance == prev_instance
+            )
+
+        if(nrow(prev_coach_data) == 0) {
+            return(NULL)
+        }
+
+        # Get the coach_ls_and_topic value
+        prev_comments <- prev_coach_data$coach_ls_and_topic[1]
+
+        if(is.na(prev_comments) || prev_comments == "") {
+            return(NULL)
+        }
+
+        # Display previous comments
+        div(
+            class = "alert alert-info",
+            tags$strong("Previous Period Coach Comments (", prev_period, "):"),
+            tags$br(),
+            tags$br(),
+            prev_comments
+        )
+    })
+
+    # Display previous period coach comments on board prep
+    output$prev_coach_board_ui <- renderUI({
+        req(values$selected_resident)
+        req(values$current_period)
+
+        # Get previous period
+        prev_period <- get_previous_period(
+            values$current_period,
+            values$selected_resident$Level,
+            form_context = "coach_rev"
+        )
+
+        # If no previous period or Intern Intro, don't show
+        if(is.na(prev_period) || values$current_period == "Intern Intro") {
+            return(NULL)
+        }
+
+        # Get app data
+        data <- app_data()
+        resident_data <- data$resident_data
+
+        # Find record_id for this resident
+        record_id <- find_record_id(data, values$selected_resident$name)
+
+        # Map previous period to coach_rev instance
+        prev_instance <- tryCatch({
+            map_app_period_to_coach_period(prev_period, values$selected_resident$Level)
+        }, error = function(e) {
+            message("Error mapping previous period: ", e$message)
+            return(NA)
+        })
+
+        if(is.na(prev_instance)) {
+            return(NULL)
+        }
+
+        # Filter for previous period coach review
+        prev_coach_data <- resident_data %>%
+            filter(
+                name == values$selected_resident$name,
+                redcap_repeat_instrument == "coach_rev",
+                redcap_repeat_instance == prev_instance
+            )
+
+        if(nrow(prev_coach_data) == 0) {
+            return(NULL)
+        }
+
+        # Get the coach_step_board value
+        prev_comments <- prev_coach_data$coach_step_board[1]
+
+        if(is.na(prev_comments) || prev_comments == "") {
+            return(NULL)
+        }
+
+        # Display previous comments
+        div(
+            class = "alert alert-info",
+            tags$strong("Previous Period Coach Comments (", prev_period, "):"),
+            tags$br(),
+            tags$br(),
+            prev_comments
+        )
+    })
 
     output$knowledge_topics_ui <- renderUI({
         req(values$selected_resident)
@@ -1720,43 +1850,136 @@ server <- function(input, output, session) {
         return(board_prep_data)
     }, striped = TRUE, bordered = TRUE, hover = TRUE, align = 'l', width = "100%")
     
-    # Modify the exam scores data function to use the same knowledge data
+    # Modified exam scores data function to show year and percentile dynamically
     output$exam_scores_data <- renderTable({
         req(values$selected_resident)
         req(values$current_period)
-        
+
         # Get app data
         data <- app_data()
-        
-        # Get knowledge data using our helper function
-        knowledge_data <- get_knowledge_data(
-            resident_name = values$selected_resident$name,
-            current_period = values$current_period,
-            resident_level = values$selected_resident$Level,
-            resident_data = data$resident_data
-        )
-        
-        # Extract exam scores data
-        exam_scores <- knowledge_data$exam_scores
-        
-        # Create the display table
-        exam_scores_data <- data.frame(
-            "Exam" = c("USMLE Step 1", "USMLE Step 2", "COMLEX Level 1", "COMLEX Level 2", 
-                       "USMLE Step 3", "ITE Intern Year", "ITE PGY-2", "ITE PGY-3"),
-            "Score" = c(
-                ifelse("usmle1" %in% names(exam_scores), exam_scores[["usmle1"]], "Not Available"),
-                ifelse("usmle2" %in% names(exam_scores), exam_scores[["usmle2"]], "Not Available"),
-                ifelse("comlex1" %in% names(exam_scores), exam_scores[["comlex1"]], "Not Available"),
-                ifelse("comlex2" %in% names(exam_scores), exam_scores[["comlex2"]], "Not Available"),
-                ifelse("usmle3" %in% names(exam_scores), exam_scores[["usmle3"]], "Not Available"),
-                ifelse("ite_int" %in% names(exam_scores), exam_scores[["ite_int"]], "Not Available"),
-                ifelse("ite2" %in% names(exam_scores), exam_scores[["ite2"]], "Not Available"),
-                ifelse("ite3" %in% names(exam_scores), exam_scores[["ite3"]], "Not Available")
+        resident_data <- data$resident_data
+
+        # Filter for this resident
+        resident_rows <- resident_data %>%
+            filter(name == values$selected_resident$name)
+
+        # Try to filter by period if available
+        if("s_e_period" %in% names(resident_rows) && !is.null(values$current_period)) {
+            period_rows <- resident_rows %>% filter(s_e_period == values$current_period)
+
+            if(nrow(period_rows) > 0) {
+                resident_rows <- period_rows
+            }
+        }
+
+        # Sort by date if available
+        if("s_e_date" %in% names(resident_rows) &&
+           any(!is.na(resident_rows$s_e_date))) {
+            resident_rows <- resident_rows %>%
+                arrange(desc(s_e_date))
+        }
+
+        # Function to safely extract a value
+        get_first_non_na <- function(df, col_name) {
+            if(!(col_name %in% names(df))) return(NA)
+
+            for(i in 1:nrow(df)) {
+                if(!is.na(df[[col_name]][i]) && df[[col_name]][i] != "") {
+                    return(df[[col_name]][i])
+                }
+            }
+            return(NA)
+        }
+
+        # Build dynamic table with exam data
+        exam_list <- list()
+
+        # USMLE/COMLEX scores (from resident_data form)
+        usmle1 <- get_first_non_na(resident_rows, "usmle1")
+        if(!is.na(usmle1)) {
+            exam_list[[length(exam_list) + 1]] <- list(Exam = "USMLE Step 1", Score = usmle1)
+        }
+
+        usmle2 <- get_first_non_na(resident_rows, "usmle2")
+        if(!is.na(usmle2)) {
+            exam_list[[length(exam_list) + 1]] <- list(Exam = "USMLE Step 2", Score = usmle2)
+        }
+
+        usmle3 <- get_first_non_na(resident_rows, "usmle3")
+        if(!is.na(usmle3)) {
+            exam_list[[length(exam_list) + 1]] <- list(Exam = "USMLE Step 3", Score = usmle3)
+        }
+
+        comlex1 <- get_first_non_na(resident_rows, "comlex1")
+        if(!is.na(comlex1)) {
+            exam_list[[length(exam_list) + 1]] <- list(Exam = "COMLEX Level 1", Score = comlex1)
+        }
+
+        comlex2 <- get_first_non_na(resident_rows, "comlex2")
+        if(!is.na(comlex2)) {
+            exam_list[[length(exam_list) + 1]] <- list(Exam = "COMLEX Level 2", Score = comlex2)
+        }
+
+        # ITE scores with year and percentile (from s_eval form)
+        ite_int <- get_first_non_na(resident_rows, "ite_int")
+        if(!is.na(ite_int)) {
+            exam_list[[length(exam_list) + 1]] <- list(Exam = "ITE", Year = "Intern", Percentile = ite_int)
+        }
+
+        ite2 <- get_first_non_na(resident_rows, "ite2")
+        if(!is.na(ite2)) {
+            exam_list[[length(exam_list) + 1]] <- list(Exam = "ITE", Year = "PGY-2", Percentile = ite2)
+        }
+
+        ite3 <- get_first_non_na(resident_rows, "ite3")
+        if(!is.na(ite3)) {
+            exam_list[[length(exam_list) + 1]] <- list(Exam = "ITE", Year = "PGY-3", Percentile = ite3)
+        }
+
+        # Convert to data frame
+        if(length(exam_list) == 0) {
+            return(data.frame(
+                Message = "No exam data available for this resident"
+            ))
+        }
+
+        # Separate USMLE/COMLEX from ITE
+        has_year_col <- sapply(exam_list, function(x) "Year" %in% names(x))
+
+        usmle_comlex_data <- exam_list[!has_year_col]
+        ite_data <- exam_list[has_year_col]
+
+        # Create final table
+        if(length(usmle_comlex_data) > 0 && length(ite_data) > 0) {
+            # Combine both types
+            usmle_df <- do.call(rbind, lapply(usmle_comlex_data, as.data.frame))
+            usmle_df$Year <- ""
+            usmle_df$Percentile <- ""
+            names(usmle_df)[names(usmle_df) == "Score"] <- "Score/Percentile"
+
+            ite_df <- do.call(rbind, lapply(ite_data, as.data.frame))
+            ite_df$`Score/Percentile` <- ite_df$Percentile
+            ite_df$Percentile <- NULL
+
+            exam_scores_data <- rbind(
+                usmle_df[, c("Exam", "Year", "Score/Percentile")],
+                ite_df[, c("Exam", "Year", "Score/Percentile")]
             )
-        )
-        
+        } else if(length(ite_data) > 0) {
+            # Only ITE data
+            ite_df <- do.call(rbind, lapply(ite_data, as.data.frame))
+            exam_scores_data <- ite_df[, c("Exam", "Year", "Percentile")]
+            names(exam_scores_data)[3] <- "Score/Percentile"
+        } else {
+            # Only USMLE/COMLEX data
+            usmle_df <- do.call(rbind, lapply(usmle_comlex_data, as.data.frame))
+            usmle_df$Year <- ""
+            names(usmle_df)[names(usmle_df) == "Score"] <- "Score/Percentile"
+            exam_scores_data <- usmle_df[, c("Exam", "Year", "Score/Percentile")]
+        }
+
         return(exam_scores_data)
-    }, striped = TRUE, bordered = TRUE, hover = TRUE, align = 'l', width = "100%", caption = "ITE scores are in percentiles for PGY")
+    }, striped = TRUE, bordered = TRUE, hover = TRUE, align = 'l', width = "100%")
     
     # Add this below your existing tables to display warnings
     output$board_prep_warnings <- renderUI({

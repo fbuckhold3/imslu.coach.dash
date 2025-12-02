@@ -405,11 +405,17 @@ ui <- page_fluid(
               card_body(
                 # Render the topics and learning styles lists
                 uiOutput("knowledge_topics_ui"),
-                
+
+                # Previous period coach comments
+                div(
+                  class = "mt-4 mb-3",
+                  uiOutput("prev_coach_topics_ui")
+                ),
+
                 # Comments on topics and learning styles
                 textAreaInput(
-                  "knowledge_topics_comments", 
-                  label = "Comments on topics and learning styles:",
+                  "knowledge_topics_comments",
+                  label = "Your comments on topics and learning styles for this period:",
                   rows = 3,
                   width = "100%",
                   placeholder = "Enter your comments about the resident's identified challenging topics and preferred learning styles..."
@@ -444,11 +450,17 @@ ui <- page_fluid(
                     uiOutput("board_prep_warnings")
                   )
                 ),
-                
+
+                # Previous period coach comments
+                div(
+                  class = "mt-4 mb-3",
+                  uiOutput("prev_coach_board_ui")
+                ),
+
                 # Comments on Step 3 and Board Prep
                 textAreaInput(
-                  "board_prep_comments", 
-                  label = "Notes about Step 3 and Board Preparation:",
+                  "board_prep_comments",
+                  label = "Your notes about Step 3 and Board Preparation for this period:",
                   rows = 3,
                   width = "100%",
                   placeholder = "Enter your comments about the resident's board preparation status and exam performance..."
