@@ -283,6 +283,51 @@ load_coaching_data <- function(
   )
   
   message("  -> Step 2/4: Processing resident data...")
+
+# Translate period fields from codes to labels
+# Period fields in forms need to match the period names we use for filtering
+if (!is.null(rdm_data$data_dict)) {
+  message("  Translating period field codes to labels...")
+
+  # Get period field choices from data dictionary
+  period_field_candidates <- c("s_e_period", "coach_period", "second_period",
+                               "year_resident", "prog_mile_period", "prog_mile_period_self",
+                               "acgme_mile_period", "ccc_session")
+
+  for (field in period_field_candidates) {
+    period_choices <- rdm_data$data_dict %>%
+      filter(field_name == !!field) %>%
+      pull(select_choices_or_calculations)
+
+    if (length(period_choices) > 0 && !is.na(period_choices[1])) {
+      # Build translation map
+      choice_pairs <- strsplit(period_choices[1], "\\|")[[1]]
+      period_map <- list()
+      for (pair in choice_pairs) {
+        parts <- strsplit(trimws(pair), ",", fixed = TRUE)[[1]]
+        if (length(parts) >= 2) {
+          code <- trimws(parts[1])
+          label <- trimws(paste(parts[-1], collapse = ","))
+          period_map[[code]] <- label
+        }
+      }
+      period_map <- unlist(period_map)
+
+      # Translate in all forms that have this field
+      for (form_name in names(rdm_data$all_forms)) {
+        if (field %in% names(rdm_data$all_forms[[form_name]])) {
+          rdm_data$all_forms[[form_name]] <- rdm_data$all_forms[[form_name]] %>%
+            mutate(
+              !!field := if_else(!is.na(.data[[field]]) & .data[[field]] %in% names(period_map),
+                                period_map[.data[[field]]], .data[[field]])
+            )
+        }
+      }
+      message(sprintf("    Translated %s field", field))
+    }
+  }
+  message("  Period field translation complete")
+}
   
   # Filter archived residents if requested
   if (!include_archived) {
