@@ -328,30 +328,28 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       resident_name = resident_name
     )
 
-    # DEBUGGING: Comment out modules one by one to find which causes error
+    # Custom detail viz - data_dict must be UNWRAPPED (actual data, not reactive)
+    detail_viz_state <- gmed::mod_assessment_detail_custom_server(
+      "custom_detail",
+      rdm_data = combined_data,
+      record_id = record_id,
+      data_dict = data_dict()  # CRITICAL: Call () to unwrap reactive and pass actual data frame
+    )
 
-    # # Custom detail viz - MUST capture return value for proper reactive initialization
-    # detail_viz_state <- gmed::mod_assessment_detail_custom_server(
-    #   "custom_detail",
-    #   rdm_data = combined_data,
-    #   record_id = record_id,
-    #   data_dict = data_dict  # Pass as reactive (matches working app pattern)
-    # )
+    # CC Completion Status
+    gmed::mod_cc_completion_server(
+      "cc_completion",
+      rdm_data = combined_data,
+      record_id = record_id,
+      resident_data = resident_info_data
+    )
 
-    # # CC Completion Status
-    # gmed::mod_cc_completion_server(
-    #   "cc_completion",
-    #   rdm_data = combined_data,
-    #   record_id = record_id,
-    #   resident_data = resident_info_data
-    # )
-
-    # # Plus/Delta table
-    # gmed::mod_plus_delta_table_server(
-    #   "plus_delta",
-    #   rdm_data = raw_assessment_data,
-    #   record_id = record_id
-    # )
+    # Plus/Delta table
+    gmed::mod_plus_delta_table_server(
+      "plus_delta",
+      rdm_data = raw_assessment_data,
+      record_id = record_id
+    )
     
     # ===== CHARACTER COUNTS =====
     
