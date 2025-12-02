@@ -595,98 +595,106 @@ get_form_data_for_period <- function(all_forms, form_name, record_id, period_nam
     form_name,
     
     # S Eval uses s_e_period
+    # NOTE: Using raw instrument name "s_eval" not label "S Eval"
     "s_eval" = {
       if ("s_e_period" %in% names(form_data)) {
         form_data %>%
-          filter(redcap_repeat_instrument == "S Eval") %>%
+          filter(redcap_repeat_instrument == "s_eval") %>%
           filter(!is.na(s_e_period), s_e_period == !!period_name)
       } else {
         form_data %>%
-          filter(redcap_repeat_instrument == "S Eval")
+          filter(redcap_repeat_instrument == "s_eval")
       }
     },
-    
+
     # Coach Rev uses coach_period
+    # NOTE: Using raw instrument name "coach_rev" not label "Coach Rev"
     "coach_rev" = {
       if ("coach_period" %in% names(form_data)) {
         form_data %>%
-          filter(redcap_repeat_instrument == "Coach Rev") %>%
+          filter(redcap_repeat_instrument == "coach_rev") %>%
           filter(!is.na(coach_period), coach_period == !!period_name)
       } else {
         form_data %>%
-          filter(redcap_repeat_instrument == "Coach Rev")
+          filter(redcap_repeat_instrument == "coach_rev")
       }
     },
-    
+
     # Second Review uses second_period
+    # NOTE: Using raw instrument name "second_review" not label "Second Review"
     "second_review" = {
       if ("second_period" %in% names(form_data)) {
         form_data %>%
-          filter(redcap_repeat_instrument == "Second Review") %>%
+          filter(redcap_repeat_instrument == "second_review") %>%
           filter(!is.na(second_period), second_period == !!period_name)
       } else {
         form_data %>%
-          filter(redcap_repeat_instrument == "Second Review")
+          filter(redcap_repeat_instrument == "second_review")
       }
     },
-    
+
     # ILP uses year_resident
+    # NOTE: Using raw instrument name "ilp" not label "ILP"
     "ilp" = {
       if ("year_resident" %in% names(form_data)) {
         form_data %>%
-          filter(redcap_repeat_instrument == "ILP") %>%
+          filter(redcap_repeat_instrument == "ilp") %>%
           filter(!is.na(year_resident), year_resident == !!period_name)
       } else {
         form_data %>%
-          filter(redcap_repeat_instrument == "ILP")
+          filter(redcap_repeat_instrument == "ilp")
       }
     },
-    
+
     # Milestone Entry uses prog_mile_period
+    # NOTE: Using raw instrument name "milestone_entry" not label "Milestone Entry"
     "milestone_entry" = {
       if ("prog_mile_period" %in% names(form_data)) {
         form_data %>%
-          filter(redcap_repeat_instrument == "Milestone Entry") %>%
+          filter(redcap_repeat_instrument == "milestone_entry") %>%
           filter(!is.na(prog_mile_period), prog_mile_period == !!period_name)
       } else {
         form_data %>%
-          filter(redcap_repeat_instrument == "Milestone Entry")
+          filter(redcap_repeat_instrument == "milestone_entry")
       }
     },
-    
+
     # Milestone Self-Evaluation uses prog_mile_period_self
+    # NOTE: Using raw instrument name "milestone_selfevaluation_c33c" not label
     "milestone_selfevaluation_c33c" = {
       if ("prog_mile_period_self" %in% names(form_data)) {
         form_data %>%
-          filter(redcap_repeat_instrument == "Milestone Self-evaluation") %>%
+          filter(redcap_repeat_instrument == "milestone_selfevaluation_c33c") %>%
           filter(!is.na(prog_mile_period_self), prog_mile_period_self == !!period_name)
       } else {
         form_data %>%
-          filter(redcap_repeat_instrument == "Milestone Self-evaluation")
+          filter(redcap_repeat_instrument == "milestone_selfevaluation_c33c")
       }
     },
     
     # ACGME Miles uses acgme_mile_period
+    # NOTE: Using raw instrument name "acgme_miles" not label "ACGME Miles"
     "acgme_miles" = {
       if ("acgme_mile_period" %in% names(form_data)) {
         form_data %>%
-          filter(redcap_repeat_instrument == "ACGME Miles") %>%
+          filter(redcap_repeat_instrument == "acgme_miles") %>%
           filter(!is.na(acgme_mile_period), acgme_mile_period == !!period_name)
       } else {
         form_data %>%
-          filter(redcap_repeat_instrument == "ACGME Miles")
+          filter(redcap_repeat_instrument == "acgme_miles")
       }
     },
-    
+
     # CCC Review uses ccc_session
+    # NOTE: Using raw instrument name "ccc_review" not label "CCC Review"
     "ccc_review" = {
       if ("ccc_session" %in% names(form_data)) {
         form_data %>%
-          filter(redcap_repeat_instrument == "CCC Review") %>%
+          filter(redcap_repeat_instrument == "ccc_review") %>%
           filter(!is.na(ccc_session), ccc_session == !!period_name)
       } else {
         form_data %>%
-          filter(redcap_repeat_instrument == "CCC Review")
+          filter(redcap_repeat_instrument == "ccc_review")
       }
     },
     
