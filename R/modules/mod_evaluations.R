@@ -133,7 +133,7 @@ mod_evaluations_ui <- function(id) {
   )
 }
 
-mod_evaluations_server <- function(id, resident_data, current_period, app_data) {
+mod_evaluations_server <- function(id, resident_data, current_period, app_data, data_dict) {
   moduleServer(id, function(input, output, session) {
     
     # ===== PREVIOUS PERIOD DISPLAY =====
@@ -316,11 +316,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data) 
       return(combined)
     })
 
-    # Get data dictionary from app_data (non-reactive extraction for gmed modules)
-    data_dict <- reactive({
-      req(app_data())
-      app_data()$data_dict
-    })
+    # NOTE: data_dict is now passed as parameter from parent (matches working app pattern)
 
     # Call gmed modules with exact same pattern as working app
 

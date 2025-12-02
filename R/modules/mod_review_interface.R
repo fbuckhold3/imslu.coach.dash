@@ -175,11 +175,17 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       ))
     })
     
+    # Extract data_dict from rdm_data to pass to child modules (matches working app pattern)
+    data_dict <- reactive({
+      req(rdm_data())
+      rdm_data()$data_dict
+    })
+
     # Call Section 1 module
     wellness_data <- mod_wellness_server("wellness", resident_data, current_period, rdm_data)
 
-    # Call Section 2 module  
-    evaluations_data <- mod_evaluations_server("evaluations", resident_data, current_period, rdm_data)
+    # Call Section 2 module - pass data_dict as separate parameter (matches working app)
+    evaluations_data <- mod_evaluations_server("evaluations", resident_data, current_period, rdm_data, data_dict)
     
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({
