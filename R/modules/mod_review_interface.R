@@ -62,7 +62,7 @@ mod_review_interface_ui <- function(id) {
       bslib::accordion_panel(
         title = "2. Evaluations & Feedback",
         value = "evaluations",
-        mod_evaluations_ui("evaluations")
+        mod_evaluations_ui(ns("evaluations"))
       ),
 
       # Section 3: Learning & Board Preparation
