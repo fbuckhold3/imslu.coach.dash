@@ -57,6 +57,7 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
       "m_pc3" = "PC3: Manages patients with progressive responsibility",
       "m_pc4" = "PC4: Demonstrates skill in performing procedures",
       "m_pc5" = "PC5: Requests consultations effectively",
+      "m_pc6" = "PC6: Provides appropriate role modeling",
       "m_mk1" = "MK1: Core knowledge for effective patient care",
       "m_sbp1" = "SBP1: Works effectively within healthcare system",
       "m_sbp2" = "SBP2: Coordinates care with other healthcare professionals",
@@ -67,6 +68,7 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
       "m_prof1" = "PROF1: Demonstrates compassion and respect",
       "m_prof2" = "PROF2: Demonstrates accountability to patients and society",
       "m_prof3" = "PROF3: Manages conflicts of interest",
+      "m_prof4" = "PROF4: Demonstrates self-awareness and help-seeking",
       "m_ics1" = "ICS1: Communicates effectively with patients and families",
       "m_ics2" = "ICS2: Maintains comprehensive, accurate records",
       "m_ics3" = "ICS3: Communicates effectively with healthcare team"
