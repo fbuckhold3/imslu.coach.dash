@@ -37,12 +37,12 @@ mod_milestones_ui <- function(id) {
 
     hr(),
 
-    # Coach Milestone Entry (from gmed)
+    # Coach Milestone Entry (local module)
     h4("Coach Milestone Ratings - Current Period", style = "color: #34495e; margin-top: 20px;"),
 
     wellPanel(
       style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
-      gmed::mod_milestone_entry_ui(ns("milestone_entry"))
+      mod_milestone_entry_ui(ns("milestone_entry"))
     )
   )
 }
@@ -237,13 +237,13 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
       )
     })
 
-    # Call gmed milestone entry module
+    # Call local milestone entry module
     record_id <- reactive({
       req(resident_data())
       resident_data()$resident_info$record_id
     })
 
-    milestone_entry_data <- gmed::mod_milestone_entry_server(
+    milestone_entry_data <- mod_milestone_entry_server(
       "milestone_entry",
       rdm_data = app_data,
       record_id = record_id,
