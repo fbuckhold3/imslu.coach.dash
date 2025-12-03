@@ -161,15 +161,17 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
         "hvc_ile" = "Hospital/Vascular Care"
       )
 
-      # Build exam data list
+      output_sections <- list()
+
+      # ===== USMLE/COMLEX Section =====
       exam_list <- list()
 
       # Helper function to safely check and add exam score from resident_info
-      add_exam_if_present <- function(field_name, exam_name, year = "") {
+      add_exam_if_present <- function(field_name, exam_name) {
         if (field_name %in% names(resident_info)) {
           value <- resident_info[[field_name]]
           if (!is.na(value) && !is.null(value) && trimws(as.character(value)) != "") {
-            exam_list[[length(exam_list) + 1]] <<- c(exam_name, year, as.character(value))
+            exam_list[[length(exam_list) + 1]] <<- c(exam_name, as.character(value))
           }
         }
       }
@@ -182,38 +184,124 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
       add_exam_if_present("comlex_step2", "COMLEX Level 2")
       add_exam_if_present("comlex_step3", "COMLEX Level 3")
 
-      # ITE scores with all subspecialties (from test_data form)
+      if (length(exam_list) > 0) {
+        exam_df <- as.data.frame(do.call(rbind, exam_list), stringsAsFactors = FALSE)
+        colnames(exam_df) <- c("Exam", "Score")
+
+        output_sections[[length(output_sections) + 1]] <- tagList(
+          h5("USMLE/COMLEX Scores", style = "color: #2c3e50; margin-top: 0;"),
+          tags$table(
+            class = "table table-striped table-bordered",
+            style = "background-color: white; margin-bottom: 20px;",
+            tags$thead(
+              tags$tr(
+                tags$th("Exam"),
+                tags$th("Score")
+              )
+            ),
+            tags$tbody(
+              lapply(1:nrow(exam_df), function(i) {
+                tags$tr(
+                  tags$td(exam_df[i, 1]),
+                  tags$td(exam_df[i, 2])
+                )
+              })
+            )
+          )
+        )
+      }
+
+      # ===== ITE Section (Pivoted) =====
       if (nrow(test_data) > 0) {
-        # For each PGY year
+        # Determine which PGY years have data
+        available_years <- c()
         for (pgy in c("pgy1", "pgy2", "pgy3")) {
-          # For each subspecialty
+          # Check if any subspecialty field exists for this year
+          has_data <- FALSE
           for (subspec_abbr in names(subspecialty_map)) {
             field_name <- paste0(pgy, "_", subspec_abbr)
-
             if (field_name %in% names(test_data)) {
               value <- test_data[[field_name]][1]
-
               if (!is.na(value) && !is.null(value) && trimws(as.character(value)) != "") {
-                # Create year label
-                year_num <- substr(pgy, 4, 4)
-                year_label <- paste0("PGY-", year_num)
-
-                # Get full subspecialty name
-                subspec_name <- subspecialty_map[subspec_abbr]
-
-                # Add to exam list
-                exam_list[[length(exam_list) + 1]] <- c(
-                  paste0("ITE - ", subspec_name),
-                  year_label,
-                  as.character(value)
-                )
+                has_data <- TRUE
+                break
               }
             }
+          }
+          if (has_data) {
+            available_years <- c(available_years, pgy)
+          }
+        }
+
+        if (length(available_years) > 0) {
+          # Build ITE table with subspecialties as rows, years as columns
+          ite_rows <- list()
+
+          for (subspec_abbr in names(subspecialty_map)) {
+            row_data <- list(subspecialty = subspecialty_map[subspec_abbr])
+
+            # Get score for each available year
+            for (pgy in available_years) {
+              field_name <- paste0(pgy, "_", subspec_abbr)
+              if (field_name %in% names(test_data)) {
+                value <- test_data[[field_name]][1]
+                if (!is.na(value) && !is.null(value) && trimws(as.character(value)) != "") {
+                  row_data[[pgy]] <- as.character(value)
+                } else {
+                  row_data[[pgy]] <- "-"
+                }
+              } else {
+                row_data[[pgy]] <- "-"
+              }
+            }
+
+            # Only include row if at least one score is not "-"
+            if (any(unlist(row_data[available_years]) != "-")) {
+              ite_rows[[length(ite_rows) + 1]] <- row_data
+            }
+          }
+
+          if (length(ite_rows) > 0) {
+            # Create column headers
+            year_headers <- lapply(available_years, function(pgy) {
+              year_num <- substr(pgy, 4, 4)
+              tags$th(paste0("PGY-", year_num))
+            })
+
+            # Create table rows
+            table_rows <- lapply(ite_rows, function(row_data) {
+              year_cells <- lapply(available_years, function(pgy) {
+                tags$td(row_data[[pgy]])
+              })
+
+              tags$tr(
+                tags$td(row_data$subspecialty),
+                year_cells
+              )
+            })
+
+            output_sections[[length(output_sections) + 1]] <- tagList(
+              h5("In-Training Exam (ITE) Percentiles", style = "color: #2c3e50; margin-top: 0;"),
+              tags$table(
+                class = "table table-striped table-bordered",
+                style = "background-color: white;",
+                tags$thead(
+                  tags$tr(
+                    tags$th("Subspecialty"),
+                    year_headers
+                  )
+                ),
+                tags$tbody(
+                  table_rows
+                )
+              )
+            )
           }
         }
       }
 
-      if (length(exam_list) == 0) {
+      # Return combined output
+      if (length(output_sections) == 0) {
         return(
           div(
             style = "font-style: italic; color: #95a5a6; padding: 15px;",
@@ -222,37 +310,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
         )
       }
 
-      # Convert to data frame
-      exam_df <- as.data.frame(do.call(rbind, exam_list), stringsAsFactors = FALSE)
-      colnames(exam_df) <- c("Exam", "Year", "Score/Percentile")
-
-      # Render as HTML table
-      tagList(
-        tags$table(
-          class = "table table-striped table-bordered",
-          style = "background-color: white;",
-          tags$thead(
-            tags$tr(
-              tags$th("Exam"),
-              tags$th("Year"),
-              tags$th("Score/Percentile")
-            )
-          ),
-          tags$tbody(
-            lapply(1:nrow(exam_df), function(i) {
-              tags$tr(
-                tags$td(exam_df[i, 1]),
-                tags$td(exam_df[i, 2]),
-                tags$td(exam_df[i, 3])
-              )
-            })
-          )
-        ),
-        tags$p(
-          style = "font-size: 12px; color: #7f8c8d; margin-top: 10px;",
-          "Note: ITE scores are percentiles by training year and subspecialty"
-        )
-      )
+      tagList(output_sections)
     })
 
     # Display learning topics
