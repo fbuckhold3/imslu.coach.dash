@@ -147,10 +147,14 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
       data_dict <- app_data()$data_dict
       career_path <- parse_checkboxes(curr_data, "s_e_career_path", data_dict)
 
-      # Get "other" text if present
-      career_oth <- curr_data$s_e_career_oth[1]
+      # Get "other" text if present (check if column exists)
+      career_oth <- if ("s_e_career_oth" %in% names(curr_data)) {
+        curr_data$s_e_career_oth[1]
+      } else {
+        NA
+      }
 
-      if (career_path == "" && (is.na(career_oth) || career_oth == "")) {
+      if (career_path == "" && (is.na(career_oth) || is.null(career_oth) || career_oth == "")) {
         return(
           p(style = "font-style: italic; color: #95a5a6;",
             "No career path specified")
@@ -161,7 +165,7 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
         if (career_path != "") {
           p(career_path)
         },
-        if (!is.na(career_oth) && career_oth != "") {
+        if (!is.na(career_oth) && !is.null(career_oth) && career_oth != "") {
           p(tags$em("Other: ", career_oth))
         }
       )
@@ -183,10 +187,14 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
       data_dict <- app_data()$data_dict
       fellowship <- parse_checkboxes(curr_data, "s_e_fellow", data_dict)
 
-      # Get "other" text if present
-      fellow_oth <- curr_data$s_e_fellow_oth[1]
+      # Get "other" text if present (check if column exists)
+      fellow_oth <- if ("s_e_fellow_oth" %in% names(curr_data)) {
+        curr_data$s_e_fellow_oth[1]
+      } else {
+        NA
+      }
 
-      if (fellowship == "" && (is.na(fellow_oth) || fellow_oth == "")) {
+      if (fellowship == "" && (is.na(fellow_oth) || is.null(fellow_oth) || fellow_oth == "")) {
         return(
           p(style = "font-style: italic; color: #95a5a6;",
             "No fellowship interests specified")
@@ -206,7 +214,7 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
             })
           )
         },
-        if (!is.na(fellow_oth) && fellow_oth != "") {
+        if (!is.na(fellow_oth) && !is.null(fellow_oth) && fellow_oth != "") {
           p(tags$em("Other: ", fellow_oth))
         }
       )
@@ -228,10 +236,14 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
       data_dict <- app_data()$data_dict
       track <- parse_checkboxes(curr_data, "s_e_track", data_dict)
 
-      # Get track type if present
-      track_type <- curr_data$s_e_track_type[1]
+      # Get track type if present (check if column exists)
+      track_type <- if ("s_e_track_type" %in% names(curr_data)) {
+        curr_data$s_e_track_type[1]
+      } else {
+        NA
+      }
 
-      if (track == "" && (is.na(track_type) || track_type == "")) {
+      if (track == "" && (is.na(track_type) || is.null(track_type) || track_type == "")) {
         return(
           p(style = "font-style: italic; color: #95a5a6;",
             "No track interest specified")
@@ -242,7 +254,7 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
         if (track != "") {
           p(track)
         },
-        if (!is.na(track_type) && track_type != "") {
+        if (!is.na(track_type) && !is.null(track_type) && track_type != "") {
           p(tags$strong("Track Type: "), track_type)
         }
       )
