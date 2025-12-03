@@ -66,7 +66,6 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
       "m_sbp3" = "SBP3: Incorporates cost-awareness",
       "m_pbli1" = "PBLI1: Identifies strengths and gaps in knowledge",
       "m_pbli2" = "PBLI2: Uses information technology for learning",
-      "m_pbli3" = "PBLI3: Analyzes clinical experience systematically",
       "m_prof1" = "PROF1: Demonstrates compassion and respect",
       "m_prof2" = "PROF2: Demonstrates accountability to patients and society",
       "m_prof3" = "PROF3: Manages conflicts of interest",
