@@ -1,6 +1,33 @@
 # Section 3: Learning & Board Preparation Module
 # Displays exam scores, learning topics/styles, and allows coach to enter comments
 
+# Helper function to parse checkbox field choices from data dictionary
+parse_choices_safe <- function(choices_str) {
+  if (is.na(choices_str) || choices_str == "") {
+    return(data.frame(code = character(), label = character(), stringsAsFactors = FALSE))
+  }
+
+  # Split by pipe
+  choices <- strsplit(choices_str, "\\|")[[1]]
+  choices <- trimws(choices)
+
+  # Parse each choice (format: "code, label")
+  parsed <- lapply(choices, function(choice) {
+    parts <- strsplit(choice, ",")[[1]]
+    if (length(parts) >= 2) {
+      code <- trimws(parts[1])
+      label <- trimws(paste(parts[-1], collapse = ","))
+      return(data.frame(code = code, label = label, stringsAsFactors = FALSE))
+    } else {
+      return(NULL)
+    }
+  })
+
+  # Combine results
+  parsed <- do.call(rbind, Filter(Negate(is.null), parsed))
+  return(parsed)
+}
+
 mod_learning_ui <- function(id) {
   ns <- NS(id)
 
@@ -110,48 +137,33 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
     output$exam_scores_table <- renderUI({
       req(resident_data())
 
-      curr_data <- resident_data()$current_period$s_eval
       resident_info <- resident_data()$resident_info
-
-      if (is.null(curr_data) || nrow(curr_data) == 0) {
-        return(
-          div(
-            style = "font-style: italic; color: #95a5a6; padding: 15px;",
-            "No exam data available for current period"
-          )
-        )
-      }
 
       # Build exam data list
       exam_list <- list()
 
-      # USMLE/COMLEX scores
-      if (!is.na(resident_info$usmle1) && resident_info$usmle1 != "") {
-        exam_list[[length(exam_list) + 1]] <- c("USMLE Step 1", "", as.character(resident_info$usmle1))
-      }
-      if (!is.na(resident_info$usmle2) && resident_info$usmle2 != "") {
-        exam_list[[length(exam_list) + 1]] <- c("USMLE Step 2", "", as.character(resident_info$usmle2))
-      }
-      if (!is.na(resident_info$usmle3) && resident_info$usmle3 != "") {
-        exam_list[[length(exam_list) + 1]] <- c("USMLE Step 3", "", as.character(resident_info$usmle3))
-      }
-      if (!is.na(resident_info$comlex1) && resident_info$comlex1 != "") {
-        exam_list[[length(exam_list) + 1]] <- c("COMLEX Level 1", "", as.character(resident_info$comlex1))
-      }
-      if (!is.na(resident_info$comlex2) && resident_info$comlex2 != "") {
-        exam_list[[length(exam_list) + 1]] <- c("COMLEX Level 2", "", as.character(resident_info$comlex2))
+      # Helper function to safely check and add exam score
+      add_exam_if_present <- function(field_name, exam_name, year = "") {
+        if (field_name %in% names(resident_info)) {
+          value <- resident_info[[field_name]]
+          if (!is.na(value) && !is.null(value) && trimws(as.character(value)) != "") {
+            exam_list[[length(exam_list) + 1]] <<- c(exam_name, year, as.character(value))
+          }
+        }
       }
 
-      # ITE scores with year
-      if (!is.na(resident_info$ite_int) && resident_info$ite_int != "") {
-        exam_list[[length(exam_list) + 1]] <- c("ITE", "Intern", as.character(resident_info$ite_int))
-      }
-      if (!is.na(resident_info$ite2) && resident_info$ite2 != "") {
-        exam_list[[length(exam_list) + 1]] <- c("ITE", "PGY-2", as.character(resident_info$ite2))
-      }
-      if (!is.na(resident_info$ite3) && resident_info$ite3 != "") {
-        exam_list[[length(exam_list) + 1]] <- c("ITE", "PGY-3", as.character(resident_info$ite3))
-      }
+      # USMLE/COMLEX scores (from resident_data form)
+      add_exam_if_present("usmle_step1", "USMLE Step 1")
+      add_exam_if_present("usmle_step2", "USMLE Step 2")
+      add_exam_if_present("usmle_step3_score", "USMLE Step 3")
+      add_exam_if_present("comlex_step1", "COMLEX Level 1")
+      add_exam_if_present("comlex_step2", "COMLEX Level 2")
+      add_exam_if_present("comlex_step3", "COMLEX Level 3")
+
+      # ITE scores with year (from test_data form accessed via resident_info)
+      add_exam_if_present("total_ile", "ITE", "Intern")
+      add_exam_if_present("pgy2_total_ile", "ITE", "PGY-2")
+      add_exam_if_present("pgy3_total_ile", "ITE", "PGY-3")
 
       if (length(exam_list) == 0) {
         return(
@@ -197,7 +209,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
 
     # Display learning topics
     output$learning_topics <- renderUI({
-      req(resident_data())
+      req(resident_data(), app_data())
 
       curr_data <- resident_data()$current_period$s_eval
 
@@ -210,14 +222,49 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
         )
       }
 
-      # Get topic columns
+      # Get data dictionary choices for s_e_topic_sel field
+      data_dict <- app_data()$data_dict
+      topic_field_info <- data_dict %>%
+        dplyr::filter(`Variable / Field Name` == "s_e_topic_sel")
+
+      if (nrow(topic_field_info) == 0) {
+        return(
+          div(
+            style = "font-style: italic; color: #95a5a6;",
+            "Topic field configuration not found"
+          )
+        )
+      }
+
+      # Parse choices
+      choices_str <- topic_field_info$`Choices, Calculations, OR Slider Labels`[1]
+      topic_choices <- parse_choices_safe(choices_str)
+
+      if (nrow(topic_choices) == 0) {
+        return(
+          div(
+            style = "font-style: italic; color: #95a5a6;",
+            "No topics configured"
+          )
+        )
+      }
+
+      # Get topic checkbox columns and find selected ones
       topic_cols <- grep("^s_e_topic_sel___", names(curr_data), value = TRUE)
       selected_topics <- c()
 
       for (col in topic_cols) {
+        # Extract the code from column name (e.g., "s_e_topic_sel___1" -> "1")
+        code <- sub("^s_e_topic_sel___", "", col)
+
+        # Check if this checkbox is selected (value = "1")
         val <- curr_data[[col]][1]
-        if (!is.na(val) && val != "") {
-          selected_topics <- c(selected_topics, val)
+        if (!is.na(val) && val == "1") {
+          # Look up the label from topic_choices
+          label <- topic_choices$label[topic_choices$code == code]
+          if (length(label) > 0) {
+            selected_topics <- c(selected_topics, label[1])
+          }
         }
       }
 
@@ -244,7 +291,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
 
     # Display learning styles
     output$learning_styles <- renderUI({
-      req(resident_data())
+      req(resident_data(), app_data())
 
       curr_data <- resident_data()$current_period$s_eval
 
@@ -257,14 +304,49 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
         )
       }
 
-      # Get style columns
+      # Get data dictionary choices for s_e_learn_style field
+      data_dict <- app_data()$data_dict
+      style_field_info <- data_dict %>%
+        dplyr::filter(`Variable / Field Name` == "s_e_learn_style")
+
+      if (nrow(style_field_info) == 0) {
+        return(
+          div(
+            style = "font-style: italic; color: #95a5a6;",
+            "Learning style field configuration not found"
+          )
+        )
+      }
+
+      # Parse choices
+      choices_str <- style_field_info$`Choices, Calculations, OR Slider Labels`[1]
+      style_choices <- parse_choices_safe(choices_str)
+
+      if (nrow(style_choices) == 0) {
+        return(
+          div(
+            style = "font-style: italic; color: #95a5a6;",
+            "No learning styles configured"
+          )
+        )
+      }
+
+      # Get style checkbox columns and find selected ones
       style_cols <- grep("^s_e_learn_style___", names(curr_data), value = TRUE)
       selected_styles <- c()
 
       for (col in style_cols) {
+        # Extract the code from column name (e.g., "s_e_learn_style___1" -> "1")
+        code <- sub("^s_e_learn_style___", "", col)
+
+        # Check if this checkbox is selected (value = "1")
         val <- curr_data[[col]][1]
-        if (!is.na(val) && val != "") {
-          selected_styles <- c(selected_styles, val)
+        if (!is.na(val) && val == "1") {
+          # Look up the label from style_choices
+          label <- style_choices$label[style_choices$code == code]
+          if (length(label) > 0) {
+            selected_styles <- c(selected_styles, label[1])
+          }
         }
       }
 
