@@ -1011,6 +1011,7 @@ source("R/modules/mod_wellness.R")
 source("R/modules/mod_review_interface.R")
 source("R/modules/mod_evaluations.R")
 source("R/modules/mod_learning.R")
+source("R/modules/mod_scholarship.R")
 
 # ==============================================================================
 # STARTUP MESSAGE

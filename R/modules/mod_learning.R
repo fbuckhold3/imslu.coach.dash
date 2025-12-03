@@ -158,7 +158,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
         "neuro_ile" = "Neurology",
         "pulm_ccm_ile" = "Pulmonary/Critical Care",
         "rheum_ile" = "Rheumatology",
-        "hvc_ile" = "Hospital/Vascular Care"
+        "hvc_ile" = "High Value Care"
       )
 
       output_sections <- list()

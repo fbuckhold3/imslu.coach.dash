@@ -148,7 +148,10 @@ mod_review_interface_ui <- function(id) {
         div(
           id = ns("collapse4"),
           class = "collapse",
-          div(class = "card-body", p("Section content coming soon"))
+          div(
+            class = "card-body",
+            mod_scholarship_ui(ns("scholarship"))
+          )
         )
       ),
 
@@ -326,7 +329,10 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
 
     # Call Section 3 module
     learning_data <- mod_learning_server("learning", resident_data, current_period, rdm_data)
-    
+
+    # Call Section 4 module
+    scholarship_data <- mod_scholarship_server("scholarship", resident_data, current_period, rdm_data)
+
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({
       input$back_to_table
@@ -375,12 +381,14 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
   req(wellness_data())
   req(evaluations_data())
   req(learning_data())
+  req(scholarship_data())
 
   # Collect data from all sections
   review_data <- list(
     wellness = wellness_data(),
     evaluations = evaluations_data(),
-    learning = learning_data()
+    learning = learning_data(),
+    scholarship = scholarship_data()
     # ... more sections as you build them
   )
       
