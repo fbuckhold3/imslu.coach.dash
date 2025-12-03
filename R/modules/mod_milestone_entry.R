@@ -11,7 +11,7 @@ mod_milestone_entry_ui <- function(id) {
     # Collapsible section for previous milestones
     bslib::accordion(
       id = ns("milestone_accordion"),
-      open = FALSE,  # Start collapsed
+      open = TRUE,  # Start expanded to show visualizations
       bslib::accordion_panel(
         "View Previous Milestone Assessments",
         shiny::p("Review resident's previous self-assessment and ACGME ratings for comparison."),
