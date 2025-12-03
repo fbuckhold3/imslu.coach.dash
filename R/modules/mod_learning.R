@@ -225,7 +225,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
       # Get data dictionary choices for s_e_topic_sel field
       data_dict <- app_data()$data_dict
       topic_field_info <- data_dict %>%
-        dplyr::filter(`Variable / Field Name` == "s_e_topic_sel")
+        dplyr::filter(field_name == "s_e_topic_sel")
 
       if (nrow(topic_field_info) == 0) {
         return(
@@ -237,7 +237,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
       }
 
       # Parse choices
-      choices_str <- topic_field_info$`Choices, Calculations, OR Slider Labels`[1]
+      choices_str <- topic_field_info$select_choices_or_calculations[1]
       topic_choices <- parse_choices_safe(choices_str)
 
       if (nrow(topic_choices) == 0) {
@@ -307,7 +307,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
       # Get data dictionary choices for s_e_learn_style field
       data_dict <- app_data()$data_dict
       style_field_info <- data_dict %>%
-        dplyr::filter(`Variable / Field Name` == "s_e_learn_style")
+        dplyr::filter(field_name == "s_e_learn_style")
 
       if (nrow(style_field_info) == 0) {
         return(
@@ -319,7 +319,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
       }
 
       # Parse choices
-      choices_str <- style_field_info$`Choices, Calculations, OR Slider Labels`[1]
+      choices_str <- style_field_info$select_choices_or_calculations[1]
       style_choices <- parse_choices_safe(choices_str)
 
       if (nrow(style_choices) == 0) {
