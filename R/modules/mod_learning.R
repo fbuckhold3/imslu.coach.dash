@@ -135,19 +135,34 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
 
     # Display exam scores table
     output$exam_scores_table <- renderUI({
-      req(resident_data())
+      req(resident_data(), app_data())
 
       resident_info <- resident_data()$resident_info
+      record_id <- resident_info$record_id
+
+      # Get test_data for this resident
+      test_data <- app_data()$all_forms$test_data %>%
+        dplyr::filter(record_id == !!record_id)
 
       # Build exam data list
       exam_list <- list()
 
-      # Helper function to safely check and add exam score
+      # Helper function to safely check and add exam score from resident_info
       add_exam_if_present <- function(field_name, exam_name, year = "") {
         if (field_name %in% names(resident_info)) {
           value <- resident_info[[field_name]]
           if (!is.na(value) && !is.null(value) && trimws(as.character(value)) != "") {
             exam_list[[length(exam_list) + 1]] <<- c(exam_name, year, as.character(value))
+          }
+        }
+      }
+
+      # Helper function to add ITE score from test_data
+      add_ite_if_present <- function(field_name, year_label) {
+        if (nrow(test_data) > 0 && field_name %in% names(test_data)) {
+          value <- test_data[[field_name]][1]
+          if (!is.na(value) && !is.null(value) && trimws(as.character(value)) != "") {
+            exam_list[[length(exam_list) + 1]] <<- c("ITE", year_label, as.character(value))
           }
         }
       }
@@ -160,10 +175,10 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
       add_exam_if_present("comlex_step2", "COMLEX Level 2")
       add_exam_if_present("comlex_step3", "COMLEX Level 3")
 
-      # ITE scores with year (from test_data form accessed via resident_info)
-      add_exam_if_present("total_ile", "ITE", "Intern")
-      add_exam_if_present("pgy2_total_ile", "ITE", "PGY-2")
-      add_exam_if_present("pgy3_total_ile", "ITE", "PGY-3")
+      # ITE scores with year (from test_data form)
+      add_ite_if_present("pgy1_total_ile", "PGY-1")
+      add_ite_if_present("pgy2_total_ile", "PGY-2")
+      add_ite_if_present("pgy3_total_ile", "PGY-3")
 
       if (length(exam_list) == 0) {
         return(
@@ -373,7 +388,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
 
     # Display board prep status
     output$board_prep_table <- renderUI({
-      req(resident_data())
+      req(resident_data(), app_data())
 
       curr_data <- resident_data()$current_period$s_eval
 
@@ -386,20 +401,34 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
         )
       }
 
+      # Helper function to parse yesno fields (1 = Yes, 0 = No)
+      parse_yesno <- function(value) {
+        if (is.na(value) || value == "") return("")
+        if (value == "1") return("Yes")
+        if (value == "0") return("No")
+        return(as.character(value))
+      }
+
       # Build board prep data list
       board_list <- list()
 
       if (!is.na(curr_data$s_e_step3[1]) && curr_data$s_e_step3[1] != "") {
-        board_list[[length(board_list) + 1]] <- c("Step 3 Status", curr_data$s_e_step3[1])
+        board_list[[length(board_list) + 1]] <- c("Step 3 Completed", parse_yesno(curr_data$s_e_step3[1]))
+      }
+      if (!is.na(curr_data$s_e_step3_contact[1]) && curr_data$s_e_step3_contact[1] != "") {
+        board_list[[length(board_list) + 1]] <- c("Emailed Score to Program", parse_yesno(curr_data$s_e_step3_contact[1]))
+      }
+      if (!is.na(curr_data$s_e_step3_date_set[1]) && curr_data$s_e_step3_date_set[1] != "") {
+        board_list[[length(board_list) + 1]] <- c("Step 3 Date Set", parse_yesno(curr_data$s_e_step3_date_set[1]))
       }
       if (!is.na(curr_data$s_e_step3_date[1]) && curr_data$s_e_step3_date[1] != "") {
-        board_list[[length(board_list) + 1]] <- c("Step 3 Date", curr_data$s_e_step3_date[1])
+        board_list[[length(board_list) + 1]] <- c("Step 3 Scheduled Date", curr_data$s_e_step3_date[1])
       }
       if (!is.na(curr_data$s_e_board_concern[1]) && curr_data$s_e_board_concern[1] != "") {
-        board_list[[length(board_list) + 1]] <- c("Board Concerns", curr_data$s_e_board_concern[1])
+        board_list[[length(board_list) + 1]] <- c("Board Concerns", parse_yesno(curr_data$s_e_board_concern[1]))
       }
-      if (!is.na(curr_data$s_e_mksap_comp[1]) && curr_data$s_e_mksap_comp[1] != "") {
-        board_list[[length(board_list) + 1]] <- c("MKSAP Complete", curr_data$s_e_mksap_comp[1])
+      if (!is.na(curr_data$s_e_board_help[1]) && curr_data$s_e_board_help[1] != "") {
+        board_list[[length(board_list) + 1]] <- c("Discussed with Program", parse_yesno(curr_data$s_e_board_help[1]))
       }
 
       if (length(board_list) == 0) {
