@@ -50,6 +50,13 @@ mod_milestones_ui <- function(id) {
 mod_milestones_server <- function(id, resident_data, current_period, app_data, data_dict) {
   moduleServer(id, function(input, output, session) {
 
+    # Convert period number to period name for milestone entry module
+    period_name <- reactive({
+      period_num <- current_period()
+      if (is.null(period_num) || is.na(period_num)) return(NA)
+      get_period_name(period_num)
+    })
+
     # Milestone competency labels mapping
     milestone_labels <- c(
       "m_pc1" = "PC1: Gathers and synthesizes essential information",
@@ -247,7 +254,7 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
       "milestone_entry",
       rdm_data = app_data,
       record_id = record_id,
-      current_period = current_period,
+      current_period = period_name,  # Pass period name, not number
       data_dict = reactive(isolate(data_dict()))
     )
 

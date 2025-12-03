@@ -223,7 +223,16 @@ mod_milestone_entry_server <- function(id, rdm_data, record_id, current_period, 
     })
 
     # Initialize milestone rating module
-    milestone_scores <- gmed::mod_miles_rating_server("rating", period = current_period)
+    # Ensure period is never NA (gmed module can't handle NA in if statements)
+    safe_period <- reactive({
+      period_val <- current_period()
+      if (is.null(period_val) || is.na(period_val) || period_val == "") {
+        return("")
+      }
+      return(period_val)
+    })
+
+    milestone_scores <- gmed::mod_miles_rating_server("rating", period = safe_period)
 
     # Return reactive with milestone data (no auto-submission - parent handles it)
     return(
