@@ -59,6 +59,8 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
       "m_pc5" = "PC5: Requests consultations effectively",
       "m_pc6" = "PC6: Provides appropriate role modeling",
       "m_mk1" = "MK1: Core knowledge for effective patient care",
+      "m_mk2" = "MK2: Knowledge of diagnostic testing and procedures",
+      "m_mk3" = "MK3: Scholarly activities",
       "m_sbp1" = "SBP1: Works effectively within healthcare system",
       "m_sbp2" = "SBP2: Coordinates care with other healthcare professionals",
       "m_sbp3" = "SBP3: Incorporates cost-awareness",
