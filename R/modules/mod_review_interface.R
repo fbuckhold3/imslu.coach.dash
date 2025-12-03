@@ -200,7 +200,10 @@ mod_review_interface_ui <- function(id) {
         div(
           id = ns("collapse6"),
           class = "collapse",
-          div(class = "card-body", p("Section content coming soon"))
+          div(
+            class = "card-body",
+            mod_milestones_ui(ns("milestones"))
+          )
         )
       ),
 
@@ -339,6 +342,9 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     # Call Section 5 module
     career_data <- mod_career_server("career", resident_data, current_period, rdm_data)
 
+    # Call Section 6 module
+    milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, data_dict)
+
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({
       input$back_to_table
@@ -389,6 +395,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
   req(learning_data())
   req(scholarship_data())
   req(career_data())
+  req(milestones_data())
 
   # Collect data from all sections
   review_data <- list(
@@ -396,7 +403,8 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     evaluations = evaluations_data(),
     learning = learning_data(),
     scholarship = scholarship_data(),
-    career = career_data()
+    career = career_data(),
+    milestones = milestones_data()
     # ... more sections as you build them
   )
       
