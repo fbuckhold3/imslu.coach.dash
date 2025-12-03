@@ -144,6 +144,23 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
       test_data <- app_data()$all_forms$test_data %>%
         dplyr::filter(record_id == !!record_id)
 
+      # Translation map for ITE subspecialty abbreviations
+      subspecialty_map <- c(
+        "total_ile" = "Total",
+        "cards_ile" = "Cardiology",
+        "endo_ile" = "Endocrinology",
+        "gi_ile" = "Gastroenterology",
+        "gim_ile" = "General Internal Medicine",
+        "geri_ile" = "Geriatrics",
+        "hemonc_ile" = "Hematology/Oncology",
+        "id_ile" = "Infectious Disease",
+        "nephro_ile" = "Nephrology",
+        "neuro_ile" = "Neurology",
+        "pulm_ccm_ile" = "Pulmonary/Critical Care",
+        "rheum_ile" = "Rheumatology",
+        "hvc_ile" = "Hospital/Vascular Care"
+      )
+
       # Build exam data list
       exam_list <- list()
 
@@ -157,16 +174,6 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
         }
       }
 
-      # Helper function to add ITE score from test_data
-      add_ite_if_present <- function(field_name, year_label) {
-        if (nrow(test_data) > 0 && field_name %in% names(test_data)) {
-          value <- test_data[[field_name]][1]
-          if (!is.na(value) && !is.null(value) && trimws(as.character(value)) != "") {
-            exam_list[[length(exam_list) + 1]] <<- c("ITE", year_label, as.character(value))
-          }
-        }
-      }
-
       # USMLE/COMLEX scores (from resident_data form)
       add_exam_if_present("usmle_step1", "USMLE Step 1")
       add_exam_if_present("usmle_step2", "USMLE Step 2")
@@ -175,10 +182,36 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
       add_exam_if_present("comlex_step2", "COMLEX Level 2")
       add_exam_if_present("comlex_step3", "COMLEX Level 3")
 
-      # ITE scores with year (from test_data form)
-      add_ite_if_present("pgy1_total_ile", "PGY-1")
-      add_ite_if_present("pgy2_total_ile", "PGY-2")
-      add_ite_if_present("pgy3_total_ile", "PGY-3")
+      # ITE scores with all subspecialties (from test_data form)
+      if (nrow(test_data) > 0) {
+        # For each PGY year
+        for (pgy in c("pgy1", "pgy2", "pgy3")) {
+          # For each subspecialty
+          for (subspec_abbr in names(subspecialty_map)) {
+            field_name <- paste0(pgy, "_", subspec_abbr)
+
+            if (field_name %in% names(test_data)) {
+              value <- test_data[[field_name]][1]
+
+              if (!is.na(value) && !is.null(value) && trimws(as.character(value)) != "") {
+                # Create year label
+                year_num <- substr(pgy, 4, 4)
+                year_label <- paste0("PGY-", year_num)
+
+                # Get full subspecialty name
+                subspec_name <- subspecialty_map[subspec_abbr]
+
+                # Add to exam list
+                exam_list[[length(exam_list) + 1]] <- c(
+                  paste0("ITE - ", subspec_name),
+                  year_label,
+                  as.character(value)
+                )
+              }
+            }
+          }
+        }
+      }
 
       if (length(exam_list) == 0) {
         return(
@@ -217,7 +250,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
         ),
         tags$p(
           style = "font-size: 12px; color: #7f8c8d; margin-top: 10px;",
-          "Note: ITE scores are percentiles by training year"
+          "Note: ITE scores are percentiles by training year and subspecialty"
         )
       )
     })
