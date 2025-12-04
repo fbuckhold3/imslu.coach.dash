@@ -153,7 +153,11 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
         milestone_data <- milestone_entry_data()
 
         list(
-          milestone_ratings = milestone_data$ratings,
+          milestone_ratings = list(
+            scores = milestone_data$scores,
+            descriptions = milestone_data$descriptions,
+            milestone_results = milestone_data$milestone_results
+          ),
           is_complete = milestone_data$is_complete
         )
       })

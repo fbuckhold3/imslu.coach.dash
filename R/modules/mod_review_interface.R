@@ -8,7 +8,7 @@
 # 4. Added preview page before submission with milestone spider plot
 
 # Helper function to create review preview with milestone spider plot
-create_review_preview <- function(review_data, resident_data, current_period) {
+create_review_preview <- function(review_data, resident_data, current_period, session_ns) {
 
   res_info <- resident_data()$resident_info
   period_num <- current_period()
@@ -33,16 +33,33 @@ create_review_preview <- function(review_data, resident_data, current_period) {
       )
     ),
 
-    # Milestone Spider Plot
+    # Milestone Spider Plot Visualization
     div(
       class = "card mb-3",
       div(
         class = "card-header bg-info text-white",
-        h5(class = "mb-0", icon("chart-line"), " Milestone Ratings")
+        h5(class = "mb-0", icon("chart-line"), " Milestone Ratings Visualization")
       ),
       div(
         class = "card-body",
-        # Display milestone ratings as table (spider plot shown in milestone section)
+        p(class = "text-info mb-3",
+          icon("info-circle"),
+          " Your milestone ratings compared to program medians for this period"
+        ),
+        plotly::plotlyOutput(session_ns("preview_spider_plot"), height = "500px")
+      )
+    ),
+
+    # Milestone Ratings Table
+    div(
+      class = "card mb-3",
+      div(
+        class = "card-header bg-success text-white",
+        h5(class = "mb-0", icon("list"), " Milestone Ratings Summary")
+      ),
+      div(
+        class = "card-body",
+        # Display milestone ratings as table
         {
           milestone_ratings <- review_data$milestones$milestone_ratings
           if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
@@ -448,16 +465,16 @@ mod_review_interface_ui <- function(id) {
           style = "text-align: center;",
           actionButton(
             ns("submit_review"),
-            "Submit Review",
+            "Go to Final Review",
             class = "btn-primary btn-lg",
             style = "padding: 10px 30px;",
-            icon = icon("check-circle")
+            icon = icon("eye")
           ),
           br(),
           br(),
           p(
             style = "color: #666; font-size: 14px;",
-            "Complete all required sections before submitting"
+            "Complete all required sections, then review and submit"
           )
         )
       )
@@ -635,9 +652,56 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         create_review_preview(
           review_data = review_data,
           resident_data = resident_data,
-          current_period = current_period
+          current_period = current_period,
+          session_ns = session$ns
         )
       ))
+
+      # Render the spider plot for the preview
+      output$preview_spider_plot <- plotly::renderPlotly({
+        req(review_data$milestones$milestone_ratings)
+
+        milestone_ratings <- review_data$milestones$milestone_ratings
+
+        # Check if we have milestone_results from the milestone data
+        if (is.null(milestone_ratings$milestone_results)) {
+          return(plotly::plotly_empty() %>%
+                   plotly::add_annotations(
+                     text = "Milestone data not available",
+                     x = 0.5, y = 0.5, showarrow = FALSE,
+                     font = list(size = 16, color = "gray")
+                   ))
+        }
+
+        tryCatch({
+          # Get the current period name
+          period_name <- get_period_name(current_period())
+
+          # Get resident ID
+          record_id <- resident_data()$resident_info$record_id
+
+          # Create spider plot with median comparison using gmed function
+          dashboard <- gmed::create_milestone_overview_dashboard(
+            milestone_results = milestone_ratings$milestone_results,
+            resident_id = record_id,
+            period_text = period_name,
+            milestone_type = "coach",  # Coach assessment
+            milestone_system = "rep",
+            resident_data = rdm_data()$residents
+          )
+
+          return(dashboard$spider_plot)
+
+        }, error = function(e) {
+          message("Error creating preview spider plot: ", e$message)
+          return(plotly::plotly_empty() %>%
+                   plotly::add_annotations(
+                     text = "Unable to create visualization",
+                     x = 0.5, y = 0.5, showarrow = FALSE,
+                     font = list(size = 14, color = "orange")
+                   ))
+        })
+      })
     })
 
     # Handle confirmed submission
@@ -717,8 +781,8 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         coach_result <- tryCatch({
           result <- REDCapR::redcap_write_oneshot(
             ds = coach_rev_record,
-            redcap_uri = Sys.getenv("REDCAP_API_URL"),
-            token = Sys.getenv("RDM_TOKEN")
+            redcap_uri = REDCAP_CONFIG$url,
+            token = REDCAP_CONFIG$rdm_token
           )
 
           list(
@@ -761,8 +825,8 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         milestone_result <- tryCatch({
           result <- REDCapR::redcap_write_oneshot(
             ds = milestone_record,
-            redcap_uri = Sys.getenv("REDCAP_API_URL"),
-            token = Sys.getenv("RDM_TOKEN")
+            redcap_uri = REDCAP_CONFIG$url,
+            token = REDCAP_CONFIG$rdm_token
           )
 
           list(
