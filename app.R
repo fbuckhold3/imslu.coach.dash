@@ -285,11 +285,20 @@ server <- function(input, output, session) {
   # REVIEW INTERFACE (PHASE 2)
   # ==========================================================================
 
+  # Primary review interface
   review_interface <- mod_review_interface_server(
     "review",
     selected_resident = reactive({ resident_selection$selected_resident() }),
     rdm_data = app_data,
     current_period = resident_selection$current_period  # CORRECT - pass the reactive itself
+  )
+
+  # Second review interface
+  second_review_interface <- mod_second_review_server(
+    "second_review",
+    selected_resident = reactive({ resident_selection$selected_resident() }),
+    rdm_data = app_data,
+    current_period = resident_selection$current_period
   )
   
   # Update view when resident is selected
@@ -311,11 +320,26 @@ server <- function(input, output, session) {
   # NAVIGATION HANDLERS - UPDATED FOR NEW BUTTONS
   # ==========================================================================
   
-  # Handle "Back to Residents" button from review interface
+  # Handle "Back to Residents" button from primary review interface
   observe({
     tryCatch({
       if (!is.null(review_interface$back_to_table_clicked) && is.function(review_interface$back_to_table_clicked)) {
         clicked_count <- review_interface$back_to_table_clicked()
+        if (!is.null(clicked_count) && clicked_count > 0) {
+          resident_selection$clear_selection()
+          app_state$current_view <- "resident_table"
+        }
+      }
+    }, error = function(e) {
+      # Silently handle errors
+    })
+  })
+
+  # Handle "Back to Residents" button from second review interface
+  observe({
+    tryCatch({
+      if (!is.null(second_review_interface$back_to_table_clicked) && is.function(second_review_interface$back_to_table_clicked)) {
+        clicked_count <- second_review_interface$back_to_table_clicked()
         if (!is.null(clicked_count) && clicked_count > 0) {
           resident_selection$clear_selection()
           app_state$current_view <- "resident_table"
@@ -466,11 +490,24 @@ server <- function(input, output, session) {
       # Review interface view (PHASE 2)
       "review" = {
         req(resident_selection$selected_resident())
-        fluidRow(
-          column(12,
-            mod_review_interface_ui("review")
+        selected_res <- resident_selection$selected_resident()
+
+        # Check if this is a second review or primary review
+        if (!is.null(selected_res$role) && selected_res$role == "secondary") {
+          # Show second review interface
+          fluidRow(
+            column(12,
+              mod_second_review_ui("second_review")
+            )
           )
-        )
+        } else {
+          # Show primary review interface
+          fluidRow(
+            column(12,
+              mod_review_interface_ui("review")
+            )
+          )
+        }
       },
       
       # Default/fallback
