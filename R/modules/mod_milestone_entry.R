@@ -39,10 +39,45 @@ mod_milestone_entry_ui <- function(id) {
       "Click through each milestone image and select your rating (1-9)."
     ),
 
-    # Hide the submit button from gmed module using custom CSS
+    # Hide the submit button from gmed module using CSS and JavaScript
     shiny::tags$style(shiny::HTML(paste0("
+      /* Hide submit buttons in milestone rating module */
       #", ns("rating"), "-submit_button { display: none !important; }
-      #", ns("rating"), " .btn-success:contains('Submit') { display: none !important; }
+      #", ns("rating"), " button[id*='submit'] { display: none !important; }
+      #", ns("rating"), " .btn-success { display: none !important; }
+      #", ns("rating"), " [type='submit'] { display: none !important; }
+      button[id*='milestone'][id*='submit'] { display: none !important; }
+      button:contains('Submit') { display: none !important; }
+    "))),
+
+    # Additional JavaScript to hide submit buttons after they load
+    shiny::tags$script(shiny::HTML(paste0("
+      $(document).ready(function() {
+        // Wait a bit for the module to load, then hide submit buttons
+        setTimeout(function() {
+          $('#", ns("rating"), "').find('button').each(function() {
+            var btnText = $(this).text().toLowerCase();
+            if (btnText.includes('submit') || btnText.includes('done')) {
+              $(this).hide();
+              console.log('Hidden button:', btnText);
+            }
+          });
+
+          // Also hide by class
+          $('#", ns("rating"), " .btn-success').hide();
+          $('#", ns("rating"), " button[type=\"submit\"]').hide();
+        }, 500);
+
+        // Check again after 2 seconds (in case of dynamic loading)
+        setTimeout(function() {
+          $('#", ns("rating"), "').find('button').each(function() {
+            var btnText = $(this).text().toLowerCase();
+            if (btnText.includes('submit') || btnText.includes('done')) {
+              $(this).hide();
+            }
+          });
+        }, 2000);
+      });
     "))),
 
     gmed::mod_miles_rating_ui(ns("rating"))

@@ -576,11 +576,29 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
 
         milestone_ratings <- review_data$milestones$milestone_ratings
 
+        # Debug logging
+        message("=== Preview Spider Plot Debug ===")
+        message("milestone_ratings structure: ", paste(names(milestone_ratings), collapse = ", "))
+        message("Has scores: ", !is.null(milestone_ratings$scores))
+        message("Has milestone_results: ", !is.null(milestone_ratings$milestone_results))
+
         # Check if we have milestone_results from the milestone data
         if (is.null(milestone_ratings$milestone_results)) {
+          message("ERROR: milestone_results is NULL")
           return(plotly::plotly_empty() %>%
                    plotly::add_annotations(
-                     text = "Milestone data not available",
+                     text = "Milestone data not available - please rate milestones first",
+                     x = 0.5, y = 0.5, showarrow = FALSE,
+                     font = list(size = 16, color = "gray")
+                   ))
+        }
+
+        # Check if we have scores
+        if (is.null(milestone_ratings$scores) || length(milestone_ratings$scores) == 0) {
+          message("ERROR: No milestone scores available")
+          return(plotly::plotly_empty() %>%
+                   plotly::add_annotations(
+                     text = "No milestone ratings entered yet",
                      x = 0.5, y = 0.5, showarrow = FALSE,
                      font = list(size = 16, color = "gray")
                    ))
@@ -589,11 +607,14 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         tryCatch({
           # Get the current period name
           period_name <- get_period_name(current_period())
+          message("Period name: ", period_name)
 
           # Get resident ID
           record_id <- resident_data()$resident_info$record_id
+          message("Resident ID: ", record_id)
 
           # Create spider plot with median comparison using gmed function
+          message("Calling gmed::create_milestone_overview_dashboard...")
           dashboard <- gmed::create_milestone_overview_dashboard(
             milestone_results = milestone_ratings$milestone_results,
             resident_id = record_id,
@@ -603,13 +624,17 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
             resident_data = rdm_data()$residents
           )
 
+          message("Dashboard created successfully")
+          message("Has spider_plot: ", !is.null(dashboard$spider_plot))
+
           return(dashboard$spider_plot)
 
         }, error = function(e) {
-          message("Error creating preview spider plot: ", e$message)
+          message("ERROR creating preview spider plot: ", e$message)
+          message("Stack trace: ", paste(traceback(), collapse = "\n"))
           return(plotly::plotly_empty() %>%
                    plotly::add_annotations(
-                     text = "Unable to create visualization",
+                     text = paste("Unable to create visualization:", e$message),
                      x = 0.5, y = 0.5, showarrow = FALSE,
                      font = list(size = 14, color = "orange")
                    ))
@@ -710,10 +735,14 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         milestone_ratings <- review_data$milestones$milestone_ratings
 
         # Helper function to convert gmed field names to REDCap field names
-        # Converts: PC_1 -> rep_pc1, MK_2 -> rep_mk2, PROF_1 -> rep_prof1, etc.
+        # Converts: PC_1 -> rep_pc1, MK_2 -> rep_mk2, PROF_1 -> rep_prof1, PBLI_1 -> rep_pbl1
         convert_to_redcap_field <- function(gmed_field) {
           # Convert from format like "PC_1" or "PROF_1" to "rep_pc1" or "rep_prof1"
           redcap_field <- tolower(gmed_field)  # Convert to lowercase
+
+          # Special case: PBLI should become PBL in REDCap
+          redcap_field <- gsub("pbli", "pbl", redcap_field)
+
           redcap_field <- gsub("_", "", redcap_field)  # Remove underscore
           redcap_field <- paste0("rep_", redcap_field)  # Add rep_ prefix
           return(redcap_field)
