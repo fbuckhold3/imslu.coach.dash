@@ -42,60 +42,79 @@ create_review_preview <- function(review_data, resident_data, current_period) {
       ),
       div(
         class = "card-body",
-        tryCatch({
-          # Get milestone ratings data
-          milestone_ratings <- review_data$milestones$milestone_ratings
+        # Display milestone ratings as table (spider plot shown in milestone section)
+        milestone_ratings <- review_data$milestones$milestone_ratings
+        if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
+          # Create a nice table with milestone names
+          milestone_names <- c(
+            rep_pc1 = "PC1: History",
+            rep_pc2 = "PC2: Physical Exam",
+            rep_pc3 = "PC3: Clinical Reasoning",
+            rep_pc4 = "PC4: Mgmt-Inpatient",
+            rep_pc5 = "PC5: Mgmt-Outpatient",
+            rep_pc6 = "PC6: Digital Health",
+            rep_mk1 = "MK1: Applied Sciences",
+            rep_mk2 = "MK2: Therapeutics",
+            rep_mk3 = "MK3: Diagnostics",
+            rep_sbp1 = "SBP1: Safety & QI",
+            rep_sbp2 = "SBP2: Navigation",
+            rep_sbp3 = "SBP3: Physician Role",
+            rep_pbl1 = "PBL1: Evidence-Based",
+            rep_pbl2 = "PBL2: Reflective",
+            rep_prof1 = "PROF1: Behavior",
+            rep_prof2 = "PROF2: Ethics",
+            rep_prof3 = "PROF3: Accountability",
+            rep_prof4 = "PROF4: Well-Being",
+            rep_ics1 = "ICS1: Patient Comm",
+            rep_ics2 = "ICS2: Team Comm",
+            rep_ics3 = "ICS3: Documentation"
+          )
 
-          if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
-            # Format milestone data for spider plot
-            # Create a data frame with one row containing all milestone scores
-            milestone_df <- as.data.frame(milestone_ratings$scores)
-
-            # Get resident info for spider plot
-            res_info_local <- resident_data()$resident_info
-
-            # Create spider plot using gmed function
-            plotly::renderPlotly({
-              gmed::create_milestone_spider_plot_final(
-                milestone_data = milestone_df,
-                median_data = NULL,  # Optional comparison data
-                resident_id = res_info_local$record_id,
-                period_text = period_name,
-                milestone_type = "coach",
-                resident_data = NULL
-              )
-            })()
-          } else {
-            p(class = "text-muted", "No milestone ratings entered yet.")
-          }
-        }, error = function(e) {
-          # Fallback: Show milestone ratings as a table
-          milestone_ratings <- review_data$milestones$milestone_ratings
-          if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
-            div(
-              p(class = "text-info", icon("info-circle"), " Milestone ratings entered (visualization unavailable)"),
-              tags$table(
-                class = "table table-sm table-striped",
-                tags$thead(
-                  tags$tr(
-                    tags$th("Milestone"),
-                    tags$th("Rating")
-                  )
-                ),
-                tags$tbody(
-                  lapply(names(milestone_ratings$scores), function(field) {
-                    tags$tr(
-                      tags$td(toupper(gsub("rep_", "", field))),
-                      tags$td(milestone_ratings$scores[[field]])
-                    )
-                  })
+          div(
+            p(class = "text-info mb-3",
+              icon("info-circle"),
+              " Review the milestone ratings you entered below. ",
+              "The spider plot visualization is available in the Milestone section."
+            ),
+            tags$table(
+              class = "table table-sm table-hover",
+              style = "font-size: 0.9em;",
+              tags$thead(
+                class = "table-light",
+                tags$tr(
+                  tags$th(style = "width: 70%;", "Milestone"),
+                  tags$th(style = "width: 30%; text-align: center;", "Your Rating")
                 )
+              ),
+              tags$tbody(
+                lapply(names(milestone_ratings$scores), function(field) {
+                  rating <- milestone_ratings$scores[[field]]
+                  name <- milestone_names[field]
+                  if (is.null(name) || is.na(name)) name <- toupper(field)
+
+                  # Color code based on rating
+                  rating_class <- if (!is.null(rating) && !is.na(rating)) {
+                    if (as.numeric(rating) >= 4) "table-success"
+                    else if (as.numeric(rating) >= 3) "table-info"
+                    else if (as.numeric(rating) >= 2) "table-warning"
+                    else "table-danger"
+                  } else "table-light"
+
+                  tags$tr(
+                    class = rating_class,
+                    tags$td(name),
+                    tags$td(
+                      style = "text-align: center; font-weight: bold;",
+                      if (!is.null(rating) && !is.na(rating)) rating else "-"
+                    )
+                  )
+                })
               )
             )
-          } else {
-            p(class = "text-danger", "Unable to display milestone ratings: ", e$message)
-          }
-        })
+          )
+        } else {
+          p(class = "text-muted", "No milestone ratings entered yet.")
+        }
       )
     ),
 
@@ -692,8 +711,21 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           stringsAsFactors = FALSE
         )
 
-        # Submit coach_rev to REDCap using gmed function
-        coach_result <- gmed::submit_to_redcap(coach_rev_record)
+        # Submit coach_rev to REDCap using REDCapR
+        coach_result <- tryCatch({
+          result <- REDCapR::redcap_write_oneshot(
+            ds = coach_rev_record,
+            redcap_uri = Sys.getenv("REDCAP_API_URL"),
+            token = Sys.getenv("RDM_TOKEN")
+          )
+
+          list(
+            success = result$success,
+            message = if (result$success) "Coach review submitted" else result$outcome_message
+          )
+        }, error = function(e) {
+          list(success = FALSE, message = e$message)
+        })
 
         # Build milestone_entry submission record (raw format)
         milestone_ratings <- review_data$milestones$milestone_ratings
@@ -723,8 +755,21 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         # Add milestone completion status (raw format)
         milestone_record$milestone_entry_complete <- "2"
 
-        # Submit milestone_entry to REDCap
-        milestone_result <- gmed::submit_to_redcap(milestone_record)
+        # Submit milestone_entry to REDCap using REDCapR
+        milestone_result <- tryCatch({
+          result <- REDCapR::redcap_write_oneshot(
+            ds = milestone_record,
+            redcap_uri = Sys.getenv("REDCAP_API_URL"),
+            token = Sys.getenv("RDM_TOKEN")
+          )
+
+          list(
+            success = result$success,
+            message = if (result$success) "Milestones submitted" else result$outcome_message
+          )
+        }, error = function(e) {
+          list(success = FALSE, message = e$message)
+        })
 
         # Remove processing notification
         removeNotification(notification_id)
