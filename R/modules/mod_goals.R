@@ -184,6 +184,50 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
       return(label)
     }
 
+    # Get milestone level descriptor text from ILP data
+    get_milestone_level_text <- function(goal_code, level_code, domain_type, ilp_data) {
+      if (is.null(goal_code) || is.na(goal_code) || goal_code == "") return("Level not specified")
+      if (is.null(level_code) || is.na(level_code) || level_code == "") return("Level not specified")
+      if (is.null(ilp_data) || nrow(ilp_data) == 0) return(paste("Level", level_code))
+
+      # Map goal code to milestone subcompetency code
+      if (domain_type == "pcmk") {
+        if (goal_code <= 6) {
+          subcomp <- paste0("pc", goal_code)
+        } else {
+          subcomp <- paste0("mk", goal_code - 6)
+        }
+      } else if (domain_type == "sbppbl") {
+        if (goal_code <= 3) {
+          subcomp <- paste0("sbp", goal_code)
+        } else {
+          subcomp <- paste0("pbl", goal_code - 3)
+        }
+      } else if (domain_type == "profics") {
+        if (goal_code <= 4) {
+          subcomp <- paste0("prof", goal_code)
+        } else {
+          subcomp <- paste0("ics", goal_code - 4)
+        }
+      } else {
+        return(paste("Level", level_code))
+      }
+
+      # Build field name: e.g., pc5_r4 for PC5 Level 4
+      field_name <- paste0(subcomp, "_r", level_code)
+
+      # Look up the field value in ILP data
+      if (field_name %in% names(ilp_data)) {
+        descriptor <- ilp_data[[field_name]][1]
+        if (!is.null(descriptor) && !is.na(descriptor) && trimws(descriptor) != "") {
+          return(paste0("Level ", level_code, ": ", descriptor))
+        }
+      }
+
+      # Fallback if not found
+      return(paste("Level", level_code))
+    }
+
     translate_level <- function(code) {
       if (is.null(code) || is.na(code) || code == "") return("")
       label <- milestone_levels[as.character(code)]
@@ -243,7 +287,7 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
       # Helper function to create goal display with achievement
       create_goal_display <- function(domain_name, goal_field, level_field, how_field,
                                       achievement_field, reflection_not_met_field,
-                                      reflection_met_field, translate_fn) {
+                                      reflection_met_field, translate_fn, domain_type) {
 
         goal_code <- prev_data[[goal_field]][1]
         goal_level <- prev_data[[level_field]][1]
@@ -257,7 +301,7 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
 
         # Translate goal code to readable text
         goal_text <- translate_fn(goal_code)
-        level_text <- translate_level(goal_level)
+        level_text <- get_milestone_level_text(goal_code, goal_level, domain_type, prev_data)
 
         # Determine achievement status - handle NULL/NA
         goal_met <- !is.null(achievement) && !is.na(achievement) &&
@@ -318,7 +362,8 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
         "goal_pcmk", "goal_level_pcmk", "how_pcmk",
         "prior_goal_pcmk",
         "review_q_pcmk", "review_q2_pcmk",
-        translate_goal_pcmk
+        translate_goal_pcmk,
+        "pcmk"
       )
       if (!is.null(pcmk_goal)) goals_html <- tagList(goals_html, pcmk_goal)
 
@@ -328,7 +373,8 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
         "goal_sbppbl", "goal_level_sbppbl", "how_sbppbl",
         "prior_goal_sbppbl",
         "review_q_sbppbl", "review_q2_sbppbl",
-        translate_goal_sbppbl
+        translate_goal_sbppbl,
+        "sbppbl"
       )
       if (!is.null(sbppbl_goal)) goals_html <- tagList(goals_html, sbppbl_goal)
 
@@ -338,7 +384,8 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
         "goal_subcomp_profics", "goal_level_profics", "how_profics",
         "prior_goal_profics",
         "review_q_profics", "review_q2_profics",
-        translate_goal_profics
+        translate_goal_profics,
+        "profics"
       )
       if (!is.null(profics_goal)) goals_html <- tagList(goals_html, profics_goal)
 
@@ -372,7 +419,7 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
       goals_html <- tagList()
 
       # Helper function to create current goal display
-      create_current_goal_display <- function(domain_name, goal_field, level_field, how_field, translate_fn) {
+      create_current_goal_display <- function(domain_name, goal_field, level_field, how_field, translate_fn, domain_type) {
         goal_code <- curr_data[[goal_field]][1]
         goal_level <- curr_data[[level_field]][1]
         how_text <- curr_data[[how_field]][1]
@@ -384,7 +431,7 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
 
         # Translate goal code to readable text
         goal_text <- translate_fn(goal_code)
-        level_text <- translate_level(goal_level)
+        level_text <- get_milestone_level_text(goal_code, goal_level, domain_type, curr_data)
 
         div(
           style = "margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px; border-left: 4px solid #f39c12;",
@@ -404,7 +451,8 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
       pcmk_goal <- create_current_goal_display(
         "Patient Care / Medical Knowledge Goal",
         "goal_pcmk", "goal_level_pcmk", "how_pcmk",
-        translate_goal_pcmk
+        translate_goal_pcmk,
+        "pcmk"
       )
       if (!is.null(pcmk_goal)) goals_html <- tagList(goals_html, pcmk_goal)
 
@@ -412,7 +460,8 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
       sbppbl_goal <- create_current_goal_display(
         "Systems-Based Practice / Practice-Based Learning Goal",
         "goal_sbppbl", "goal_level_sbppbl", "how_sbppbl",
-        translate_goal_sbppbl
+        translate_goal_sbppbl,
+        "sbppbl"
       )
       if (!is.null(sbppbl_goal)) goals_html <- tagList(goals_html, sbppbl_goal)
 
@@ -420,7 +469,8 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
       profics_goal <- create_current_goal_display(
         "Professionalism / Interpersonal Communication Goal",
         "goal_subcomp_profics", "goal_level_profics", "how_profics",
-        translate_goal_profics
+        translate_goal_profics,
+        "profics"
       )
       if (!is.null(profics_goal)) goals_html <- tagList(goals_html, profics_goal)
 
