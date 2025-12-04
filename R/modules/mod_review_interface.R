@@ -43,8 +43,9 @@ create_review_preview <- function(review_data, resident_data, current_period) {
       div(
         class = "card-body",
         # Display milestone ratings as table (spider plot shown in milestone section)
-        milestone_ratings <- review_data$milestones$milestone_ratings
-        if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
+        {
+          milestone_ratings <- review_data$milestones$milestone_ratings
+          if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
           # Create a nice table with milestone names
           milestone_names <- c(
             rep_pc1 = "PC1: History",
@@ -114,6 +115,7 @@ create_review_preview <- function(review_data, resident_data, current_period) {
           )
         } else {
           p(class = "text-muted", "No milestone ratings entered yet.")
+        }
         }
       )
     ),
