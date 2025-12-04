@@ -255,42 +255,15 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, data_d
       return(label)
     }
 
-    # Get milestone level descriptor text from data dictionary
+    # Get milestone level text (simplified - descriptors are in milestone forms, not ILP)
     get_milestone_level_text <- function(goal_code, level_code, domain_type) {
       if (is.null(goal_code) || is.na(goal_code) || goal_code == "") return("Level not specified")
       if (is.null(level_code) || is.na(level_code) || level_code == "") return("Level not specified")
 
-      # Map goal code to milestone subcompetency code
-      if (domain_type == "pcmk") {
-        if (goal_code <= 6) {
-          subcomp <- paste0("pc", goal_code)
-        } else {
-          subcomp <- paste0("mk", goal_code - 6)
-        }
-      } else if (domain_type == "sbppbl") {
-        if (goal_code <= 3) {
-          subcomp <- paste0("sbp", goal_code)
-        } else {
-          subcomp <- paste0("pbl", goal_code - 3)
-        }
-      } else if (domain_type == "profics") {
-        if (goal_code <= 4) {
-          subcomp <- paste0("prof", goal_code)
-        } else {
-          subcomp <- paste0("ics", goal_code - 4)
-        }
-      } else {
-        return(paste("Level", level_code))
-      }
+      # Note: The milestone descriptors are in milestone_selfevaluation form fields
+      # (e.g., prof3_r4), not in ILP form. For now, just show the level number.
+      # Future enhancement: look up actual milestone descriptors from milestone forms.
 
-      # Get descriptor from data dictionary
-      descriptor <- get_milestone_descriptor_from_dict(subcomp, level_code)
-
-      if (!is.null(descriptor) && trimws(descriptor) != "") {
-        return(paste0("Level ", level_code, ": ", descriptor))
-      }
-
-      # Fallback if not found
       return(paste("Level", level_code))
     }
 
