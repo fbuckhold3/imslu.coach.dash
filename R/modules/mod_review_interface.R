@@ -50,93 +50,6 @@ create_review_preview <- function(review_data, resident_data, current_period, se
       )
     ),
 
-    # Milestone Ratings Table
-    div(
-      class = "card mb-3",
-      div(
-        class = "card-header bg-success text-white",
-        h5(class = "mb-0", icon("list"), " Milestone Ratings Summary")
-      ),
-      div(
-        class = "card-body",
-        # Display milestone ratings as table
-        {
-          milestone_ratings <- review_data$milestones$milestone_ratings
-          if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
-          # Create a nice table with milestone names
-          milestone_names <- c(
-            rep_pc1 = "PC1: History",
-            rep_pc2 = "PC2: Physical Exam",
-            rep_pc3 = "PC3: Clinical Reasoning",
-            rep_pc4 = "PC4: Mgmt-Inpatient",
-            rep_pc5 = "PC5: Mgmt-Outpatient",
-            rep_pc6 = "PC6: Digital Health",
-            rep_mk1 = "MK1: Applied Sciences",
-            rep_mk2 = "MK2: Therapeutics",
-            rep_mk3 = "MK3: Diagnostics",
-            rep_sbp1 = "SBP1: Safety & QI",
-            rep_sbp2 = "SBP2: Navigation",
-            rep_sbp3 = "SBP3: Physician Role",
-            rep_pbl1 = "PBL1: Evidence-Based",
-            rep_pbl2 = "PBL2: Reflective",
-            rep_prof1 = "PROF1: Behavior",
-            rep_prof2 = "PROF2: Ethics",
-            rep_prof3 = "PROF3: Accountability",
-            rep_prof4 = "PROF4: Well-Being",
-            rep_ics1 = "ICS1: Patient Comm",
-            rep_ics2 = "ICS2: Team Comm",
-            rep_ics3 = "ICS3: Documentation"
-          )
-
-          div(
-            p(class = "text-info mb-3",
-              icon("info-circle"),
-              " Review the milestone ratings you entered below. ",
-              "The spider plot visualization is available in the Milestone section."
-            ),
-            tags$table(
-              class = "table table-sm table-hover",
-              style = "font-size: 0.9em;",
-              tags$thead(
-                class = "table-light",
-                tags$tr(
-                  tags$th(style = "width: 70%;", "Milestone"),
-                  tags$th(style = "width: 30%; text-align: center;", "Your Rating")
-                )
-              ),
-              tags$tbody(
-                lapply(names(milestone_ratings$scores), function(field) {
-                  rating <- milestone_ratings$scores[[field]]
-                  name <- milestone_names[field]
-                  if (is.null(name) || is.na(name)) name <- toupper(field)
-
-                  # Color code based on rating
-                  rating_class <- if (!is.null(rating) && !is.na(rating)) {
-                    if (as.numeric(rating) >= 4) "table-success"
-                    else if (as.numeric(rating) >= 3) "table-info"
-                    else if (as.numeric(rating) >= 2) "table-warning"
-                    else "table-danger"
-                  } else "table-light"
-
-                  tags$tr(
-                    class = rating_class,
-                    tags$td(name),
-                    tags$td(
-                      style = "text-align: center; font-weight: bold;",
-                      if (!is.null(rating) && !is.na(rating)) rating else "-"
-                    )
-                  )
-                })
-              )
-            )
-          )
-        } else {
-          p(class = "text-muted", "No milestone ratings entered yet.")
-        }
-        }
-      )
-    ),
-
     # Coach Review Text Fields
     div(
       class = "card mb-3",
@@ -796,6 +709,16 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         # Build milestone_entry submission record (raw format)
         milestone_ratings <- review_data$milestones$milestone_ratings
 
+        # Helper function to convert gmed field names to REDCap field names
+        # Converts: PC_1 -> rep_pc1, MK_2 -> rep_mk2, PROF_1 -> rep_prof1, etc.
+        convert_to_redcap_field <- function(gmed_field) {
+          # Convert from format like "PC_1" or "PROF_1" to "rep_pc1" or "rep_prof1"
+          redcap_field <- tolower(gmed_field)  # Convert to lowercase
+          redcap_field <- gsub("_", "", redcap_field)  # Remove underscore
+          redcap_field <- paste0("rep_", redcap_field)  # Add rep_ prefix
+          return(redcap_field)
+        }
+
         milestone_record <- data.frame(
           record_id = res_info$record_id,
           redcap_repeat_instrument = "milestone_entry",
@@ -808,13 +731,17 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         # Add milestone scores and descriptions if available
         if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
           for (field_name in names(milestone_ratings$scores)) {
-            milestone_record[[field_name]] <- as.character(milestone_ratings$scores[[field_name]])
+            # Convert field name to REDCap format
+            redcap_field <- convert_to_redcap_field(field_name)
+            milestone_record[[redcap_field]] <- as.character(milestone_ratings$scores[[field_name]])
           }
         }
 
         if (!is.null(milestone_ratings$descriptions) && length(milestone_ratings$descriptions) > 0) {
           for (field_name in names(milestone_ratings$descriptions)) {
-            milestone_record[[field_name]] <- as.character(milestone_ratings$descriptions[[field_name]])
+            # Convert field name to REDCap format and add _desc suffix
+            redcap_field <- paste0(convert_to_redcap_field(field_name), "_desc")
+            milestone_record[[redcap_field]] <- as.character(milestone_ratings$descriptions[[field_name]])
           }
         }
 

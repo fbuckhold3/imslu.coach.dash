@@ -38,6 +38,13 @@ mod_milestone_entry_ui <- function(id) {
       "Use the interface below to rate the resident's milestone levels. ",
       "Click through each milestone image and select your rating (1-9)."
     ),
+
+    # Hide the submit button from gmed module using custom CSS
+    shiny::tags$style(shiny::HTML(paste0("
+      #", ns("rating"), "-submit_button { display: none !important; }
+      #", ns("rating"), " .btn-success:contains('Submit') { display: none !important; }
+    "))),
+
     gmed::mod_miles_rating_ui(ns("rating"))
   )
 }
