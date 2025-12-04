@@ -48,31 +48,115 @@ ui <- dashboardPage(
   # BODY
   # ============================================================================
   dashboardBody(
-    
-    # Custom CSS
+
+    # Load gmed styles for modern look
+    gmed::load_gmed_styles(theme = "slucare"),
+
+    # Custom CSS - Modern design matching self-assessment app
     tags$head(
+      tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
       tags$style(HTML("
+        /* Modern color scheme */
+        :root {
+          --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          --ssm-blue-gradient: linear-gradient(135deg, #003d5c, #0066a1);
+          --success-color: #10b981;
+          --gray-light: #e5e7eb;
+          --gray-medium: #9ca3af;
+          --gray-dark: #6b7280;
+        }
+
+        /* Override shinydashboard colors with modern palette */
         .content-wrapper {
-          background-color: #f4f6f9;
+          background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
         }
+
         .main-header .navbar {
-          background-color: #0072B2;
+          background: linear-gradient(135deg, #003d5c, #0066a1) !important;
+          border: none;
+          box-shadow: 0 2px 8px rgba(0, 61, 92, 0.15);
         }
+
         .main-header .logo {
-          background-color: #005a8f;
+          background: #003d5c !important;
+          font-weight: 600;
+          letter-spacing: 0.5px;
         }
-        .sidebar-menu > li.active > a {
-          border-left-color: #0072B2;
-        }
+
+        /* Modern card styling */
         .box {
-          border-top: 3px solid #0072B2;
+          border: none;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0, 61, 92, 0.08);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          overflow: hidden;
+        }
+
+        .box:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 61, 92, 0.12);
+        }
+
+        .box-header {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 15px 20px;
+          font-weight: 600;
+        }
+
+        /* Modern buttons */
+        .btn-primary {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border: none;
+          border-radius: 8px;
+          padding: 10px 24px;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+          background: linear-gradient(135deg, #10b981, #059669);
+          border: none;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-info {
+          background: linear-gradient(135deg, #003d5c, #0066a1);
+          border: none;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 61, 92, 0.3);
+        }
+
+        /* Card animations */
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .box {
+          animation: fadeIn 0.3s ease-in;
         }
       "))
     ),
-    
+
     # Enable shinyjs
     useShinyjs(),
-    
+
     # Main content area
     uiOutput("main_content")
   )
