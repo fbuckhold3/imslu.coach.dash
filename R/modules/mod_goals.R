@@ -286,15 +286,30 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, data_d
       # Use r1 as representative row to get level descriptors
       descriptor <- get_milestone_descriptor_from_dict(subcomp, 1)
 
+      # Debug: log what we got
+      message(sprintf("For %s: descriptor = %s", subcomp,
+                     if(is.null(descriptor)) "NULL" else substr(descriptor, 1, 100)))
+
       # Parse the choices to get just the text for the selected level
-      if (!is.null(descriptor) && grepl(";", descriptor)) {
+      if (!is.null(descriptor) && nchar(trimws(descriptor)) > 0) {
         # descriptor contains multiple choices separated by semicolons
         # Extract just the one for this level (choices are 1, 2, 3, 4, 5...)
-        parts <- strsplit(descriptor, ";")[[1]]
+        if (grepl(";", descriptor)) {
+          parts <- strsplit(descriptor, ";")[[1]]
+        } else {
+          # Might be a single choice or separated differently
+          parts <- c(descriptor)
+        }
+
         parts <- trimws(parts)
+        message(sprintf("  Parts: length=%d, level_code=%d", length(parts), level_code))
+
         if (length(parts) >= level_code && level_code > 0) {
           level_desc <- parts[level_code]
-          return(paste0("Level ", level_code, ": ", level_desc))
+          # Check if it's actually "NA" text
+          if (!is.null(level_desc) && !is.na(level_desc) && level_desc != "NA" && nchar(level_desc) > 0) {
+            return(paste0("Level ", level_code, ": ", level_desc))
+          }
         }
       }
 
