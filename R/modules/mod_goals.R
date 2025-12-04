@@ -255,15 +255,50 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, data_d
       return(label)
     }
 
-    # Get milestone level text (simplified - descriptors are in milestone forms, not ILP)
+    # Get milestone level text with descriptor from data dictionary
     get_milestone_level_text <- function(goal_code, level_code, domain_type) {
       if (is.null(goal_code) || is.na(goal_code) || goal_code == "") return("Level not specified")
       if (is.null(level_code) || is.na(level_code) || level_code == "") return("Level not specified")
 
-      # Note: The milestone descriptors are in milestone_selfevaluation form fields
-      # (e.g., prof3_r4), not in ILP form. For now, just show the level number.
-      # Future enhancement: look up actual milestone descriptors from milestone forms.
+      # Map goal code to milestone subcompetency code
+      if (domain_type == "pcmk") {
+        if (goal_code <= 6) {
+          subcomp <- paste0("pc", goal_code)
+        } else {
+          subcomp <- paste0("mk", goal_code - 6)
+        }
+      } else if (domain_type == "sbppbl") {
+        if (goal_code <= 3) {
+          subcomp <- paste0("sbp", goal_code)
+        } else {
+          subcomp <- paste0("pbl", goal_code - 3)
+        }
+      } else if (domain_type == "profics") {
+        if (goal_code <= 4) {
+          subcomp <- paste0("prof", goal_code)
+        } else {
+          subcomp <- paste0("ics", goal_code - 4)
+        }
+      } else {
+        return(paste("Level", level_code))
+      }
 
+      # Use r1 as representative row to get level descriptors
+      descriptor <- get_milestone_descriptor_from_dict(subcomp, 1)
+
+      # Parse the choices to get just the text for the selected level
+      if (!is.null(descriptor) && grepl(";", descriptor)) {
+        # descriptor contains multiple choices separated by semicolons
+        # Extract just the one for this level (choices are 1, 2, 3, 4, 5...)
+        parts <- strsplit(descriptor, ";")[[1]]
+        parts <- trimws(parts)
+        if (length(parts) >= level_code && level_code > 0) {
+          level_desc <- parts[level_code]
+          return(paste0("Level ", level_code, ": ", level_desc))
+        }
+      }
+
+      # Fallback: just show the level number
       return(paste("Level", level_code))
     }
 
