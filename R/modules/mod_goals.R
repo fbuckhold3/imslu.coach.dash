@@ -257,9 +257,9 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
       # PROF/ICS Domain Goal
       profics_goal <- create_goal_display(
         "Professionalism / Interpersonal Communication Goal",
-        "goal_prof_ics", "how_prof_ics",
-        "prior_goal_prof_ics",
-        "review_q_prof_ics", "review_q2_prof_ics"
+        "goal_subcomp_profics", "how_profics",
+        "prior_goal_profics",
+        "review_q_profics", "review_q2_profics"
       )
       if (!is.null(profics_goal)) goals_html <- tagList(goals_html, profics_goal)
 
@@ -332,7 +332,7 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
       # PROF/ICS Domain Goal
       profics_goal <- create_current_goal_display(
         "Professionalism / Interpersonal Communication Goal",
-        "goal_prof_ics", "how_prof_ics"
+        "goal_subcomp_profics", "how_profics"
       )
       if (!is.null(profics_goal)) goals_html <- tagList(goals_html, profics_goal)
 
