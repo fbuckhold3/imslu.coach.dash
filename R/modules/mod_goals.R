@@ -302,10 +302,11 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, data_d
         }
 
         parts <- trimws(parts)
-        message(sprintf("  Parts: length=%d, level_code=%d", length(parts), level_code))
+        level_int <- as.integer(level_code)
+        message(sprintf("  Parts: length=%d, level_code=%d", length(parts), level_int))
 
-        if (length(parts) >= level_code && level_code > 0) {
-          level_desc <- parts[level_code]
+        if (length(parts) >= level_int && level_int > 0) {
+          level_desc <- parts[level_int]
           # Check if it's actually "NA" text
           if (!is.null(level_desc) && !is.na(level_desc) && level_desc != "NA" && nchar(level_desc) > 0) {
             return(paste0("Level ", level_code, ": ", level_desc))
