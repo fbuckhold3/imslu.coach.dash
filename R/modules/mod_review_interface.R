@@ -1,10 +1,155 @@
 # Review Interface Module
-# Displays accordion with 8 review sections when resident is selected
+# Displays accordion with 7 review sections when resident is selected
 #
 # FIXES APPLIED:
 # 1. Added "Back to Resident Table" button that works
 # 2. Added "Change Coach" button to return to coach selection
 # 3. Improved header layout with both navigation options
+# 4. Added preview page before submission with milestone spider plot
+
+# Helper function to create review preview with milestone spider plot
+create_review_preview <- function(review_data, resident_data, current_period) {
+
+  res_info <- resident_data()$resident_info
+  period_num <- current_period()
+  period_name <- get_period_name(period_num)
+
+  tagList(
+    # Header info
+    div(
+      class = "card mb-3",
+      div(
+        class = "card-header bg-primary text-white",
+        h4(class = "mb-0", "Review Summary")
+      ),
+      div(
+        class = "card-body",
+        p(
+          tags$strong("Resident: "), res_info$full_name, br(),
+          tags$strong("Level: "), res_info$Level, br(),
+          tags$strong("Period: "), PERIOD_NAMES[period_num + 1], br(),
+          tags$strong("Date: "), format(Sys.Date(), "%B %d, %Y")
+        )
+      )
+    ),
+
+    # Milestone Spider Plot
+    div(
+      class = "card mb-3",
+      div(
+        class = "card-header bg-info text-white",
+        h5(class = "mb-0", icon("chart-line"), " Milestone Ratings")
+      ),
+      div(
+        class = "card-body",
+        tryCatch({
+          # Get milestone ratings data
+          milestone_ratings <- review_data$milestones$milestone_ratings
+
+          if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
+            # Create spider plot using gmed function
+            gmed::create_milestone_spider_plot(
+              coach_ratings = milestone_ratings$scores,
+              resident_self_assessment = NULL,  # Optional
+              period = period_name
+            )
+          } else {
+            p(class = "text-muted", "No milestone ratings entered yet.")
+          }
+        }, error = function(e) {
+          p(class = "text-danger", "Unable to generate milestone spider plot: ", e$message)
+        })
+      )
+    ),
+
+    # Coach Review Text Fields
+    div(
+      class = "card mb-3",
+      div(
+        class = "card-header bg-success text-white",
+        h5(class = "mb-0", icon("clipboard"), " Coach Review Entries")
+      ),
+      div(
+        class = "card-body",
+
+        # Wellness
+        div(
+          class = "mb-3 p-2 border-start border-primary border-3",
+          h6(icon("heart"), " Wellness & Progress"),
+          p(class = "text-muted small", review_data$wellness$coach_wellness)
+        ),
+
+        hr(),
+
+        # Evaluations
+        div(
+          class = "mb-3 p-2 border-start border-purple border-3",
+          h6(icon("clipboard"), " Evaluations & Feedback"),
+          div(
+            class = "mb-2",
+            strong("Evaluations: "),
+            p(class = "text-muted small", review_data$evaluations$coach_evaluations)
+          ),
+          div(
+            strong("Plus/Delta Comments: "),
+            p(class = "text-muted small", review_data$evaluations$coach_p_d_comments)
+          )
+        ),
+
+        hr(),
+
+        # Learning
+        div(
+          class = "mb-3 p-2 border-start border-warning border-3",
+          h6(icon("book"), " Learning & Board Preparation"),
+          div(
+            class = "mb-2",
+            strong("Learning Topics & Styles: "),
+            p(class = "text-muted small", review_data$learning$coach_ls_and_topic)
+          ),
+          div(
+            strong("Board Preparation: "),
+            p(class = "text-muted small", review_data$learning$coach_step_board)
+          )
+        ),
+
+        hr(),
+
+        # Career
+        div(
+          class = "mb-3 p-2 border-start border-info border-3",
+          h6(icon("briefcase"), " Career Planning"),
+          p(class = "text-muted small", review_data$career$coach_career)
+        ),
+
+        hr(),
+
+        # Goals
+        div(
+          class = "mb-3 p-2 border-start border-success border-3",
+          h6(icon("bullseye"), " Goals & ILP"),
+          div(
+            class = "mb-2",
+            strong("Milestone Goals: "),
+            p(class = "text-muted small", review_data$goals$coach_mile_goal)
+          ),
+          div(
+            strong("ILP Final Comments: "),
+            p(class = "text-muted small", review_data$goals$coach_ilp_final)
+          )
+        )
+      )
+    ),
+
+    # Confirmation message
+    div(
+      class = "alert alert-warning",
+      icon("exclamation-triangle"),
+      strong(" Please review all information carefully. "),
+      "Once submitted, this review will be saved to REDCap."
+    )
+  )
+}
 
 mod_review_interface_ui <- function(id) {
   ns <- NS(id)
@@ -410,9 +555,62 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         return()
       }
 
+      # Show preview modal with all data before submission
+      showModal(modalDialog(
+        title = tagList(
+          icon("eye"),
+          " Review Before Submitting"
+        ),
+        size = "xl",
+        easyClose = FALSE,
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton(
+            session$ns("confirm_submit"),
+            "Submit All",
+            class = "btn-primary",
+            icon = icon("check-circle")
+          )
+        ),
+
+        # Preview content
+        create_review_preview(
+          review_data = review_data,
+          resident_data = resident_data,
+          current_period = current_period
+        )
+      ))
+    })
+
+    # Handle confirmed submission
+    observeEvent(input$confirm_submit, {
+      req(wellness_data())
+      req(evaluations_data())
+      req(learning_data())
+      req(scholarship_data())
+      req(career_data())
+      req(milestones_data())
+      req(goals_data())
+      req(resident_data())
+      req(current_period())
+
+      # Close preview modal
+      removeModal()
+
+      # Collect data from all sections
+      review_data <- list(
+        wellness = wellness_data(),
+        evaluations = evaluations_data(),
+        learning = learning_data(),
+        scholarship = scholarship_data(),
+        career = career_data(),
+        goals = goals_data(),
+        milestones = milestones_data()
+      )
+
       # Show processing notification
       notification_id <- showNotification(
-        tagList(icon("spinner fa-spin"), " Submitting coaching review..."),
+        tagList(icon("spinner", class = "fa-spin"), " Submitting coaching review..."),
         duration = NULL
       )
 
@@ -422,9 +620,18 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         period_num <- current_period()
         period_name <- get_period_name(period_num)
 
+        # Extract numeric level from Level field (e.g., "PGY2" -> 2, "Intern" -> 1)
+        level_num <- case_when(
+          res_info$Level == "Intern" ~ 1,
+          res_info$Level == "PGY2" ~ 2,
+          res_info$Level == "PGY3" ~ 3,
+          grepl("PGY[0-9]", res_info$Level) ~ as.numeric(gsub("[^0-9]", "", res_info$Level)),
+          TRUE ~ NA_real_
+        )
+
         # Calculate instance for coach_rev form
         instance <- gmed::get_redcap_instance(
-          level = res_info$Level_num,
+          level = level_num,
           period = period_name,
           review_type = "scheduled"
         )
