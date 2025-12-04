@@ -123,30 +123,52 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, data_d
 
     # Function to extract milestone level descriptor from data dictionary
     get_milestone_descriptor_from_dict <- function(subcomp_code, level) {
-      req(data_dict())
+      # Safely check if data_dict is available
+      if (is.null(data_dict) || !is.reactive(data_dict)) return(NULL)
+
+      dict_data <- tryCatch(data_dict(), error = function(e) NULL)
+      if (is.null(dict_data)) return(NULL)
 
       # Build field name (e.g., "pc5_r4")
       field_name <- paste0(subcomp_code, "_r", level)
 
       # Find the field in data dictionary
-      dict <- data_dict()
-      field_row <- dict[dict$`Variable / Field Name` == field_name, ]
+      field_row <- dict_data[dict_data$`Variable / Field Name` == field_name, ]
 
-      if (nrow(field_row) == 0) return(NULL)
-
-      # Get the field label which contains the milestone descriptor
-      field_label <- field_row$`Field Label`[1]
-
-      if (is.null(field_label) || is.na(field_label) || trimws(field_label) == "") {
+      if (nrow(field_row) == 0) {
+        message(sprintf("Field %s not found in data dictionary", field_name))
         return(NULL)
       }
 
-      # Clean up the label - remove HTML tags and row numbers
-      clean_label <- gsub("<[^>]+>", "", field_label)  # Remove HTML tags
-      clean_label <- gsub("^[A-Z]+[0-9]+ row [0-9]+\\s*", "", clean_label)  # Remove "PC5 row 4" prefix
-      clean_label <- trimws(clean_label)
+      # Try to get descriptor from choices field first (contains actual milestone text)
+      choices <- field_row$`Choices, Calculations, OR Slider Labels`[1]
+      if (!is.null(choices) && !is.na(choices) && trimws(choices) != "") {
+        # Choices might be formatted like "1, Text | 2, Text | ..."
+        # We just want the text parts, concatenated
+        choice_parts <- unlist(strsplit(as.character(choices), "\\|"))
+        # Extract text after the number and comma
+        descriptors <- gsub("^[0-9]+,\\s*", "", trimws(choice_parts))
+        # Join with semicolons
+        descriptor_text <- paste(descriptors, collapse = "; ")
+        if (trimws(descriptor_text) != "") {
+          return(descriptor_text)
+        }
+      }
 
-      return(clean_label)
+      # Fallback to field label
+      field_label <- field_row$`Field Label`[1]
+      if (!is.null(field_label) && !is.na(field_label)) {
+        # Clean up the label
+        clean_label <- gsub("<[^>]+>", "", field_label)  # Remove HTML tags
+        clean_label <- gsub("^[A-Z]+[0-9]+ row [0-9]+\\s*", "", clean_label)  # Remove "PC5 row 4" prefix
+        clean_label <- trimws(clean_label)
+
+        if (clean_label != "") {
+          return(clean_label)
+        }
+      }
+
+      return(NULL)
     }
 
     # Milestone subcompetency labels mapping (for goal translation)
