@@ -1,13 +1,24 @@
 # Section 7: Goals & ILP Module
-# Displays previous and current period ILP goals and allows coach to enter comments
+# Displays previous and current period ILP goals with achievement status and allows coach to enter comments
 
 mod_goals_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
-    # Previous Period Goals Section
-    h4("Previous Period Goals", style = "color: #34495e; margin-top: 10px;"),
-    p(style = "color: #7f8c8d;", "Review the goals set in the previous period and their progress."),
+    # Previous Coach ILP Summary
+    h4("Previous Coach ILP Summary", style = "color: #34495e; margin-top: 10px;"),
+    p(style = "color: #7f8c8d;", "Review the comprehensive ILP summary from the previous coaching period."),
+
+    wellPanel(
+      style = "background-color: #e8f4f8; border-left: 4px solid #3498db;",
+      uiOutput(ns("previous_coach_ilp"))
+    ),
+
+    hr(),
+
+    # Previous Period Goals & Achievement
+    h4("Previous Period Goals & Achievement", style = "color: #34495e; margin-top: 10px;"),
+    p(style = "color: #7f8c8d;", "Review the goals set in the previous period and the resident's assessment of their progress."),
 
     wellPanel(
       style = "background-color: #f8f9fa; border-left: 4px solid #27ae60;",
@@ -27,8 +38,8 @@ mod_goals_ui <- function(id) {
 
     hr(),
 
-    # Coach Entry for Current Period
-    h4("Coach Review - Goal Assessment", style = "color: #34495e; margin-top: 20px;"),
+    # Coach Entry for Goals Assessment
+    h4("Coach Assessment of Goals", style = "color: #34495e; margin-top: 20px;"),
 
     wellPanel(
       style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
@@ -64,7 +75,7 @@ mod_goals_ui <- function(id) {
     hr(),
 
     # ILP Final Summary
-    h4("ILP Final Summary", style = "color: #34495e; margin-top: 20px;"),
+    h4("Comprehensive ILP Summary", style = "color: #34495e; margin-top: 20px;"),
 
     wellPanel(
       style = "background-color: #ffffff; border-left: 4px solid #3498db;",
@@ -76,8 +87,16 @@ mod_goals_ui <- function(id) {
           style = "font-weight: bold; color: #2c3e50;"
         ),
         tags$p(
-          "Provide a comprehensive ILP summary that synthesizes all sections of the review.",
+          "Provide a comprehensive ILP summary that considers: career plans, scholarly work, areas of improvement, exam scores and preparation, and current milestone goals.",
           style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"
+        ),
+        tags$ul(
+          style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;",
+          tags$li("Career planning and development"),
+          tags$li("Scholarly activities and research"),
+          tags$li("Areas identified for improvement"),
+          tags$li("Board exam preparation and scores"),
+          tags$li("Current milestone goals and progress")
         )
       ),
 
@@ -86,8 +105,8 @@ mod_goals_ui <- function(id) {
         label = NULL,
         value = "",
         width = "100%",
-        height = "300px",
-        placeholder = "Enter your comprehensive ILP summary here..."
+        height = "350px",
+        placeholder = "Enter your comprehensive ILP summary here, addressing career plans, scholarly work, areas of improvement, exam preparation, and milestone goals..."
       ),
 
       # Character count for ILP final
@@ -102,32 +121,39 @@ mod_goals_ui <- function(id) {
 mod_goals_server <- function(id, resident_data, current_period, app_data) {
   moduleServer(id, function(input, output, session) {
 
-    # Milestone competency labels for goal display
-    milestone_labels <- c(
-      "PC1" = "PC1: Gathers and synthesizes essential information",
-      "PC2" = "PC2: Prioritizes differential diagnosis",
-      "PC3" = "PC3: Manages patients with progressive responsibility",
-      "PC4" = "PC4: Demonstrates skill in performing procedures",
-      "PC5" = "PC5: Requests consultations effectively",
-      "PC6" = "PC6: Provides appropriate role modeling",
-      "MK1" = "MK1: Core knowledge for effective patient care",
-      "MK2" = "MK2: Knowledge of diagnostic testing and procedures",
-      "MK3" = "MK3: Scholarly activities",
-      "SBP1" = "SBP1: Works effectively within healthcare system",
-      "SBP2" = "SBP2: Coordinates care with other healthcare professionals",
-      "SBP3" = "SBP3: Incorporates cost-awareness",
-      "PBLI1" = "PBLI1: Identifies strengths and gaps in knowledge",
-      "PBLI2" = "PBLI2: Uses information technology for learning",
-      "PROF1" = "PROF1: Demonstrates compassion and respect",
-      "PROF2" = "PROF2: Demonstrates accountability to patients and society",
-      "PROF3" = "PROF3: Manages conflicts of interest",
-      "PROF4" = "PROF4: Demonstrates self-awareness and help-seeking",
-      "ICS1" = "ICS1: Communicates effectively with patients and families",
-      "ICS2" = "ICS2: Maintains comprehensive, accurate records",
-      "ICS3" = "ICS3: Communicates effectively with healthcare team"
-    )
+    # Display previous coach ILP final summary
+    output$previous_coach_ilp <- renderUI({
+      req(resident_data())
 
-    # Display previous period goals
+      prev_coach_data <- resident_data()$previous_period$coach_rev
+
+      if (is.null(prev_coach_data) || nrow(prev_coach_data) == 0) {
+        return(
+          div(
+            style = "font-style: italic; color: #95a5a6;",
+            "No previous coach ILP summary available"
+          )
+        )
+      }
+
+      ilp_final_text <- prev_coach_data$coach_ilp_final[1]
+
+      if (is.na(ilp_final_text) || trimws(ilp_final_text) == "") {
+        return(
+          div(
+            style = "font-style: italic; color: #95a5a6;",
+            "No previous ILP summary provided by coach"
+          )
+        )
+      }
+
+      div(
+        style = "padding: 15px; background-color: white; border-radius: 4px;",
+        HTML(gsub("\n", "<br>", ilp_final_text))
+      )
+    })
+
+    # Display previous period goals with achievement status
     output$previous_goals <- renderUI({
       req(resident_data())
 
@@ -142,62 +168,93 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
         )
       }
 
-      # Extract goal fields from previous period
       goals_html <- tagList()
 
-      # PC/MK Domain Goal
-      if (!is.na(prev_data$goal_pcmk[1]) && prev_data$goal_pcmk[1] != "") {
-        goals_html <- tagList(
-          goals_html,
-          div(
-            style = "margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px;",
-            h5("Patient Care / Medical Knowledge Goal:", style = "color: #2980b9; margin-top: 0;"),
-            p(strong("Selected Milestone: "), prev_data$goal_pcmk[1]),
-            if (!is.na(prev_data$how_pcmk[1]) && prev_data$how_pcmk[1] != "") {
-              tagList(
-                p(strong("How to achieve: ")),
-                p(style = "padding-left: 15px;", HTML(gsub("\n", "<br>", prev_data$how_pcmk[1])))
-              )
-            }
-          )
+      # Helper function to create goal display with achievement
+      create_goal_display <- function(domain_name, goal_field, how_field,
+                                      achievement_field, reflection_not_met_field,
+                                      reflection_met_field) {
+
+        goal_text <- prev_data[[goal_field]][1]
+        how_text <- prev_data[[how_field]][1]
+        achievement <- prev_data[[achievement_field]][1]
+
+        if (is.na(goal_text) || goal_text == "") {
+          return(NULL)
+        }
+
+        # Determine achievement status
+        goal_met <- !is.na(achievement) && (achievement == "1" || tolower(achievement) == "yes")
+
+        # Get appropriate reflection text
+        reflection_text <- if (goal_met && !is.na(prev_data[[reflection_met_field]][1])) {
+          prev_data[[reflection_met_field]][1]
+        } else if (!goal_met && !is.na(prev_data[[reflection_not_met_field]][1])) {
+          prev_data[[reflection_not_met_field]][1]
+        } else {
+          ""
+        }
+
+        # Color coding based on achievement
+        border_color <- if (goal_met) "#27ae60" else "#e67e22"
+        achievement_icon <- if (goal_met) {
+          tags$span(style = "color: #27ae60; font-size: 18px;", icon("check-circle"), " Goal Met")
+        } else {
+          tags$span(style = "color: #e67e22; font-size: 18px;", icon("exclamation-circle"), " Goal Not Yet Met")
+        }
+
+        div(
+          style = sprintf("margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px; border-left: 4px solid %s;", border_color),
+          h5(domain_name, style = "color: #2980b9; margin-top: 0;"),
+
+          div(style = "margin-bottom: 10px;", achievement_icon),
+
+          p(strong("Selected Goal: "), goal_text),
+
+          if (!is.na(how_text) && how_text != "") {
+            tagList(
+              p(strong("How to achieve: ")),
+              p(style = "padding-left: 15px; color: #34495e;", HTML(gsub("\n", "<br>", how_text)))
+            )
+          },
+
+          if (!is.na(reflection_text) && trimws(reflection_text) != "") {
+            tagList(
+              hr(style = "margin: 10px 0; border-top: 1px solid #ecf0f1;"),
+              p(strong("Resident's Reflection: "), style = "color: #7f8c8d;"),
+              p(style = "padding-left: 15px; font-style: italic; color: #555;",
+                HTML(gsub("\n", "<br>", reflection_text)))
+            )
+          }
         )
       }
+
+      # PC/MK Domain Goal
+      pcmk_goal <- create_goal_display(
+        "Patient Care / Medical Knowledge Goal",
+        "goal_pcmk", "how_pcmk",
+        "prior_goal_pcmk",
+        "review_q_pcmk", "review_q2_pcmk"
+      )
+      if (!is.null(pcmk_goal)) goals_html <- tagList(goals_html, pcmk_goal)
 
       # SBP/PBLI Domain Goal
-      if (!is.na(prev_data$goal_sbppbl[1]) && prev_data$goal_sbppbl[1] != "") {
-        goals_html <- tagList(
-          goals_html,
-          div(
-            style = "margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px;",
-            h5("Systems-Based Practice / Practice-Based Learning Goal:", style = "color: #2980b9; margin-top: 0;"),
-            p(strong("Selected Milestone: "), prev_data$goal_sbppbl[1]),
-            if (!is.na(prev_data$how_sbppbl[1]) && prev_data$how_sbppbl[1] != "") {
-              tagList(
-                p(strong("How to achieve: ")),
-                p(style = "padding-left: 15px;", HTML(gsub("\n", "<br>", prev_data$how_sbppbl[1])))
-              )
-            }
-          )
-        )
-      }
+      sbppbl_goal <- create_goal_display(
+        "Systems-Based Practice / Practice-Based Learning Goal",
+        "goal_sbppbl", "how_sbppbl",
+        "prior_goal_sbppbl",
+        "review_q_sbppbl", "review_q2_sbppbl"
+      )
+      if (!is.null(sbppbl_goal)) goals_html <- tagList(goals_html, sbppbl_goal)
 
       # PROF/ICS Domain Goal
-      if (!is.na(prev_data$goal_profics[1]) && prev_data$goal_profics[1] != "") {
-        goals_html <- tagList(
-          goals_html,
-          div(
-            style = "margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px;",
-            h5("Professionalism / Interpersonal Communication Goal:", style = "color: #2980b9; margin-top: 0;"),
-            p(strong("Selected Milestone: "), prev_data$goal_profics[1]),
-            if (!is.na(prev_data$how_profics[1]) && prev_data$how_profics[1] != "") {
-              tagList(
-                p(strong("How to achieve: ")),
-                p(style = "padding-left: 15px;", HTML(gsub("\n", "<br>", prev_data$how_profics[1])))
-              )
-            }
-          )
-        )
-      }
+      profics_goal <- create_goal_display(
+        "Professionalism / Interpersonal Communication Goal",
+        "goal_profics", "how_profics",
+        "prior_goal_profics",
+        "review_q_profics", "review_q2_profics"
+      )
+      if (!is.null(profics_goal)) goals_html <- tagList(goals_html, profics_goal)
 
       if (length(goals_html) == 0) {
         return(
@@ -226,62 +283,50 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
         )
       }
 
-      # Extract goal fields from current period
       goals_html <- tagList()
 
-      # PC/MK Domain Goal
-      if (!is.na(curr_data$goal_pcmk[1]) && curr_data$goal_pcmk[1] != "") {
-        goals_html <- tagList(
-          goals_html,
-          div(
-            style = "margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px;",
-            h5("Patient Care / Medical Knowledge Goal:", style = "color: #e67e22; margin-top: 0;"),
-            p(strong("Selected Milestone: "), curr_data$goal_pcmk[1]),
-            if (!is.na(curr_data$how_pcmk[1]) && curr_data$how_pcmk[1] != "") {
-              tagList(
-                p(strong("How to achieve: ")),
-                p(style = "padding-left: 15px;", HTML(gsub("\n", "<br>", curr_data$how_pcmk[1])))
-              )
-            }
-          )
+      # Helper function to create current goal display
+      create_current_goal_display <- function(domain_name, goal_field, how_field) {
+        goal_text <- curr_data[[goal_field]][1]
+        how_text <- curr_data[[how_field]][1]
+
+        if (is.na(goal_text) || goal_text == "") {
+          return(NULL)
+        }
+
+        div(
+          style = "margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px; border-left: 4px solid #f39c12;",
+          h5(domain_name, style = "color: #e67e22; margin-top: 0;"),
+          p(strong("Selected Goal: "), goal_text),
+          if (!is.na(how_text) && how_text != "") {
+            tagList(
+              p(strong("How to achieve: ")),
+              p(style = "padding-left: 15px; color: #34495e;", HTML(gsub("\n", "<br>", how_text)))
+            )
+          }
         )
       }
+
+      # PC/MK Domain Goal
+      pcmk_goal <- create_current_goal_display(
+        "Patient Care / Medical Knowledge Goal",
+        "goal_pcmk", "how_pcmk"
+      )
+      if (!is.null(pcmk_goal)) goals_html <- tagList(goals_html, pcmk_goal)
 
       # SBP/PBLI Domain Goal
-      if (!is.na(curr_data$goal_sbppbl[1]) && curr_data$goal_sbppbl[1] != "") {
-        goals_html <- tagList(
-          goals_html,
-          div(
-            style = "margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px;",
-            h5("Systems-Based Practice / Practice-Based Learning Goal:", style = "color: #e67e22; margin-top: 0;"),
-            p(strong("Selected Milestone: "), curr_data$goal_sbppbl[1]),
-            if (!is.na(curr_data$how_sbppbl[1]) && curr_data$how_sbppbl[1] != "") {
-              tagList(
-                p(strong("How to achieve: ")),
-                p(style = "padding-left: 15px;", HTML(gsub("\n", "<br>", curr_data$how_sbppbl[1])))
-              )
-            }
-          )
-        )
-      }
+      sbppbl_goal <- create_current_goal_display(
+        "Systems-Based Practice / Practice-Based Learning Goal",
+        "goal_sbppbl", "how_sbppbl"
+      )
+      if (!is.null(sbppbl_goal)) goals_html <- tagList(goals_html, sbppbl_goal)
 
       # PROF/ICS Domain Goal
-      if (!is.na(curr_data$goal_profics[1]) && curr_data$goal_profics[1] != "") {
-        goals_html <- tagList(
-          goals_html,
-          div(
-            style = "margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px;",
-            h5("Professionalism / Interpersonal Communication Goal:", style = "color: #e67e22; margin-top: 0;"),
-            p(strong("Selected Milestone: "), curr_data$goal_profics[1]),
-            if (!is.na(curr_data$how_profics[1]) && curr_data$how_profics[1] != "") {
-              tagList(
-                p(strong("How to achieve: ")),
-                p(style = "padding-left: 15px;", HTML(gsub("\n", "<br>", curr_data$how_profics[1])))
-              )
-            }
-          )
-        )
-      }
+      profics_goal <- create_current_goal_display(
+        "Professionalism / Interpersonal Communication Goal",
+        "goal_profics", "how_profics"
+      )
+      if (!is.null(profics_goal)) goals_html <- tagList(goals_html, profics_goal)
 
       if (length(goals_html) == 0) {
         return(
