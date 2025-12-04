@@ -1015,6 +1015,8 @@ source("R/modules/mod_scholarship.R")
 source("R/modules/mod_career.R")
 source("R/modules/mod_milestones.R")
 source("R/modules/mod_milestone_entry.R")
+source("R/modules/mod_goals.R")
+source("R/modules/mod_summary.R")
 
 # ==============================================================================
 # STARTUP MESSAGE

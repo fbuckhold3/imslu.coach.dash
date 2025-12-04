@@ -226,7 +226,10 @@ mod_review_interface_ui <- function(id) {
         div(
           id = ns("collapse7"),
           class = "collapse",
-          div(class = "card-body", p("Section content coming soon"))
+          div(
+            class = "card-body",
+            mod_goals_ui(ns("goals"))
+          )
         )
       ),
 
@@ -249,7 +252,10 @@ mod_review_interface_ui <- function(id) {
         div(
           id = ns("collapse8"),
           class = "collapse",
-          div(class = "card-body", p("Review summary and submission coming soon"))
+          div(
+            class = "card-body",
+            mod_summary_ui(ns("summary"))
+          )
         )
       )
     ),
@@ -345,6 +351,21 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     # Call Section 6 module
     milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, data_dict)
 
+    # Call Section 7 module
+    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data)
+
+    # Call Section 8 module (Summary)
+    summary_data <- mod_summary_server(
+      "summary",
+      wellness_data = wellness_data,
+      evaluations_data = evaluations_data,
+      learning_data = learning_data,
+      scholarship_data = scholarship_data,
+      career_data = career_data,
+      milestones_data = milestones_data,
+      goals_data = goals_data
+    )
+
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({
       input$back_to_table
@@ -390,34 +411,156 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     
     # Handle submission
     observeEvent(input$submit_review, {
-  req(wellness_data())
-  req(evaluations_data())
-  req(learning_data())
-  req(scholarship_data())
-  req(career_data())
-  req(milestones_data())
+      req(wellness_data())
+      req(evaluations_data())
+      req(learning_data())
+      req(scholarship_data())
+      req(career_data())
+      req(milestones_data())
+      req(goals_data())
+      req(resident_data())
+      req(current_period())
 
-  # Collect data from all sections
-  review_data <- list(
-    wellness = wellness_data(),
-    evaluations = evaluations_data(),
-    learning = learning_data(),
-    scholarship = scholarship_data(),
-    career = career_data(),
-    milestones = milestones_data()
-    # ... more sections as you build them
-  )
-      
-      # TODO: Collect data from all sections
-      # TODO: Validate required fields
-      # TODO: Build REDCap payload
-      # TODO: Submit to coach_rev form
-      
-      showNotification(
-        "Review submission not yet implemented. This will collect data from all 8 sections and submit to REDCap.",
-        type = "warning",
-        duration = 5
+      # Collect data from all sections
+      review_data <- list(
+        wellness = wellness_data(),
+        evaluations = evaluations_data(),
+        learning = learning_data(),
+        scholarship = scholarship_data(),
+        career = career_data(),
+        milestones = milestones_data(),
+        goals = goals_data()
       )
+
+      # Validate all sections are complete
+      summary <- summary_data()
+      if (!summary$all_complete) {
+        showNotification(
+          "Please complete all required sections before submitting.",
+          type = "warning",
+          duration = 5
+        )
+        return()
+      }
+
+      # Show processing notification
+      notification_id <- showNotification(
+        tagList(icon("spinner fa-spin"), " Submitting coaching review..."),
+        duration = NULL
+      )
+
+      # Build REDCap payload
+      tryCatch({
+        res_info <- resident_data()$resident_info
+        period_num <- current_period()
+        period_name <- get_period_name(period_num)
+
+        # Calculate instance for coach_rev form
+        instance <- gmed::get_redcap_instance(
+          level = res_info$Level_num,
+          period = period_name,
+          review_type = "scheduled"
+        )
+
+        # Build coach_rev submission record
+        coach_rev_record <- data.frame(
+          record_id = res_info$record_id,
+          redcap_repeat_instrument = "coach_rev",
+          redcap_repeat_instance = instance,
+          coach_date = as.character(Sys.Date()),
+          coach_period = period_num,
+          coach_wellness = review_data$wellness$coach_wellness,
+          coach_evaluations = review_data$evaluations$coach_evaluations,
+          coach_p_d_comments = review_data$evaluations$coach_p_d_comments,
+          coach_step_board = review_data$learning$coach_step_board,
+          coach_scholarship = review_data$scholarship$coach_scholarship,
+          coach_career = review_data$career$coach_career,
+          coach_mile_goal = review_data$goals$coach_mile_goal,
+          coach_ilp_final = review_data$goals$coach_ilp_final,
+          coach_rev_complete = 2,
+          stringsAsFactors = FALSE
+        )
+
+        # Submit coach_rev to REDCap using gmed function
+        coach_result <- gmed::submit_to_redcap(coach_rev_record)
+
+        # Build milestone_entry submission record
+        milestone_scores <- review_data$milestones$scores
+        milestone_descriptions <- review_data$milestones$descriptions
+
+        milestone_record <- data.frame(
+          record_id = res_info$record_id,
+          redcap_repeat_instrument = "milestone_entry",
+          redcap_repeat_instance = instance,
+          prog_mile_date = as.character(Sys.Date()),
+          prog_mile_period = period_num,
+          stringsAsFactors = FALSE
+        )
+
+        # Add milestone scores and descriptions if available
+        if (!is.null(milestone_scores) && length(milestone_scores) > 0) {
+          for (field_name in names(milestone_scores)) {
+            milestone_record[[field_name]] <- milestone_scores[[field_name]]
+          }
+        }
+
+        if (!is.null(milestone_descriptions) && length(milestone_descriptions) > 0) {
+          for (field_name in names(milestone_descriptions)) {
+            milestone_record[[field_name]] <- milestone_descriptions[[field_name]]
+          }
+        }
+
+        # Add milestone completion status
+        milestone_record$milestone_entry_complete <- 2
+
+        # Submit milestone_entry to REDCap
+        milestone_result <- gmed::submit_to_redcap(milestone_record)
+
+        # Remove processing notification
+        removeNotification(notification_id)
+
+        # Check results
+        if (coach_result$success && milestone_result$success) {
+          showNotification(
+            tagList(
+              icon("check-circle"),
+              sprintf(" Review submitted successfully for %s!", res_info$full_name)
+            ),
+            type = "message",
+            duration = 5
+          )
+
+          # TODO: Reload data and return to table
+          # For now, just show success
+
+        } else {
+          error_msg <- c()
+          if (!coach_result$success) error_msg <- c(error_msg, paste("Coach Review:", coach_result$message))
+          if (!milestone_result$success) error_msg <- c(error_msg, paste("Milestones:", milestone_result$message))
+
+          showNotification(
+            tagList(
+              icon("times-circle"),
+              " Submission failed: ",
+              paste(error_msg, collapse = "; ")
+            ),
+            type = "error",
+            duration = 15
+          )
+        }
+
+      }, error = function(e) {
+        removeNotification(notification_id)
+        showNotification(
+          tagList(
+            icon("times-circle"),
+            " Submission error: ",
+            e$message
+          ),
+          type = "error",
+          duration = 15
+        )
+      })
     })
     
     # Return reactive values
