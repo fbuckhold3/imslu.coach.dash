@@ -547,22 +547,57 @@ rdm_data$residents <- rdm_data$residents %>%
   rowwise() %>%
   mutate(
     current_period = {
-      # Auto-detect most recent period with data
-      resident_info_list <- as.list(pick(everything()))
+      # Calculate expected period based on PGY level and current date
+      # This is the CORRECT approach (not most recent period with data)
 
       tryCatch({
-        detected <- get_most_recent_period_simple(
-          resident_info = resident_info_list,
-          app_data = rdm_data,
-          verbose = FALSE  # Set to TRUE for debugging
-        )
-
-        if (!is.null(detected) && !is.na(detected)) {
-          detected
+        # Get graduation year and residency type
+        grad_year <- if ("graduation_year" %in% names(pick(everything()))) {
+          graduation_year
+        } else if ("grad_yr" %in% names(pick(everything()))) {
+          grad_yr
         } else {
-          "Mid PGY3"  # Fallback
+          NA
+        }
+
+        res_type <- if ("residency_type" %in% names(pick(everything()))) {
+          residency_type
+        } else if ("type" %in% names(pick(everything()))) {
+          type
+        } else {
+          NA
+        }
+
+        # Only calculate if we have required data
+        if (!is.na(grad_year) && !is.na(res_type)) {
+          # Convert type to numeric if needed (2 = categorical, 1 = prelim)
+          type_code <- if (is.character(res_type)) {
+            if (tolower(res_type) == "categorical") 2 else 1
+          } else {
+            as.numeric(res_type)
+          }
+
+          # Use gmed function to calculate expected period
+          period_calc <- gmed::calculate_pgy_and_period(
+            grad_yr = grad_year,
+            type = type_code,
+            current_date = Sys.Date()
+          )
+
+          if (!is.null(period_calc$period_name) &&
+              !is.na(period_calc$period_name) &&
+              period_calc$is_valid) {
+            period_calc$period_name
+          } else {
+            "Mid PGY3"  # Fallback if calculation invalid
+          }
+        } else {
+          "Mid PGY3"  # Fallback if missing data
         }
       }, error = function(e) {
+        message(sprintf("Period calc error for %s: %s",
+                       if(exists("name")) name else "unknown",
+                       e$message))
         "Mid PGY3"  # Fallback on error
       })
     },
