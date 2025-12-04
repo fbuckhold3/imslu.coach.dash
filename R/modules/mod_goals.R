@@ -129,22 +129,43 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, data_d
       dict_data <- tryCatch(data_dict(), error = function(e) NULL)
       if (is.null(dict_data)) return(NULL)
 
+      # Helper to find column with any of these names
+      get_col_value <- function(df, possible_names) {
+        for (name in possible_names) {
+          if (name %in% names(df)) {
+            return(df[[name]])
+          }
+        }
+        return(NULL)
+      }
+
       # Build field name (e.g., "pc5_r4")
       field_name <- paste0(subcomp_code, "_r", level)
 
-      # Find the field in data dictionary
-      field_row <- dict_data[dict_data$`Variable / Field Name` == field_name, ]
+      # Find the field in data dictionary - handle multiple possible column names
+      field_name_col <- get_col_value(dict_data, c("field_name", "Variable / Field Name", "Variable...Field.Name"))
+      if (is.null(field_name_col)) {
+        message("Could not find field name column in data dictionary")
+        return(NULL)
+      }
+
+      field_row <- dict_data[field_name_col == field_name, ]
 
       if (nrow(field_row) == 0) {
         message(sprintf("Field %s not found in data dictionary", field_name))
         return(NULL)
       }
 
-      # Try to get descriptor from choices field first (contains actual milestone text)
-      choices <- field_row$`Choices, Calculations, OR Slider Labels`[1]
+      # Try to get descriptor from choices field - handle multiple possible column names
+      choices <- get_col_value(field_row, c(
+        "select_choices_or_calculations",
+        "Choices, Calculations, OR Slider Labels",
+        "Choices..Calculations..OR.Slider.Labels"
+      ))[1]
+
       if (!is.null(choices) && !is.na(choices) && trimws(choices) != "") {
-        # Choices might be formatted like "1, Text | 2, Text | ..."
-        # We just want the text parts, concatenated
+        # Choices are formatted like "1, Text | 2, Text | ..."
+        # We want the text parts, concatenated
         choice_parts <- unlist(strsplit(as.character(choices), "\\|"))
         # Extract text after the number and comma
         descriptors <- gsub("^[0-9]+,\\s*", "", trimws(choice_parts))
@@ -156,7 +177,7 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, data_d
       }
 
       # Fallback to field label
-      field_label <- field_row$`Field Label`[1]
+      field_label <- get_col_value(field_row, c("field_label", "Field Label", "Field.Label"))[1]
       if (!is.null(field_label) && !is.na(field_label)) {
         # Clean up the label
         clean_label <- gsub("<[^>]+>", "", field_label)  # Remove HTML tags
