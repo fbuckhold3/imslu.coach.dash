@@ -42,6 +42,26 @@ mod_learning_ui <- function(id) {
 
     hr(),
 
+    # Risk Assessment Section
+    h4("Performance Risk Assessment", style = "color: #34495e; margin-top: 20px;"),
+
+    wellPanel(
+      style = "background-color: #f8f9fa; border-left: 4px solid #e67e22;",
+      div(
+        class = "alert alert-info mb-3",
+        icon("info-circle", class = "me-2"),
+        p(
+          class = "mb-0",
+          "We are determining a 'risk status' for passing boards based on in-training scores. ",
+          "This takes into account a combination of total percentage and/or a drop in scores over a year. ",
+          "In meeting with your coach, you will be assigned a learning plan."
+        )
+      ),
+      uiOutput(ns("risk_assessment"))
+    ),
+
+    hr(),
+
     # Learning Topics and Styles Section
     h4("Learning Assessment", style = "color: #34495e; margin-top: 20px;"),
 
@@ -311,6 +331,49 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
       }
 
       tagList(output_sections)
+    })
+
+    # Display risk assessment
+    output$risk_assessment <- renderUI({
+      req(resident_data(), app_data())
+
+      resident_info <- resident_data()$resident_info
+      record_id <- resident_info$record_id
+
+      # Get test_data for this resident
+      test_data <- app_data()$all_forms$test_data %>%
+        dplyr::filter(record_id == !!record_id)
+
+      if (is.null(test_data) || nrow(test_data) == 0) {
+        return(
+          div(
+            class = "alert alert-info",
+            role = "alert",
+            icon("info-circle"),
+            " No ITE scores available for risk assessment."
+          )
+        )
+      }
+
+      # Use gmed function to assess risk
+      tryCatch({
+        risk <- gmed::assess_ite_risk(test_data)
+
+        div(
+          class = paste("alert", risk$risk_class),
+          role = "alert",
+          tags$strong("Risk Level: ", risk$risk_level),
+          tags$br(),
+          tags$small(risk$details)
+        )
+      }, error = function(e) {
+        div(
+          class = "alert alert-info",
+          role = "alert",
+          icon("info-circle"),
+          " Risk assessment not available yet."
+        )
+      })
     })
 
     # Display learning topics

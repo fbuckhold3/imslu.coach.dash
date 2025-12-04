@@ -181,19 +181,19 @@ mod_review_interface_ui <- function(id) {
         )
       ),
 
-      # Section 6
+      # Section 6: Goals & ILP (moved before Milestones)
       div(
         class = "card mb-4",
-        style = "border-left: 4px solid #e74c3c;",
+        style = "border-left: 4px solid #27ae60;",
         tags$a(
           `data-toggle` = "collapse",
           href = paste0("#", ns("collapse6")),
           class = "text-decoration-none",
           div(
             class = "card-header",
-            style = "background-color: #ecf0f1; border-bottom: 2px solid #e74c3c; cursor: pointer;",
+            style = "background-color: #ecf0f1; border-bottom: 2px solid #27ae60; cursor: pointer;",
             h4(style = "margin: 0; color: #2c3e50;",
-               icon("chart-line"), " 6. Milestones ",
+               icon("bullseye"), " 6. Goals & ILP ",
                tags$small(class = "float-right", icon("chevron-down")))
           )
         ),
@@ -202,24 +202,24 @@ mod_review_interface_ui <- function(id) {
           class = "collapse",
           div(
             class = "card-body",
-            mod_milestones_ui(ns("milestones"))
+            mod_goals_ui(ns("goals"))
           )
         )
       ),
 
-      # Section 7
+      # Section 7: Milestones (moved after ILP)
       div(
         class = "card mb-4",
-        style = "border-left: 4px solid #27ae60;",
+        style = "border-left: 4px solid #e74c3c;",
         tags$a(
           `data-toggle` = "collapse",
           href = paste0("#", ns("collapse7")),
           class = "text-decoration-none",
           div(
             class = "card-header",
-            style = "background-color: #ecf0f1; border-bottom: 2px solid #27ae60; cursor: pointer;",
+            style = "background-color: #ecf0f1; border-bottom: 2px solid #e74c3c; cursor: pointer;",
             h4(style = "margin: 0; color: #2c3e50;",
-               icon("bullseye"), " 7. Goals & ILP ",
+               icon("chart-line"), " 7. Milestones ",
                tags$small(class = "float-right", icon("chevron-down")))
           )
         ),
@@ -228,33 +228,7 @@ mod_review_interface_ui <- function(id) {
           class = "collapse",
           div(
             class = "card-body",
-            mod_goals_ui(ns("goals"))
-          )
-        )
-      ),
-
-      # Section 8
-      div(
-        class = "card mb-4",
-        style = "border-left: 4px solid #34495e;",
-        tags$a(
-          `data-toggle` = "collapse",
-          href = paste0("#", ns("collapse8")),
-          class = "text-decoration-none",
-          div(
-            class = "card-header",
-            style = "background-color: #ecf0f1; border-bottom: 2px solid #34495e; cursor: pointer;",
-            h4(style = "margin: 0; color: #2c3e50;",
-               icon("check-circle"), " 8. Summary & Submission ",
-               tags$small(class = "float-right", icon("chevron-down")))
-          )
-        ),
-        div(
-          id = ns("collapse8"),
-          class = "collapse",
-          div(
-            class = "card-body",
-            mod_summary_ui(ns("summary"))
+            mod_milestones_ui(ns("milestones"))
           )
         )
       )
@@ -348,23 +322,11 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     # Call Section 5 module
     career_data <- mod_career_server("career", resident_data, current_period, rdm_data)
 
-    # Call Section 6 module
-    milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, data_dict)
-
-    # Call Section 7 module
+    # Call Section 6 module (Goals & ILP - moved before Milestones)
     goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data, data_dict)
 
-    # Call Section 8 module (Summary)
-    summary_data <- mod_summary_server(
-      "summary",
-      wellness_data = wellness_data,
-      evaluations_data = evaluations_data,
-      learning_data = learning_data,
-      scholarship_data = scholarship_data,
-      career_data = career_data,
-      milestones_data = milestones_data,
-      goals_data = goals_data
-    )
+    # Call Section 7 module (Milestones - moved after ILP)
+    milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, data_dict)
 
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({
@@ -428,15 +390,20 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         learning = learning_data(),
         scholarship = scholarship_data(),
         career = career_data(),
-        milestones = milestones_data(),
-        goals = goals_data()
+        goals = goals_data(),
+        milestones = milestones_data()
       )
 
-      # Validate all sections are complete
-      summary <- summary_data()
-      if (!summary$all_complete) {
+      # Validate all required sections are complete
+      incomplete_sections <- c()
+      if (!review_data$wellness$is_complete) incomplete_sections <- c(incomplete_sections, "Wellness")
+      if (!review_data$evaluations$is_complete) incomplete_sections <- c(incomplete_sections, "Evaluations")
+      if (!review_data$learning$is_complete) incomplete_sections <- c(incomplete_sections, "Learning")
+      if (!review_data$milestones$is_complete) incomplete_sections <- c(incomplete_sections, "Milestones")
+
+      if (length(incomplete_sections) > 0) {
         showNotification(
-          "Please complete all required sections before submitting.",
+          paste("Please complete the following sections before submitting:", paste(incomplete_sections, collapse = ", ")),
           type = "warning",
           duration = 5
         )
@@ -462,56 +429,55 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           review_type = "scheduled"
         )
 
-        # Build coach_rev submission record
+        # Build coach_rev submission record (raw format, date and period included)
         coach_rev_record <- data.frame(
           record_id = res_info$record_id,
           redcap_repeat_instrument = "coach_rev",
           redcap_repeat_instance = instance,
-          coach_date = as.character(Sys.Date()),
-          coach_period = period_num,
-          coach_wellness = review_data$wellness$coach_wellness,
-          coach_evaluations = review_data$evaluations$coach_evaluations,
-          coach_p_d_comments = review_data$evaluations$coach_p_d_comments,
-          coach_step_board = review_data$learning$coach_step_board,
-          coach_scholarship = review_data$scholarship$coach_scholarship,
-          coach_career = review_data$career$coach_career,
-          coach_mile_goal = review_data$goals$coach_mile_goal,
-          coach_ilp_final = review_data$goals$coach_ilp_final,
-          coach_rev_complete = 2,
+          coach_date = format(Sys.Date(), "%Y-%m-%d"),  # REDCap date format
+          coach_period = as.character(period_num),       # Raw format (numeric as string)
+          coach_wellness = as.character(review_data$wellness$coach_wellness %||% ""),
+          coach_evaluations = as.character(review_data$evaluations$coach_evaluations %||% ""),
+          coach_p_d_comments = as.character(review_data$evaluations$coach_p_d_comments %||% ""),
+          coach_ls_and_topic = as.character(review_data$learning$coach_ls_and_topic %||% ""),
+          coach_step_board = as.character(review_data$learning$coach_step_board %||% ""),
+          coach_career = as.character(review_data$career$coach_career %||% ""),
+          coach_mile_goal = as.character(review_data$goals$coach_mile_goal %||% ""),
+          coach_ilp_final = as.character(review_data$goals$coach_ilp_final %||% ""),
+          coach_rev_complete = "2",  # Raw format (string)
           stringsAsFactors = FALSE
         )
 
         # Submit coach_rev to REDCap using gmed function
         coach_result <- gmed::submit_to_redcap(coach_rev_record)
 
-        # Build milestone_entry submission record
-        milestone_scores <- review_data$milestones$scores
-        milestone_descriptions <- review_data$milestones$descriptions
+        # Build milestone_entry submission record (raw format)
+        milestone_ratings <- review_data$milestones$milestone_ratings
 
         milestone_record <- data.frame(
           record_id = res_info$record_id,
           redcap_repeat_instrument = "milestone_entry",
           redcap_repeat_instance = instance,
-          prog_mile_date = as.character(Sys.Date()),
-          prog_mile_period = period_num,
+          prog_mile_date = format(Sys.Date(), "%Y-%m-%d"),  # REDCap date format
+          prog_mile_period = as.character(period_num),       # Raw format
           stringsAsFactors = FALSE
         )
 
         # Add milestone scores and descriptions if available
-        if (!is.null(milestone_scores) && length(milestone_scores) > 0) {
-          for (field_name in names(milestone_scores)) {
-            milestone_record[[field_name]] <- milestone_scores[[field_name]]
+        if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
+          for (field_name in names(milestone_ratings$scores)) {
+            milestone_record[[field_name]] <- as.character(milestone_ratings$scores[[field_name]])
           }
         }
 
-        if (!is.null(milestone_descriptions) && length(milestone_descriptions) > 0) {
-          for (field_name in names(milestone_descriptions)) {
-            milestone_record[[field_name]] <- milestone_descriptions[[field_name]]
+        if (!is.null(milestone_ratings$descriptions) && length(milestone_ratings$descriptions) > 0) {
+          for (field_name in names(milestone_ratings$descriptions)) {
+            milestone_record[[field_name]] <- as.character(milestone_ratings$descriptions[[field_name]])
           }
         }
 
-        # Add milestone completion status
-        milestone_record$milestone_entry_complete <- 2
+        # Add milestone completion status (raw format)
+        milestone_record$milestone_entry_complete <- "2"
 
         # Submit milestone_entry to REDCap
         milestone_result <- gmed::submit_to_redcap(milestone_record)
@@ -521,17 +487,98 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
 
         # Check results
         if (coach_result$success && milestone_result$success) {
-          showNotification(
-            tagList(
-              icon("check-circle"),
-              sprintf(" Review submitted successfully for %s!", res_info$full_name)
+          # Show success modal with summary
+          showModal(modalDialog(
+            title = tagList(
+              icon("check-circle", class = "text-success"),
+              sprintf(" Review Submitted Successfully")
             ),
-            type = "message",
-            duration = 5
-          )
+            size = "l",
+            easyClose = TRUE,
+            footer = tagList(
+              modalButton("Close"),
+              actionButton(
+                session$ns("return_to_table"),
+                "Return to Resident Table",
+                class = "btn-primary"
+              )
+            ),
 
-          # TODO: Reload data and return to table
-          # For now, just show success
+            # Summary of submitted data
+            div(
+              h4("Submitted Coaching Review"),
+              p(
+                tags$strong("Resident: "), res_info$full_name, br(),
+                tags$strong("Period: "), PERIOD_NAMES[period_num + 1], br(),
+                tags$strong("Date: "), format(Sys.Date(), "%B %d, %Y"), br(),
+                tags$strong("Instance: "), instance
+              ),
+
+              hr(),
+
+              h5(icon("heart"), " Wellness & Progress"),
+              div(
+                class = "well",
+                style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
+                HTML(gsub("\n", "<br>", review_data$wellness$coach_wellness))
+              ),
+
+              h5(icon("clipboard"), " Evaluations & Feedback"),
+              div(
+                class = "well",
+                style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
+                tags$strong("Evaluations: "),
+                HTML(gsub("\n", "<br>", review_data$evaluations$coach_evaluations)),
+                br(), br(),
+                tags$strong("Plus/Delta Comments: "),
+                HTML(gsub("\n", "<br>", review_data$evaluations$coach_p_d_comments))
+              ),
+
+              h5(icon("book"), " Learning & Board Preparation"),
+              div(
+                class = "well",
+                style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
+                tags$strong("Learning Topics & Styles: "),
+                HTML(gsub("\n", "<br>", review_data$learning$coach_ls_and_topic)),
+                br(), br(),
+                tags$strong("Board Preparation: "),
+                HTML(gsub("\n", "<br>", review_data$learning$coach_step_board))
+              ),
+
+              h5(icon("briefcase"), " Career Planning"),
+              div(
+                class = "well",
+                style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
+                HTML(gsub("\n", "<br>", review_data$career$coach_career))
+              ),
+
+              h5(icon("bullseye"), " Goals & ILP"),
+              div(
+                class = "well",
+                style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
+                tags$strong("Milestone Goals: "),
+                HTML(gsub("\n", "<br>", review_data$goals$coach_mile_goal)),
+                br(), br(),
+                tags$strong("ILP Final Comments: "),
+                HTML(gsub("\n", "<br>", review_data$goals$coach_ilp_final))
+              ),
+
+              hr(),
+
+              div(
+                class = "alert alert-info",
+                icon("info-circle"),
+                " Milestone ratings have also been submitted successfully."
+              )
+            )
+          ))
+
+          # Handle return to table button in modal
+          observeEvent(input$return_to_table, {
+            removeModal()
+            # Trigger back to table navigation
+            # The parent app should handle this
+          })
 
         } else {
           error_msg <- c()
