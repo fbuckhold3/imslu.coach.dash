@@ -580,18 +580,6 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         message("=== Preview Spider Plot Debug ===")
         message("milestone_ratings structure: ", paste(names(milestone_ratings), collapse = ", "))
         message("Has scores: ", !is.null(milestone_ratings$scores))
-        message("Has milestone_results: ", !is.null(milestone_ratings$milestone_results))
-
-        # Check if we have milestone_results from the milestone data
-        if (is.null(milestone_ratings$milestone_results)) {
-          message("ERROR: milestone_results is NULL")
-          return(plotly::plotly_empty() %>%
-                   plotly::add_annotations(
-                     text = "Milestone data not available - please rate milestones first",
-                     x = 0.5, y = 0.5, showarrow = FALSE,
-                     font = list(size = 16, color = "gray")
-                   ))
-        }
 
         # Check if we have scores
         if (is.null(milestone_ratings$scores) || length(milestone_ratings$scores) == 0) {
@@ -607,31 +595,83 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         tryCatch({
           # Get the current period name
           period_name <- get_period_name(current_period())
-          message("Period name: ", period_name)
-
-          # Get resident ID
           record_id <- resident_data()$resident_info$record_id
-          message("Resident ID: ", record_id)
 
-          # Create spider plot with median comparison using gmed function
-          message("Calling gmed::create_milestone_overview_dashboard...")
-          dashboard <- gmed::create_milestone_overview_dashboard(
-            milestone_results = milestone_ratings$milestone_results,
-            resident_id = record_id,
-            period_text = period_name,
-            milestone_type = "coach",  # Coach assessment
-            milestone_system = "rep",
-            resident_data = rdm_data()$residents
+          message("Creating spider plot from entered scores...")
+          message("Number of scores: ", length(milestone_ratings$scores))
+
+          # Convert gmed field names to display names
+          field_mapping <- c(
+            "PC_1" = "PC1: History",
+            "PC_2" = "PC2: Physical Exam",
+            "PC_3" = "PC3: Clinical Reasoning",
+            "PC_4" = "PC4: Mgmt-Inpatient",
+            "PC_5" = "PC5: Mgmt-Outpatient",
+            "PC_6" = "PC6: Digital Health",
+            "MK_1" = "MK1: Applied Sciences",
+            "MK_2" = "MK2: Therapeutics",
+            "MK_3" = "MK3: Diagnostics",
+            "SBP_1" = "SBP1: Safety & QI",
+            "SBP_2" = "SBP2: Navigation",
+            "SBP_3" = "SBP3: Physician Role",
+            "PBLI_1" = "PBLI1: Evidence-Based",
+            "PBLI_2" = "PBLI2: Reflective",
+            "PROF_1" = "PROF1: Behavior",
+            "PROF_2" = "PROF2: Ethics",
+            "PROF_3" = "PROF3: Accountability",
+            "PROF_4" = "PROF4: Well-Being",
+            "ICS_1" = "ICS1: Patient Comm",
+            "ICS_2" = "ICS2: Team Comm",
+            "ICS_3" = "ICS3: Documentation"
           )
 
-          message("Dashboard created successfully")
-          message("Has spider_plot: ", !is.null(dashboard$spider_plot))
+          # Extract scores and create vectors for plotting
+          categories <- character()
+          values <- numeric()
 
-          return(dashboard$spider_plot)
+          for (field in names(milestone_ratings$scores)) {
+            if (field %in% names(field_mapping)) {
+              categories <- c(categories, field_mapping[[field]])
+              values <- c(values, as.numeric(milestone_ratings$scores[[field]]))
+            }
+          }
+
+          message("Categories: ", paste(categories, collapse = ", "))
+          message("Values: ", paste(values, collapse = ", "))
+
+          # Create spider plot using plotly
+          plot <- plotly::plot_ly(
+            type = 'scatterpolar',
+            mode = 'lines+markers',
+            fill = 'toself'
+          ) %>%
+            plotly::add_trace(
+              r = values,
+              theta = categories,
+              name = 'Your Ratings',
+              fillcolor = 'rgba(31, 119, 180, 0.3)',
+              line = list(color = 'rgb(31, 119, 180)', width = 2),
+              marker = list(size = 8, color = 'rgb(31, 119, 180)')
+            ) %>%
+            plotly::layout(
+              polar = list(
+                radialaxis = list(
+                  visible = TRUE,
+                  range = c(0, 9),
+                  tickmode = 'linear',
+                  tick0 = 0,
+                  dtick = 1
+                )
+              ),
+              title = paste("Milestone Ratings -", period_name),
+              showlegend = TRUE
+            )
+
+          message("Spider plot created successfully")
+          return(plot)
 
         }, error = function(e) {
           message("ERROR creating preview spider plot: ", e$message)
-          message("Stack trace: ", paste(traceback(), collapse = "\n"))
           return(plotly::plotly_empty() %>%
                    plotly::add_annotations(
                      text = paste("Unable to create visualization:", e$message),

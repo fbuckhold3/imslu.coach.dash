@@ -409,3 +409,30 @@ div#collapse7 button.action-button,
 div[style*="border-left: 4px solid #e74c3c"] button.btn-success:not(.btn-lg) {
   display: none !important;
 }
+
+/* ============================================================================
+   HIDE MILESTONE SUBMIT BUTTONS FROM GMED MODULE
+   ============================================================================ */
+/* Target the milestone rating module's submit buttons aggressively */
+#milestones-milestone_entry-rating-submit_button,
+#milestones-milestone_entry-rating button.btn-success,
+div[id*="milestone"] button.btn-success,
+div[id*="milestone"] button[type="submit"],
+div[id*="rating"] button.btn-success,
+div[id*="rating"] button[id*="submit"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+/* Hide any button with "Submit Milestone" text */
+button:has-text("Submit"),
+button:has-text("Done") {
+  display: none !important;
+}
