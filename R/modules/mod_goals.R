@@ -179,20 +179,27 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
         how_text <- prev_data[[how_field]][1]
         achievement <- prev_data[[achievement_field]][1]
 
-        if (is.na(goal_text) || goal_text == "") {
+        # Handle NULL/NA/empty
+        if (is.null(goal_text) || is.na(goal_text) || goal_text == "") {
           return(NULL)
         }
 
-        # Determine achievement status
-        goal_met <- !is.na(achievement) && (achievement == "1" || tolower(achievement) == "yes")
+        # Determine achievement status - handle NULL/NA
+        goal_met <- !is.null(achievement) && !is.na(achievement) &&
+                   (achievement == "1" || tolower(achievement) == "yes")
 
-        # Get appropriate reflection text
-        reflection_text <- if (goal_met && !is.na(prev_data[[reflection_met_field]][1])) {
-          prev_data[[reflection_met_field]][1]
-        } else if (!goal_met && !is.na(prev_data[[reflection_not_met_field]][1])) {
-          prev_data[[reflection_not_met_field]][1]
+        # Get appropriate reflection text - handle NULL/NA
+        reflection_text <- ""
+        if (goal_met) {
+          met_text <- prev_data[[reflection_met_field]][1]
+          if (!is.null(met_text) && !is.na(met_text) && trimws(met_text) != "") {
+            reflection_text <- met_text
+          }
         } else {
-          ""
+          not_met_text <- prev_data[[reflection_not_met_field]][1]
+          if (!is.null(not_met_text) && !is.na(not_met_text) && trimws(not_met_text) != "") {
+            reflection_text <- not_met_text
+          }
         }
 
         # Color coding based on achievement
@@ -211,14 +218,14 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
 
           p(strong("Selected Goal: "), goal_text),
 
-          if (!is.na(how_text) && how_text != "") {
+          if (!is.null(how_text) && !is.na(how_text) && how_text != "") {
             tagList(
               p(strong("How to achieve: ")),
               p(style = "padding-left: 15px; color: #34495e;", HTML(gsub("\n", "<br>", how_text)))
             )
           },
 
-          if (!is.na(reflection_text) && trimws(reflection_text) != "") {
+          if (!is.null(reflection_text) && !is.na(reflection_text) && trimws(reflection_text) != "") {
             tagList(
               hr(style = "margin: 10px 0; border-top: 1px solid #ecf0f1;"),
               p(strong("Resident's Reflection: "), style = "color: #7f8c8d;"),
@@ -290,7 +297,8 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
         goal_text <- curr_data[[goal_field]][1]
         how_text <- curr_data[[how_field]][1]
 
-        if (is.na(goal_text) || goal_text == "") {
+        # Handle NULL/NA/empty
+        if (is.null(goal_text) || is.na(goal_text) || goal_text == "") {
           return(NULL)
         }
 
@@ -298,7 +306,7 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
           style = "margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px; border-left: 4px solid #f39c12;",
           h5(domain_name, style = "color: #e67e22; margin-top: 0;"),
           p(strong("Selected Goal: "), goal_text),
-          if (!is.na(how_text) && how_text != "") {
+          if (!is.null(how_text) && !is.na(how_text) && how_text != "") {
             tagList(
               p(strong("How to achieve: ")),
               p(style = "padding-left: 15px; color: #34495e;", HTML(gsub("\n", "<br>", how_text)))
