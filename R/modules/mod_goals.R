@@ -122,34 +122,35 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
   moduleServer(id, function(input, output, session) {
 
     # Milestone subcompetency labels mapping (for goal translation)
+    # Using correct labels from gmed::milestone_short_labels()
     milestone_labels <- c(
-      "1" = "PC1: Gathers and synthesizes essential information",
-      "2" = "PC2: Prioritizes differential diagnosis",
-      "3" = "PC3: Manages patients with progressive responsibility",
-      "4" = "PC4: Demonstrates skill in performing procedures",
-      "5" = "PC5: Requests consultations effectively",
-      "6" = "PC6: Provides appropriate role modeling",
-      "7" = "MK1: Core knowledge for effective patient care",
-      "8" = "MK2: Knowledge of diagnostic testing and procedures",
-      "9" = "MK3: Scholarly activities"
+      "1" = "PC1: History",
+      "2" = "PC2: Physical Exam",
+      "3" = "PC3: Clinical Reasoning",
+      "4" = "PC4: Mgmt-Inpatient",
+      "5" = "PC5: Mgmt-Outpatient",
+      "6" = "PC6: Digital Health",
+      "7" = "MK1: Applied Sciences",
+      "8" = "MK2: Therapeutics",
+      "9" = "MK3: Diagnostics"
     )
 
     milestone_labels_sbp_pbli <- c(
-      "1" = "SBP1: Works effectively within healthcare system",
-      "2" = "SBP2: Coordinates care with other healthcare professionals",
-      "3" = "SBP3: Incorporates cost-awareness",
-      "4" = "PBLI1: Identifies strengths and gaps in knowledge",
-      "5" = "PBLI2: Uses information technology for learning"
+      "1" = "SBP1: Safety & QI",
+      "2" = "SBP2: Navigation",
+      "3" = "SBP3: Physician Role",
+      "4" = "PBL1: Evidence-Based",
+      "5" = "PBL2: Reflective"
     )
 
     milestone_labels_prof_ics <- c(
-      "1" = "PROF1: Demonstrates compassion and respect",
-      "2" = "PROF2: Demonstrates accountability to patients and society",
-      "3" = "PROF3: Manages conflicts of interest",
-      "4" = "PROF4: Demonstrates self-awareness and help-seeking",
-      "5" = "ICS1: Communicates effectively with patients and families",
-      "6" = "ICS2: Maintains comprehensive, accurate records",
-      "7" = "ICS3: Communicates effectively with healthcare team"
+      "1" = "PROF1: Behavior",
+      "2" = "PROF2: Ethics",
+      "3" = "PROF3: Accountability",
+      "4" = "PROF4: Well-Being",
+      "5" = "ICS1: Patient Comm",
+      "6" = "ICS2: Team Comm",
+      "7" = "ICS3: Documentation"
     )
 
     # Milestone level descriptions
