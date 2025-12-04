@@ -386,3 +386,19 @@ textarea.form-control {
   padding-bottom: 8px;
   margin-bottom: 16px;
 }
+
+/* ============================================================================
+   MILESTONE SECTION - Hide submit button (use main Submit Review button)
+   ============================================================================ */
+#review-milestones .milestone-submit-btn,
+#review-milestones button[id*="done"],
+#review-milestones button[id*="submit"],
+#review-milestones-milestone_entry-rating-done {
+  display: none !important;
+}
+
+/* Alternative: Target by button text if needed */
+#review-milestones button:contains("Done"),
+#review-milestones button:contains("Submit") {
+  display: none !important;
+}

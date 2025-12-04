@@ -47,17 +47,54 @@ create_review_preview <- function(review_data, resident_data, current_period) {
           milestone_ratings <- review_data$milestones$milestone_ratings
 
           if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
+            # Format milestone data for spider plot
+            # Create a data frame with one row containing all milestone scores
+            milestone_df <- as.data.frame(milestone_ratings$scores)
+
+            # Get resident info for spider plot
+            res_info_local <- resident_data()$resident_info
+
             # Create spider plot using gmed function
-            gmed::create_milestone_spider_plot(
-              coach_ratings = milestone_ratings$scores,
-              resident_self_assessment = NULL,  # Optional
-              period = period_name
-            )
+            plotly::renderPlotly({
+              gmed::create_milestone_spider_plot_final(
+                milestone_data = milestone_df,
+                median_data = NULL,  # Optional comparison data
+                resident_id = res_info_local$record_id,
+                period_text = period_name,
+                milestone_type = "coach",
+                resident_data = NULL
+              )
+            })()
           } else {
             p(class = "text-muted", "No milestone ratings entered yet.")
           }
         }, error = function(e) {
-          p(class = "text-danger", "Unable to generate milestone spider plot: ", e$message)
+          # Fallback: Show milestone ratings as a table
+          milestone_ratings <- review_data$milestones$milestone_ratings
+          if (!is.null(milestone_ratings$scores) && length(milestone_ratings$scores) > 0) {
+            div(
+              p(class = "text-info", icon("info-circle"), " Milestone ratings entered (visualization unavailable)"),
+              tags$table(
+                class = "table table-sm table-striped",
+                tags$thead(
+                  tags$tr(
+                    tags$th("Milestone"),
+                    tags$th("Rating")
+                  )
+                ),
+                tags$tbody(
+                  lapply(names(milestone_ratings$scores), function(field) {
+                    tags$tr(
+                      tags$td(toupper(gsub("rep_", "", field))),
+                      tags$td(milestone_ratings$scores[[field]])
+                    )
+                  })
+                )
+              )
+            )
+          } else {
+            p(class = "text-danger", "Unable to display milestone ratings: ", e$message)
+          }
         })
       )
     ),
