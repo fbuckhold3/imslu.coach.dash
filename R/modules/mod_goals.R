@@ -118,8 +118,36 @@ mod_goals_ui <- function(id) {
   )
 }
 
-mod_goals_server <- function(id, resident_data, current_period, app_data) {
+mod_goals_server <- function(id, resident_data, current_period, app_data, data_dict) {
   moduleServer(id, function(input, output, session) {
+
+    # Function to extract milestone level descriptor from data dictionary
+    get_milestone_descriptor_from_dict <- function(subcomp_code, level) {
+      req(data_dict())
+
+      # Build field name (e.g., "pc5_r4")
+      field_name <- paste0(subcomp_code, "_r", level)
+
+      # Find the field in data dictionary
+      dict <- data_dict()
+      field_row <- dict[dict$`Variable / Field Name` == field_name, ]
+
+      if (nrow(field_row) == 0) return(NULL)
+
+      # Get the field label which contains the milestone descriptor
+      field_label <- field_row$`Field Label`[1]
+
+      if (is.null(field_label) || is.na(field_label) || trimws(field_label) == "") {
+        return(NULL)
+      }
+
+      # Clean up the label - remove HTML tags and row numbers
+      clean_label <- gsub("<[^>]+>", "", field_label)  # Remove HTML tags
+      clean_label <- gsub("^[A-Z]+[0-9]+ row [0-9]+\\s*", "", clean_label)  # Remove "PC5 row 4" prefix
+      clean_label <- trimws(clean_label)
+
+      return(clean_label)
+    }
 
     # Milestone subcompetency labels mapping (for goal translation)
     # Using correct labels from gmed::milestone_short_labels()
@@ -184,11 +212,10 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
       return(label)
     }
 
-    # Get milestone level descriptor text from ILP data
-    get_milestone_level_text <- function(goal_code, level_code, domain_type, ilp_data) {
+    # Get milestone level descriptor text from data dictionary
+    get_milestone_level_text <- function(goal_code, level_code, domain_type) {
       if (is.null(goal_code) || is.na(goal_code) || goal_code == "") return("Level not specified")
       if (is.null(level_code) || is.na(level_code) || level_code == "") return("Level not specified")
-      if (is.null(ilp_data) || nrow(ilp_data) == 0) return(paste("Level", level_code))
 
       # Map goal code to milestone subcompetency code
       if (domain_type == "pcmk") {
@@ -213,15 +240,11 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
         return(paste("Level", level_code))
       }
 
-      # Build field name: e.g., pc5_r4 for PC5 Level 4
-      field_name <- paste0(subcomp, "_r", level_code)
+      # Get descriptor from data dictionary
+      descriptor <- get_milestone_descriptor_from_dict(subcomp, level_code)
 
-      # Look up the field value in ILP data
-      if (field_name %in% names(ilp_data)) {
-        descriptor <- ilp_data[[field_name]][1]
-        if (!is.null(descriptor) && !is.na(descriptor) && trimws(descriptor) != "") {
-          return(paste0("Level ", level_code, ": ", descriptor))
-        }
+      if (!is.null(descriptor) && trimws(descriptor) != "") {
+        return(paste0("Level ", level_code, ": ", descriptor))
       }
 
       # Fallback if not found
@@ -301,7 +324,7 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
 
         # Translate goal code to readable text
         goal_text <- translate_fn(goal_code)
-        level_text <- get_milestone_level_text(goal_code, goal_level, domain_type, prev_data)
+        level_text <- get_milestone_level_text(goal_code, goal_level, domain_type)
 
         # Determine achievement status - handle NULL/NA
         goal_met <- !is.null(achievement) && !is.na(achievement) &&
@@ -431,7 +454,7 @@ mod_goals_server <- function(id, resident_data, current_period, app_data) {
 
         # Translate goal code to readable text
         goal_text <- translate_fn(goal_code)
-        level_text <- get_milestone_level_text(goal_code, goal_level, domain_type, curr_data)
+        level_text <- get_milestone_level_text(goal_code, goal_level, domain_type)
 
         div(
           style = "margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px; border-left: 4px solid #f39c12;",

@@ -352,7 +352,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, data_dict)
 
     # Call Section 7 module
-    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data)
+    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data, data_dict)
 
     # Call Section 8 module (Summary)
     summary_data <- mod_summary_server(
