@@ -4,3 +4,8 @@
 .Ruserdata
 .Renviron
 config.yml
+
+# renv - not used on Posit Connect Cloud
+renv/
+renv.lock
+.Rprofile
