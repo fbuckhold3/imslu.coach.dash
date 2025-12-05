@@ -175,13 +175,16 @@ mod_evaluations_ui <- function(id) {
   )
 }
 
-mod_evaluations_server <- function(id, resident_data, current_period, app_data, data_dict) {
+mod_evaluations_server <- function(id, resident_data, current_period, app_data, app_data_rv) {
   moduleServer(id, function(input, output, session) {
 
-    # data_dict is now passed as a parameter (non-reactive, from reactiveValues)
-    # Can use it directly!
-    message("DEBUG [mod_evaluations]: Received data_dict, is.null = ", is.null(data_dict),
-            ", nrow = ", if(!is.null(data_dict)) nrow(data_dict) else "NULL")
+    # Create reactive for data_dict from reactiveValues - will update when data loads
+    data_dict <- reactive({
+      dd <- app_data_rv$data_dict
+      message("DEBUG [mod_evaluations]: data_dict reactive, is.null = ", is.null(dd),
+              ", nrow = ", if(!is.null(dd)) nrow(dd) else "NULL")
+      dd
+    })
 
     # ===== PREVIOUS PERIOD DISPLAY =====
 
@@ -316,12 +319,12 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       resident_name = resident_name
     )
 
-    # Custom detail viz from gmed - pass data_dict (non-reactive, from reactiveValues)
+    # Custom detail viz from gmed - pass data_dict() to get reactive value
     detail_viz_state <- gmed::mod_assessment_detail_custom_server(
       "custom_detail",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = data_dict
+      data_dict = data_dict()
     )
 
     # Custom data display for selected evaluation
@@ -329,7 +332,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       "data_display",
       selected_category = detail_viz_state$selected_category,
       category_data = detail_viz_state$category_data,
-      data_dict = data_dict
+      data_dict = data_dict()
     )
 
     # CC Completion Status
@@ -345,7 +348,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       "questions",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = data_dict
+      data_dict = data_dict()
     )
 
     # Plus/Delta table
