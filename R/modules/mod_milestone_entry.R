@@ -190,26 +190,18 @@ mod_milestone_entry_server <- function(id, rdm_data, record_id, current_period, 
       )
     })
 
-    # Render previous self plot (PLOTLY)
+    # Render current self plot (PLOTLY) - showing CURRENT period self-assessment
     output$prev_self_plot <- plotly::renderPlotly({
       req(self_milestone_data(), record_id())
+      req(current_period())
 
-      prev_period <- previous_period()
-
-      if (is.na(prev_period)) {
-        return(plotly::plotly_empty() %>%
-                 plotly::add_annotations(
-                   text = "No previous assessment period",
-                   x = 0.5, y = 0.5, showarrow = FALSE,
-                   font = list(size = 16, color = "gray")
-                 ))
-      }
+      curr_period <- current_period()
 
       tryCatch({
         dashboard <- gmed::create_milestone_overview_dashboard(
           milestone_results = milestone_results(),
           resident_id = record_id(),
-          period_text = prev_period,
+          period_text = curr_period,  # Changed from prev_period to current_period
           milestone_type = "self",
           milestone_system = "rep",
           resident_data = rdm_data()$residents
@@ -227,26 +219,18 @@ mod_milestone_entry_server <- function(id, rdm_data, record_id, current_period, 
       })
     })
 
-    # Render previous ACGME plot (PLOTLY)
+    # Render current ACGME plot (PLOTLY) - showing CURRENT period program assessment
     output$prev_acgme_plot <- plotly::renderPlotly({
       req(acgme_milestone_data(), record_id())
+      req(current_period())
 
-      prev_period <- previous_period()
-
-      if (is.na(prev_period)) {
-        return(plotly::plotly_empty() %>%
-                 plotly::add_annotations(
-                   text = "No previous assessment period",
-                   x = 0.5, y = 0.5, showarrow = FALSE,
-                   font = list(size = 16, color = "gray")
-                 ))
-      }
+      curr_period <- current_period()
 
       tryCatch({
         dashboard <- gmed::create_milestone_overview_dashboard(
           milestone_results = milestone_results(),
           resident_id = record_id(),
-          period_text = prev_period,
+          period_text = curr_period,  # Changed from prev_period to current_period
           milestone_type = "program",      # Program = CCC assessment
           milestone_system = "acgme",       # ACGME system
           resident_data = rdm_data()$residents
