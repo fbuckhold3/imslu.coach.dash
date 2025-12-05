@@ -278,6 +278,22 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
         app_data()$all_forms$questions %>% dplyr::mutate(source_form = "questions")
       )
 
+      # DEBUG: Check data for current resident
+      req(record_id())
+      resident_data <- combined %>% dplyr::filter(record_id == !!record_id())
+
+      message(sprintf("DEBUG [mod_evaluations]: Combined data for resident %s:", record_id()))
+      message(sprintf("  Total rows: %d", nrow(resident_data)))
+      message(sprintf("  Assessment rows: %d", sum(resident_data$source_form == "assessment", na.rm = TRUE)))
+      message(sprintf("  Questions rows: %d", sum(resident_data$source_form == "questions", na.rm = TRUE)))
+
+      if (nrow(resident_data) > 0) {
+        message(sprintf("  Has ass_level: %s", "ass_level" %in% names(resident_data)))
+        if ("ass_level" %in% names(resident_data)) {
+          message(sprintf("  ass_level values: %s", paste(unique(resident_data$ass_level), collapse = ", ")))
+        }
+      }
+
       return(combined)
     })
 
