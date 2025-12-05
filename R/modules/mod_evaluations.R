@@ -175,8 +175,19 @@ mod_evaluations_ui <- function(id) {
   )
 }
 
-mod_evaluations_server <- function(id, resident_data, current_period, app_data, data_dict) {
+mod_evaluations_server <- function(id, resident_data, current_period, app_data) {
   moduleServer(id, function(input, output, session) {
+
+    # Extract data_dict from app_data internally
+    # Use isolate() to extract once without creating reactive dependency
+    data_dict_value <- isolate({
+      req(app_data())
+      dd <- app_data()$data_dict
+      message("DEBUG [mod_evaluations]: Extracted data_dict, is.null = ", is.null(dd),
+              ", nrow = ", if(!is.null(dd)) nrow(dd) else "NULL")
+      req(dd)
+      dd
+    })
 
     # ===== PREVIOUS PERIOD DISPLAY =====
 
@@ -311,13 +322,12 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       resident_name = resident_name
     )
 
-    # Custom detail viz from gmed - returns reactive values for data display
-    # MATCHES WORKING SELF-ASSESSMENT APP: Pass data_dict directly like other reactive parameters
+    # Custom detail viz from gmed - pass extracted data_dict value (non-reactive)
     detail_viz_state <- gmed::mod_assessment_detail_custom_server(
       "custom_detail",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = data_dict
+      data_dict = data_dict_value
     )
 
     # Custom data display for selected evaluation
@@ -325,7 +335,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       "data_display",
       selected_category = detail_viz_state$selected_category,
       category_data = detail_viz_state$category_data,
-      data_dict = data_dict
+      data_dict = data_dict_value
     )
 
     # CC Completion Status
@@ -341,7 +351,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       "questions",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = data_dict
+      data_dict = data_dict_value
     )
 
     # Plus/Delta table

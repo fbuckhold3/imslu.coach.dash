@@ -395,7 +395,7 @@ mod_review_interface_ui <- function(id) {
   )
 }
 
-mod_review_interface_server <- function(id, selected_resident, rdm_data, current_period, data_dict) {
+mod_review_interface_server <- function(id, selected_resident, rdm_data, current_period) {
   moduleServer(id, function(input, output, session) {
 
     # Reactive to get resident data
@@ -434,22 +434,14 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       ))
     })
 
-    # data_dict is passed as a reactive from parent - extract value here
-    # Use isolate() to extract once without creating reactive dependency
-    data_dict_value <- isolate({
-      req(data_dict)  # data_dict is a reactive
-      dd <- data_dict()
-      message("DEBUG [mod_review_interface]: Extracted data_dict, is.null = ", is.null(dd),
-              ", nrow = ", if(!is.null(dd)) nrow(dd) else "NULL")
-      req(dd)
-      dd
-    })
+    # Don't extract data_dict here - let child modules extract from rdm_data when they need it
+    # This avoids timing issues with module initialization
 
     # Call Section 1 module
     wellness_data <- mod_wellness_server("wellness", resident_data, current_period, rdm_data)
 
-    # Call Section 2 module - pass data_dict as non-reactive data frame
-    evaluations_data <- mod_evaluations_server("evaluations", resident_data, current_period, rdm_data, data_dict_value)
+    # Call Section 2 module - will extract data_dict internally
+    evaluations_data <- mod_evaluations_server("evaluations", resident_data, current_period, rdm_data)
 
     # Call Section 3 module
     learning_data <- mod_learning_server("learning", resident_data, current_period, rdm_data)
@@ -461,10 +453,10 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     career_data <- mod_career_server("career", resident_data, current_period, rdm_data)
 
     # Call Section 6 module (Goals & ILP - moved before Milestones)
-    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data, data_dict_value)
+    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data)
 
     # Call Section 7 module (Milestones - moved after ILP)
-    milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, data_dict_value)
+    milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data)
 
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({
