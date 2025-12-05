@@ -398,8 +398,9 @@ mod_review_interface_ui <- function(id) {
 mod_review_interface_server <- function(id, selected_resident, rdm_data, current_period, app_data_rv) {
   moduleServer(id, function(input, output, session) {
 
-    # Extract data_dict directly from reactiveValues (can access outside reactive context!)
-    data_dict <- app_data_rv$data_dict
+    # Extract data_dict from reactiveValues using isolate() to avoid creating reactive dependency
+    # This extracts the value once at module initialization
+    data_dict <- isolate(app_data_rv$data_dict)
 
     # Reactive to get resident data
     resident_data <- reactive({
