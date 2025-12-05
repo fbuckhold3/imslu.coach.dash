@@ -435,8 +435,15 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     })
     
     # Extract data_dict as non-reactive value (gmed modules expect data frame, not reactive)
-    # Use isolate() to extract once at module initialization (outside reactive context)
-    data_dict_value <- isolate(rdm_data()$data_dict)
+    # Use isolate() to extract value without creating reactive dependency
+    data_dict_value <- isolate({
+      req(rdm_data())
+      dd <- rdm_data()$data_dict
+      message("DEBUG [mod_review_interface]: data_dict extracted, is.null = ", is.null(dd),
+              ", nrow = ", if(!is.null(dd)) nrow(dd) else "NULL")
+      req(dd)  # Make sure we have data_dict before proceeding
+      dd
+    })
 
     # Call Section 1 module
     wellness_data <- mod_wellness_server("wellness", resident_data, current_period, rdm_data)
