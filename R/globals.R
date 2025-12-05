@@ -572,6 +572,11 @@ rdm_data$residents <- rdm_data$residents %>%
           NA
         }
 
+        # Convert grad_year to numeric (it comes as character from REDCap)
+        if (!is.na(grad_year)) {
+          grad_year <- as.numeric(grad_year)
+        }
+
         res_type <- if ("residency_type" %in% names(pick(everything()))) {
           residency_type
         } else if ("type" %in% names(pick(everything()))) {
