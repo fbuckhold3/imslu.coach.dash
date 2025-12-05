@@ -664,6 +664,11 @@ rdm_data$residents <- rdm_data$residents %>%
   if ("assessment" %in% names(rdm_data$all_forms)) {
     message("    Adding ass_level to assessment data...")
 
+    # DEBUG: Show what fields are in assessment data
+    message("    Assessment data columns: ", paste(names(rdm_data$all_forms$assessment)[1:20], collapse = ", "))
+    level_fields <- grep("level|Level", names(rdm_data$all_forms$assessment), value = TRUE)
+    message("    Level-related fields in assessment: ", paste(level_fields, collapse = ", "))
+
     # Check if fac_eval_level already exists in assessment data
     if ("fac_eval_level" %in% names(rdm_data$all_forms$assessment)) {
       message("    Using existing fac_eval_level field")
