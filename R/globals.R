@@ -580,6 +580,14 @@ rdm_data$residents <- rdm_data$residents %>%
           NA
         }
 
+        # Clean up res_type - trim whitespace and handle empty strings
+        if (!is.na(res_type) && is.character(res_type)) {
+          res_type <- trimws(res_type)
+          if (res_type == "") {
+            res_type <- NA
+          }
+        }
+
         # Debug - log what fields were found
         if (exists("record_id") && record_id <= 5) {
           res_name <- if(exists("name")) name else if(exists("full_name")) full_name else "unknown"
@@ -591,12 +599,30 @@ rdm_data$residents <- rdm_data$residents %>%
 
         # Only calculate if we have required data
         if (!is.na(grad_year) && !is.na(res_type)) {
-          # Convert type to numeric if needed (2 = categorical, 1 = prelim)
+          # Convert type to numeric if needed (2 = categorical, 1 = prelim, 3 = dismissed)
+          # Handle both numeric codes and label values
           type_code <- if (is.character(res_type)) {
-            if (tolower(res_type) == "categorical") 2 else 1
+            res_type_lower <- tolower(trimws(res_type))
+            if (res_type_lower == "categorical") {
+              2
+            } else if (res_type_lower == "preliminary" || res_type_lower == "prelim") {
+              1
+            } else if (res_type_lower == "dismissed") {
+              3  # Dismissed - will be filtered out anyway
+            } else {
+              NA  # Unknown type
+            }
           } else {
             as.numeric(res_type)
           }
+
+          # If type_code is NA or invalid, skip this resident
+          if (is.na(type_code) || !type_code %in% c(1, 2)) {
+            if (exists("record_id") && record_id <= 5) {
+              message("    → SKIP: Invalid or dismissed type (", res_type, ")")
+            }
+            NA_character_  # Return NA for period
+          } else {
 
           # Use gmed function to calculate expected period
           period_calc <- gmed::calculate_pgy_and_period(
@@ -624,6 +650,7 @@ rdm_data$residents <- rdm_data$residents %>%
             }
             "Mid PGY3"  # Fallback if calculation invalid
           }
+          }  # Close the else block for valid type_code
         } else {
           if (exists("record_id") && record_id <= 5) {
             message("    → FALLBACK: Using Mid PGY3 (missing grad_year or type)")
