@@ -106,13 +106,25 @@ mod_evaluations_ui <- function(id) {
 
           hr(),
 
-          # Plus/Delta feedback table - collapsible
-          bslib::accordion(
-            id = ns("plus_delta_accordion"),
-            open = FALSE,
-            bslib::accordion_panel(
-              "Plus / Delta Feedback Details",
-              gmed::mod_plus_delta_table_ui(ns("plus_delta"), title = NULL)
+          # Plus/Delta feedback table - collapsible (starts open for visibility)
+          div(
+            class = "mb-3",
+            h5(
+              style = "color: #9b59b6; margin-bottom: 15px;",
+              icon("comments"), " Plus / Delta Feedback Details"
+            ),
+            p(
+              class = "text-muted",
+              style = "font-size: 14px; margin-bottom: 10px;",
+              "Click on any evaluation below to view the detailed feedback comments."
+            ),
+            bslib::accordion(
+              id = ns("plus_delta_accordion"),
+              open = TRUE,  # Start open so users can see the table
+              bslib::accordion_panel(
+                "Faculty Feedback Table (Click to expand/collapse)",
+                gmed::mod_plus_delta_table_ui(ns("plus_delta"), title = NULL)
+              )
             )
           )
         )
@@ -266,43 +278,112 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
     })
 
     # Get raw assessment data for plus/delta table
+    # This shows faculty feedback ABOUT the resident
     raw_assessment_data <- reactive({
       req(app_data())
 
       if ("assessment" %in% names(app_data()$all_forms)) {
-        return(app_data()$all_forms$assessment)
+        assessment_data <- app_data()$all_forms$assessment
+
+        # Debug: Check assessment data structure for plus/delta display
+        req(record_id())
+        resident_assessments <- assessment_data %>% dplyr::filter(record_id == !!record_id())
+
+        message(sprintf("DEBUG [mod_evaluations]: Assessment data for plus/delta table (resident %s):", record_id()))
+        message(sprintf("  Total assessment records: %d", nrow(resident_assessments)))
+        if (nrow(resident_assessments) > 0) {
+          # Check for required fields (should already be in assessment form)
+          required_fields <- c("ass_date", "ass_level", "ass_plus", "ass_delta", "ass_faculty", "ass_specialty")
+          has_fields <- required_fields %in% names(resident_assessments)
+          message(sprintf("  Required fields present: %s", paste(required_fields[has_fields], collapse = ", ")))
+          if (!all(has_fields)) {
+            message(sprintf("  WARNING: Missing fields: %s", paste(required_fields[!has_fields], collapse = ", ")))
+          }
+
+          # Count non-empty plus/delta records
+          has_feedback <- resident_assessments %>%
+            dplyr::filter(
+              !(is.na(ass_plus) | ass_plus == "") |
+              !(is.na(ass_delta) | ass_delta == "")
+            )
+          message(sprintf("  Records with plus/delta feedback: %d", nrow(has_feedback)))
+        }
+
+        return(assessment_data)
       } else {
+        message("WARNING: No assessment form found in app_data")
         return(data.frame())
       }
     })
 
-    # Prepare combined assessment + questions data
+    # Prepare combined assessment + questions + faculty_evaluation data
     combined_data <- reactive({
       req(app_data())
 
-      # Add source_form while preserving redcap_repeat_instrument
-      combined <- dplyr::bind_rows(
-        app_data()$all_forms$assessment %>% dplyr::mutate(source_form = "assessment"),
-        app_data()$all_forms$questions %>% dplyr::mutate(source_form = "questions")
-      )
+      # CRITICAL: assessment_viz_server shows MULTIPLE charts:
+      # 1. Main assessment charts (faculty → resident) need source_form = "assessment"
+      # 2. Faculty evaluation counts (resident → faculty) need source_form = "faculty_evaluation"
+      # We need to include BOTH forms for complete visualization
 
-      # NOTE: Don't filter out empty ass_level - some assessments/questions legitimately don't have levels
+      # Assessment data: Faculty feedback ABOUT residents
+      assessment_data <- if ("assessment" %in% names(app_data()$all_forms)) {
+        app_data()$all_forms$assessment %>%
+          dplyr::mutate(source_form = "assessment")
+      } else {
+        data.frame()
+      }
+
+      # Faculty evaluation data: Resident evaluations OF faculty (counts only)
+      faculty_eval_data <- if ("faculty_evaluation" %in% names(app_data()$all_forms)) {
+        app_data()$all_forms$faculty_evaluation %>%
+          dplyr::mutate(
+            source_form = "faculty_evaluation",
+            # Map faculty_evaluation fields to assessment field names for consistency
+            ass_date = if("fac_eval_date" %in% names(.)) fac_eval_date else NA_character_,
+            ass_level = if("fac_eval_level" %in% names(.)) fac_eval_level else NA_character_
+          )
+      } else {
+        data.frame()
+      }
+
+      # Questions data: Conference attendance
+      questions_data <- if ("questions" %in% names(app_data()$all_forms)) {
+        app_data()$all_forms$questions %>%
+          dplyr::mutate(source_form = "questions")
+      } else {
+        data.frame()
+      }
+
+      combined <- dplyr::bind_rows(assessment_data, faculty_eval_data, questions_data)
+
+      # NOTE: Don't filter out empty levels - some evaluations/questions legitimately don't have levels
       # The gmed modules should handle these appropriately
 
       # DEBUG: Check data for current resident
       req(record_id())
       resident_data <- combined %>% dplyr::filter(record_id == !!record_id())
 
-      message(sprintf("DEBUG [mod_evaluations]: Combined data for resident %s:", record_id()))
+      message(sprintf("DEBUG [mod_evaluations]: Combined data for assessment_viz (resident %s):", record_id()))
       message(sprintf("  Total rows: %d", nrow(resident_data)))
-      message(sprintf("  Assessment rows: %d", sum(resident_data$source_form == "assessment", na.rm = TRUE)))
+      message(sprintf("  Assessment rows (faculty→resident): %d", sum(resident_data$source_form == "assessment", na.rm = TRUE)))
+      message(sprintf("  Faculty evaluation rows (resident→faculty): %d", sum(resident_data$source_form == "faculty_evaluation", na.rm = TRUE)))
       message(sprintf("  Questions rows: %d", sum(resident_data$source_form == "questions", na.rm = TRUE)))
 
       if (nrow(resident_data) > 0) {
-        message(sprintf("  Has ass_level: %s", "ass_level" %in% names(resident_data)))
-        if ("ass_level" %in% names(resident_data)) {
-          message(sprintf("  ass_level values: %s", paste(unique(resident_data$ass_level), collapse = ", ")))
-          message(sprintf("  Empty ass_level count: %d", sum(is.na(resident_data$ass_level) | resident_data$ass_level == "")))
+        # Check assessment data
+        assessment_rows <- resident_data %>% dplyr::filter(source_form == "assessment")
+        if (nrow(assessment_rows) > 0) {
+          message(sprintf("  Assessment levels: %s", paste(unique(assessment_rows$ass_level), collapse = ", ")))
+          message(sprintf("  Assessments with plus/delta: %d", sum(
+            !(is.na(assessment_rows$ass_plus) | assessment_rows$ass_plus == "") |
+            !(is.na(assessment_rows$ass_delta) | assessment_rows$ass_delta == "")
+          )))
+        }
+
+        # Check faculty evaluation data
+        fac_eval_rows <- resident_data %>% dplyr::filter(source_form == "faculty_evaluation")
+        if (nrow(fac_eval_rows) > 0) {
+          message(sprintf("  Faculty eval levels completed by resident: %s", paste(unique(fac_eval_rows$ass_level), collapse = ", ")))
         }
       }
 
