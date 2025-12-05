@@ -313,21 +313,21 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
     )
 
     # Custom detail viz from gmed - returns reactive values for data display
-    # NOTE: Passing data_dict directly (not wrapped in isolate) to match self-assessment app pattern
+    # CRITICAL: In coaching dashboard, data_dict is a reactive, so we need to extract the value
+    # In self-assessment app, data_dict might be passed as a non-reactive value
     detail_viz_state <- gmed::mod_assessment_detail_custom_server(
       "custom_detail",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = data_dict  # Pass reactive directly, not isolated
+      data_dict = if(is.reactive(data_dict)) isolate(data_dict()) else data_dict
     )
 
     # Custom data display for selected evaluation
-    # NOTE: Passing data_dict directly (not wrapped in isolate) to match self-assessment app pattern
     gmed::mod_assessment_data_display_server(
       "data_display",
       selected_category = detail_viz_state$selected_category,
       category_data = detail_viz_state$category_data,
-      data_dict = data_dict  # Pass reactive directly, not isolated
+      data_dict = if(is.reactive(data_dict)) isolate(data_dict()) else data_dict
     )
 
     # CC Completion Status
@@ -343,7 +343,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       "questions",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = data_dict  # Pass reactive directly, not isolated
+      data_dict = if(is.reactive(data_dict)) isolate(data_dict()) else data_dict
     )
 
     # Plus/Delta table
