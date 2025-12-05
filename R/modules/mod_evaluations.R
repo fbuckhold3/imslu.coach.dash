@@ -289,7 +289,8 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
             ass_level = if("fac_eval_level" %in% names(.)) fac_eval_level else NA_character_,
             ass_plus = if("plus" %in% names(.)) plus else NA_character_,
             ass_delta = if("delta" %in% names(.)) delta else NA_character_,
-            ass_faculty = if("fac_fell_name" %in% names(.)) fac_fell_name else NA_character_
+            ass_faculty = if("fac_fell_name" %in% names(.)) fac_fell_name else NA_character_,
+            ass_specialty = if("att_rot" %in% names(.)) att_rot else NA_character_
           )
 
         # Debug: Check faculty evaluation data structure for plus/delta display
@@ -300,7 +301,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
         message(sprintf("  Total faculty evaluation records: %d", nrow(resident_evals)))
         if (nrow(resident_evals) > 0) {
           # Check for required fields (after mapping)
-          required_fields <- c("ass_date", "ass_level", "ass_plus", "ass_delta", "ass_faculty")
+          required_fields <- c("ass_date", "ass_level", "ass_plus", "ass_delta", "ass_faculty", "ass_specialty")
           has_fields <- required_fields %in% names(resident_evals)
           message(sprintf("  Required fields present: %s", paste(required_fields[has_fields], collapse = ", ")))
           if (!all(has_fields)) {
@@ -335,9 +336,15 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
         app_data()$all_forms$faculty_evaluation %>%
           dplyr::mutate(
             source_form = "faculty_evaluation",
-            # Map plus/delta to ass_plus/ass_delta for compatibility with gmed modules
+            # Map all faculty_evaluation fields to what gmed modules expect
+            ass_date = if("fac_eval_date" %in% names(.)) fac_eval_date else NA_character_,
+            ass_level = if("fac_eval_level" %in% names(.)) fac_eval_level else NA_character_,
             ass_plus = if("plus" %in% names(.)) plus else NA_character_,
-            ass_delta = if("delta" %in% names(.)) delta else NA_character_
+            ass_delta = if("delta" %in% names(.)) delta else NA_character_,
+            ass_faculty = if("fac_fell_name" %in% names(.)) fac_fell_name else NA_character_,
+            ass_specialty = if("att_rot" %in% names(.)) att_rot else NA_character_,
+            # Core curriculum quarter field - may not exist in faculty_evaluation
+            ass_cc_quart = NA_character_
           )
       } else {
         data.frame()
