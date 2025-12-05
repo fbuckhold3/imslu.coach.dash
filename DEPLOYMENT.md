@@ -8,27 +8,37 @@ This guide covers deploying the coaching dashboard to production on Posit Connec
 
 ### 1. Authentication
 
-**Development Mode (Login Bypass):**
-- Set environment variable: `BYPASS_LOGIN=true` in `.Renviron`
-- App will skip authentication and proceed directly to coach selection
+The app uses **ACCESS_CODE** token-based authentication.
 
-**Production Mode (Secure Authentication):**
-- DO NOT set `BYPASS_LOGIN` environment variable (or set to `false`)
-- App will require proper authentication via the login module
-- Users must authenticate before accessing the dashboard
+**Production Mode (REQUIRED):**
+```
+ACCESS_CODE=your_secure_access_code_here
+```
+- Users must enter this access code on the login screen
+- The access code is validated against the `ACCESS_CODE` environment variable
+- Failed attempts are rate-limited after 3 tries
+- Sessions timeout after 2 hours of inactivity
+
+**Development Mode (Optional - Testing Only):**
+```
+BYPASS_LOGIN=true
+```
+- Skips authentication entirely
+- **NEVER use in production!**
+- Only for local development/testing
 
 ### 2. Environment Variables
 
-Required environment variables in Posit Connect:
+**REQUIRED in Posit Connect:**
 
 ```
-REDCAP_API_URL=https://your-redcap-server.com/api/
-REDCAP_API_TOKEN=your_secret_token_here
+ACCESS_CODE=your_secure_token_here
+RDM_TOKEN=your_redcap_api_token_here
 ```
 
-**DO NOT SET IN PRODUCTION:**
+**Optional (should NOT be set in production):**
 ```
-BYPASS_LOGIN=true  # Only for development!
+BYPASS_LOGIN=true  # Development only - DO NOT SET IN PRODUCTION
 ```
 
 ### 3. Dependencies
@@ -70,18 +80,24 @@ git pull origin main
 grep -r "DEBUG\|message(sprintf" R/
 ```
 
-### Step 2: Test Locally
+### Step 2: Test Locally with Production Settings
 
 ```bash
 # Set environment variables (create .Renviron if needed)
-echo "REDCAP_API_URL=https://redcap.wustl.edu/api/" > .Renviron
-echo "REDCAP_API_TOKEN=YOUR_TOKEN_HERE" >> .Renviron
+echo "ACCESS_CODE=test123" > .Renviron
+echo "RDM_TOKEN=YOUR_REDCAP_TOKEN_HERE" >> .Renviron
 
 # Test with authentication enabled (production mode)
 # DO NOT add BYPASS_LOGIN to .Renviron
 
 # Run the app
 R -e "shiny::runApp()"
+
+# Test login screen
+# - Should show "Access Code" input field
+# - Should reject invalid codes
+# - Should accept the ACCESS_CODE you set above
+# - Should rate-limit after 3 failed attempts
 ```
 
 ### Step 3: Deploy to Posit Connect
