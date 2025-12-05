@@ -175,19 +175,13 @@ mod_evaluations_ui <- function(id) {
   )
 }
 
-mod_evaluations_server <- function(id, resident_data, current_period, app_data) {
+mod_evaluations_server <- function(id, resident_data, current_period, app_data, data_dict) {
   moduleServer(id, function(input, output, session) {
 
-    # Extract data_dict from app_data internally
-    # Use isolate() to extract once without creating reactive dependency
-    data_dict_value <- isolate({
-      req(app_data())
-      dd <- app_data()$data_dict
-      message("DEBUG [mod_evaluations]: Extracted data_dict, is.null = ", is.null(dd),
-              ", nrow = ", if(!is.null(dd)) nrow(dd) else "NULL")
-      req(dd)
-      dd
-    })
+    # data_dict is now passed as a parameter (non-reactive, from reactiveValues)
+    # Can use it directly!
+    message("DEBUG [mod_evaluations]: Received data_dict, is.null = ", is.null(data_dict),
+            ", nrow = ", if(!is.null(data_dict)) nrow(data_dict) else "NULL")
 
     # ===== PREVIOUS PERIOD DISPLAY =====
 
@@ -322,12 +316,12 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data) 
       resident_name = resident_name
     )
 
-    # Custom detail viz from gmed - pass extracted data_dict value (non-reactive)
+    # Custom detail viz from gmed - pass data_dict (non-reactive, from reactiveValues)
     detail_viz_state <- gmed::mod_assessment_detail_custom_server(
       "custom_detail",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = data_dict_value
+      data_dict = data_dict
     )
 
     # Custom data display for selected evaluation
@@ -335,7 +329,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data) 
       "data_display",
       selected_category = detail_viz_state$selected_category,
       category_data = detail_viz_state$category_data,
-      data_dict = data_dict_value
+      data_dict = data_dict
     )
 
     # CC Completion Status
@@ -351,7 +345,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data) 
       "questions",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = data_dict_value
+      data_dict = data_dict
     )
 
     # Plus/Delta table

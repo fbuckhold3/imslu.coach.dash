@@ -178,9 +178,13 @@ server <- function(input, output, session) {
     data_loaded = FALSE,
     current_view = "login"  # login, coach_select, resident_table, review
   )
-  
-  # App data (loaded after authentication)
-  app_data <- reactiveVal(NULL)
+
+  # App data (loaded after authentication) - CHANGED TO reactiveValues to match self-assessment app
+  # This allows direct access to app_data$... outside reactive contexts
+  app_data <- reactiveValues(
+    data = NULL,
+    data_dict = NULL
+  )
   
   # ==========================================================================
   # AUTHENTICATION
@@ -207,14 +211,15 @@ server <- function(input, output, session) {
         incProgress(0.2, detail = "Connecting to REDCap...")
         
         tryCatch({
-          data <- load_coaching_data()
-          app_data(data)
+          loaded_data <- load_coaching_data()
+          app_data$data <- loaded_data
+          app_data$data_dict <- loaded_data$data_dict  # Store separately for easy access
           app_state$data_loaded <- TRUE
-          
+
           incProgress(0.8, detail = "Processing complete")
-          
+
           showNotification(
-            sprintf("Data loaded: %d residents", nrow(data$residents)),
+            sprintf("Data loaded: %d residents", nrow(loaded_data$residents)),
             type = "message",
             duration = 3
           )
@@ -247,9 +252,12 @@ server <- function(input, output, session) {
   # ==========================================================================
   # COACH SELECTION
   # ==========================================================================
-  
-  coach_data <- mod_coach_select_server("coach_select", app_data)
-  
+
+  # Wrap app_data$data in reactive for modules that expect reactiveVal
+  app_data_reactive <- reactive({ app_data$data })
+
+  coach_data <- mod_coach_select_server("coach_select", app_data_reactive)
+
   # Update view when coach is selected
   observe({
     # Validate coach_data first
@@ -270,7 +278,7 @@ server <- function(input, output, session) {
       app_state$current_view <- "resident_table"
     }
   })
-  
+
   # ==========================================================================
   # RESIDENT SELECTION
   # ==========================================================================
@@ -278,26 +286,27 @@ server <- function(input, output, session) {
   resident_selection <- mod_resident_table_server(
     "resident_table",
     coach_data,
-    app_data
+    app_data_reactive
   )
 
   # ==========================================================================
   # REVIEW INTERFACE (PHASE 2)
   # ==========================================================================
 
-  # Primary review interface
+  # Primary review interface - pass both reactive data and reactiveValues for data_dict
   review_interface <- mod_review_interface_server(
     "review",
     selected_resident = reactive({ resident_selection$selected_resident() }),
-    rdm_data = app_data,
-    current_period = resident_selection$current_period  # CORRECT - pass the reactive itself
+    rdm_data = app_data_reactive,
+    current_period = resident_selection$current_period,  # CORRECT - pass the reactive itself
+    app_data_rv = app_data  # Pass reactiveValues for direct data_dict access
   )
 
   # Second review interface
   second_review_interface <- mod_second_review_server(
     "second_review",
     selected_resident = reactive({ resident_selection$selected_resident() }),
-    rdm_data = app_data,
+    rdm_data = app_data_reactive,
     current_period = resident_selection$current_period
   )
   
