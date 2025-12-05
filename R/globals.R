@@ -543,18 +543,6 @@ if (!is.null(rdm_data$data_dict)) {
 # === AUTO-DETECT PERIOD FOR EACH RESIDENT ===
 message("  -> Detecting current period for each resident...")
 
-# DEBUG: Show what fields are available
-message("  DEBUG: Available resident fields: ", paste(names(rdm_data$residents), collapse=", "))
-if ("grad_yr" %in% names(rdm_data$residents)) {
-  message("  DEBUG: grad_yr field exists. Sample values: ", paste(head(rdm_data$residents$grad_yr, 3), collapse=", "))
-}
-if ("type" %in% names(rdm_data$residents)) {
-  message("  DEBUG: type field exists. Sample values: ", paste(head(rdm_data$residents$type, 3), collapse=", "))
-}
-if ("Level" %in% names(rdm_data$residents)) {
-  message("  DEBUG: Level field exists. Sample values: ", paste(head(rdm_data$residents$Level, 3), collapse=", "))
-}
-
 rdm_data$residents <- rdm_data$residents %>%
   rowwise() %>%
   mutate(
@@ -593,15 +581,6 @@ rdm_data$residents <- rdm_data$residents %>%
           }
         }
 
-        # Debug - log what fields were found
-        if (exists("record_id") && record_id <= 5) {
-          res_name <- if(exists("name")) name else if(exists("full_name")) full_name else "unknown"
-          message(sprintf("  [%s] grad_year=%s, res_type=%s",
-                         res_name,
-                         if(!is.na(grad_year)) grad_year else "MISSING",
-                         if(!is.na(res_type)) res_type else "MISSING"))
-        }
-
         # Only calculate if we have required data
         if (!is.na(grad_year) && !is.na(res_type)) {
           # Convert type to numeric if needed (2 = categorical, 1 = prelim, 3 = dismissed)
@@ -623,49 +602,27 @@ rdm_data$residents <- rdm_data$residents %>%
 
           # If type_code is NA or invalid, skip this resident
           if (is.na(type_code) || !type_code %in% c(1, 2)) {
-            if (exists("record_id") && record_id <= 5) {
-              message("    → SKIP: Invalid or dismissed type (", res_type, ")")
-            }
             NA_character_  # Return NA for period
           } else {
+            # Use gmed function to calculate expected period
+            period_calc <- gmed::calculate_pgy_and_period(
+              grad_yr = grad_year,
+              type = type_code,
+              current_date = Sys.Date()
+            )
 
-          # Use gmed function to calculate expected period
-          period_calc <- gmed::calculate_pgy_and_period(
-            grad_yr = grad_year,
-            type = type_code,
-            current_date = Sys.Date()
-          )
-
-          # Debug logging - print period calc result for first 5 residents
-          if (exists("record_id") && record_id <= 5) {
-            message(sprintf("    → Result: PGY=%s, period=%s (%d), valid=%s",
-                           if(!is.null(period_calc$pgy_year)) period_calc$pgy_year else "NA",
-                           if(!is.null(period_calc$period_name)) period_calc$period_name else "NA",
-                           if(!is.null(period_calc$period_number)) period_calc$period_number else -1,
-                           if(!is.null(period_calc$is_valid)) period_calc$is_valid else "NA"))
-          }
-
-          if (!is.null(period_calc$period_name) &&
-              !is.na(period_calc$period_name) &&
-              period_calc$is_valid) {
-            period_calc$period_name
-          } else {
-            if (exists("record_id") && record_id <= 5) {
-              message("    → FALLBACK: Using Mid PGY3 (calculation invalid)")
+            if (!is.null(period_calc$period_name) &&
+                !is.na(period_calc$period_name) &&
+                period_calc$is_valid) {
+              period_calc$period_name
+            } else {
+              "Mid PGY3"  # Fallback if calculation invalid
             }
-            "Mid PGY3"  # Fallback if calculation invalid
           }
-          }  # Close the else block for valid type_code
         } else {
-          if (exists("record_id") && record_id <= 5) {
-            message("    → FALLBACK: Using Mid PGY3 (missing grad_year or type)")
-          }
           "Mid PGY3"  # Fallback if missing data
         }
       }, error = function(e) {
-        message(sprintf("Period calc error for %s: %s",
-                       if(exists("name")) name else "unknown",
-                       e$message))
         "Mid PGY3"  # Fallback on error
       })
     },
@@ -673,27 +630,6 @@ rdm_data$residents <- rdm_data$residents %>%
   ) %>%
   ungroup()
 
-message(sprintf(
-  "  Period detection complete. Sample: %s",
-  paste(head(rdm_data$residents$current_period, 3), collapse=", ")
-))
-
-# Debug: Show Level calculation results
-message("  Level calculation debug (first 5 residents):")
-debug_sample <- rdm_data$residents %>%
-  select(name, any_of(c("type", "grad_yr")), Level) %>%
-  head(5)
-
-for (i in 1:min(nrow(debug_sample), 5)) {
-  type_val <- if("type" %in% names(debug_sample)) debug_sample$type[i] else "N/A"
-  grad_val <- if("grad_yr" %in% names(debug_sample)) debug_sample$grad_yr[i] else "N/A"
-  message(sprintf("    %s: type=%s, grad_yr=%s → Level=%s",
-                 debug_sample$name[i],
-                 type_val,
-                 grad_val,
-                 debug_sample$Level[i]))
-}
-  
   message("  -> Step 4/4: Finalizing...")
   message(sprintf(
     "[%s] Data loading complete! %d active residents found.",

@@ -240,10 +240,6 @@ mod_second_review_server <- function(id, selected_resident, rdm_data, current_pe
         period_name <- get_period_name(current_period())
         record_id <- resident_data()$resident_info$record_id
 
-        # DEBUG: Log what period we're requesting
-        message(sprintf("Second review self-assessment: requesting period '%s' for resident %s",
-                       period_name, record_id))
-
         dashboard <- gmed::create_milestone_overview_dashboard(
           milestone_results = milestone_results(),
           resident_id = record_id,
@@ -275,10 +271,6 @@ mod_second_review_server <- function(id, selected_resident, rdm_data, current_pe
       tryCatch({
         period_name <- get_period_name(current_period())
         record_id <- resident_data()$resident_info$record_id
-
-        # DEBUG: Log what period we're requesting
-        message(sprintf("Second review coach milestones: requesting period '%s' for resident %s",
-                       period_name, record_id))
 
         dashboard <- gmed::create_milestone_overview_dashboard(
           milestone_results = milestone_results(),
