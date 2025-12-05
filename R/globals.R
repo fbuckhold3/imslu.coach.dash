@@ -630,13 +630,70 @@ rdm_data$residents <- rdm_data$residents %>%
   ) %>%
   ungroup()
 
-  message("  -> Step 4/4: Finalizing...")
+  message("  -> Step 4/4: Adding level fields to assessment data...")
+
+  # CRITICAL FIX: Add ass_level field to assessment and questions data
+  # The gmed package functions expect this field to be present
+
+  if ("assessment" %in% names(rdm_data$all_forms)) {
+    message("    Adding ass_level to assessment data...")
+
+    # Create a lookup table of record_id -> Level
+    level_lookup <- rdm_data$residents %>%
+      select(record_id, Level) %>%
+      distinct()
+
+    # Add ass_level to assessment data by joining with residents
+    rdm_data$all_forms$assessment <- rdm_data$all_forms$assessment %>%
+      left_join(level_lookup, by = "record_id") %>%
+      mutate(ass_level = Level) %>%
+      select(-Level)  # Remove the joined Level column, keep ass_level
+
+    message("    ass_level field added to assessment data")
+  }
+
+  if ("questions" %in% names(rdm_data$all_forms)) {
+    message("    Adding ass_level to questions data...")
+
+    # Create a lookup table of record_id -> Level
+    level_lookup <- rdm_data$residents %>%
+      select(record_id, Level) %>%
+      distinct()
+
+    # Add ass_level to questions data by joining with residents
+    rdm_data$all_forms$questions <- rdm_data$all_forms$questions %>%
+      left_join(level_lookup, by = "record_id") %>%
+      mutate(ass_level = Level) %>%
+      select(-Level)  # Remove the joined Level column, keep ass_level
+
+    message("    ass_level field added to questions data")
+  }
+
+  # Also update assessment_data if it exists separately
+  if (!is.null(rdm_data$assessment_data)) {
+    message("    Adding ass_level to assessment_data...")
+
+    # Create a lookup table of record_id -> Level
+    level_lookup <- rdm_data$residents %>%
+      select(record_id, Level) %>%
+      distinct()
+
+    # Add ass_level to assessment_data by joining with residents
+    rdm_data$assessment_data <- rdm_data$assessment_data %>%
+      left_join(level_lookup, by = "record_id") %>%
+      mutate(ass_level = if_else(is.na(Level) | Level == "Unknown", NA_character_, Level)) %>%
+      select(-Level)  # Remove the joined Level column, keep ass_level
+
+    message("    ass_level field added to assessment_data")
+  }
+
+  message("  -> Finalizing...")
   message(sprintf(
     "[%s] Data loading complete! %d active residents found.",
     format(Sys.time(), "%H:%M:%S"),
     nrow(rdm_data$residents)
   ))
-  
+
   return(rdm_data)
 }
 
