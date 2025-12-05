@@ -175,8 +175,16 @@ mod_evaluations_ui <- function(id) {
   )
 }
 
-mod_evaluations_server <- function(id, resident_data, current_period, app_data, data_dict) {
+mod_evaluations_server <- function(id, resident_data, current_period, app_data, app_data_rv) {
   moduleServer(id, function(input, output, session) {
+
+    # Create reactive for data_dict from reactiveValues - will update when data loads
+    data_dict <- reactive({
+      dd <- app_data_rv$data_dict
+      message("DEBUG [mod_evaluations]: data_dict reactive, is.null = ", is.null(dd),
+              ", nrow = ", if(!is.null(dd)) nrow(dd) else "NULL")
+      dd
+    })
 
     # ===== PREVIOUS PERIOD DISPLAY =====
 
@@ -278,12 +286,32 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
         app_data()$all_forms$questions %>% dplyr::mutate(source_form = "questions")
       )
 
+      # NOTE: Don't filter out empty ass_level - some assessments/questions legitimately don't have levels
+      # The gmed modules should handle these appropriately
+
+      # DEBUG: Check data for current resident
+      req(record_id())
+      resident_data <- combined %>% dplyr::filter(record_id == !!record_id())
+
+      message(sprintf("DEBUG [mod_evaluations]: Combined data for resident %s:", record_id()))
+      message(sprintf("  Total rows: %d", nrow(resident_data)))
+      message(sprintf("  Assessment rows: %d", sum(resident_data$source_form == "assessment", na.rm = TRUE)))
+      message(sprintf("  Questions rows: %d", sum(resident_data$source_form == "questions", na.rm = TRUE)))
+
+      if (nrow(resident_data) > 0) {
+        message(sprintf("  Has ass_level: %s", "ass_level" %in% names(resident_data)))
+        if ("ass_level" %in% names(resident_data)) {
+          message(sprintf("  ass_level values: %s", paste(unique(resident_data$ass_level), collapse = ", ")))
+          message(sprintf("  Empty ass_level count: %d", sum(is.na(resident_data$ass_level) | resident_data$ass_level == "")))
+        }
+      }
+
       return(combined)
     })
 
     # ===== CALL GMED MODULES =====
 
-    # Assessment charts
+    # Assessment charts - this one expects data as reactive and calls it internally
     gmed::assessment_viz_server(
       "charts",
       data = combined_data,
@@ -291,25 +319,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       resident_name = resident_name
     )
 
-    # Custom detail viz from gmed - returns reactive values for data display
-    # CRITICAL: data_dict must be actual data (not reactive) - use isolate()
-    detail_viz_state <- gmed::mod_assessment_detail_custom_server(
-      "custom_detail",
-      rdm_data = combined_data,
-      record_id = record_id,
-      data_dict = isolate(data_dict())  # Extract actual data frame
-    )
-
-    # Custom data display for selected evaluation
-    # CRITICAL: data_dict must be actual data (not reactive)
-    gmed::mod_assessment_data_display_server(
-      "data_display",
-      selected_category = detail_viz_state$selected_category,
-      category_data = detail_viz_state$category_data,
-      data_dict = isolate(data_dict())  # Extract actual data frame
-    )
-
-    # CC Completion Status
+    # CC Completion Status - doesn't use data_dict
     gmed::mod_cc_completion_server(
       "cc_completion",
       rdm_data = combined_data,
@@ -317,20 +327,46 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       resident_data = resident_info_data
     )
 
-    # Questions/conference attendance
-    gmed::mod_questions_viz_server(
-      "questions",
-      rdm_data = combined_data,
-      record_id = record_id,
-      data_dict = isolate(data_dict())  # Extract actual data frame
-    )
-
-    # Plus/Delta table
+    # Plus/Delta table - doesn't use data_dict
     gmed::mod_plus_delta_table_server(
       "plus_delta",
       rdm_data = raw_assessment_data,
       record_id = record_id
     )
+
+    # Wrap gmed modules that need data_dict as data frame (not reactive) in observe()
+    # These modules use filter() directly on data_dict, so they expect a data frame
+    observe({
+      req(data_dict())  # Ensure data_dict has loaded
+
+      dd <- data_dict()  # Extract the actual data frame once
+
+      message("DEBUG [mod_evaluations observe]: Extracted data_dict for gmed modules, nrow = ", nrow(dd))
+
+      # Custom detail viz from gmed - pass extracted data frame
+      detail_viz_state <- gmed::mod_assessment_detail_custom_server(
+        "custom_detail",
+        rdm_data = combined_data,
+        record_id = record_id,
+        data_dict = dd  # Pass data frame, not reactive
+      )
+
+      # Custom data display for selected evaluation - pass extracted data frame
+      gmed::mod_assessment_data_display_server(
+        "data_display",
+        selected_category = detail_viz_state$selected_category,
+        category_data = detail_viz_state$category_data,
+        data_dict = dd  # Pass data frame, not reactive
+      )
+
+      # Questions/conference attendance - pass extracted data frame
+      gmed::mod_questions_viz_server(
+        "questions",
+        rdm_data = combined_data,
+        record_id = record_id,
+        data_dict = dd  # Pass data frame, not reactive
+      )
+    })
 
     # ===== CURRENT PERIOD RESIDENT REFLECTIONS =====
 

@@ -395,20 +395,23 @@ mod_review_interface_ui <- function(id) {
   )
 }
 
-mod_review_interface_server <- function(id, selected_resident, rdm_data, current_period) {
+mod_review_interface_server <- function(id, selected_resident, rdm_data, current_period, app_data_rv) {
   moduleServer(id, function(input, output, session) {
-    
+
+    # Don't extract data_dict here - pass app_data_rv to child modules
+    # They will create reactive for data_dict that updates when data loads
+
     # Reactive to get resident data
     resident_data <- reactive({
       req(selected_resident())
       req(rdm_data())
       req(current_period())
-      
+
       # Extract values from reactives BEFORE passing to helper
       resident_id <- selected_resident()$record_id
       period_number <- current_period()
       data <- rdm_data()
-      
+
       # Call helper function with actual values, not reactives
       get_resident_period_data(
         rdm_data = data,           # Actual data, not reactive
@@ -417,15 +420,15 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         include_previous = TRUE
       )
     })
-    
+
     # Display resident header
     output$resident_header <- renderUI({
       req(resident_data())
       req(current_period())
-      
+
       res_data <- resident_data()$resident_info
       period_num <- current_period()
-      
+
       HTML(sprintf(
         "<span style='color: #2c3e50;'>%s</span> | <span style='color: #7f8c8d;'>%s | Period: %s</span>",
         res_data$full_name,
@@ -433,18 +436,12 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         PERIOD_NAMES[period_num + 1]
       ))
     })
-    
-    # Extract data_dict from rdm_data to pass to child modules (matches working app pattern)
-    data_dict <- reactive({
-      req(rdm_data())
-      rdm_data()$data_dict
-    })
 
     # Call Section 1 module
     wellness_data <- mod_wellness_server("wellness", resident_data, current_period, rdm_data)
 
-    # Call Section 2 module - pass data_dict as separate parameter (matches working app)
-    evaluations_data <- mod_evaluations_server("evaluations", resident_data, current_period, rdm_data, data_dict)
+    # Call Section 2 module - pass app_data_rv for reactive data_dict access
+    evaluations_data <- mod_evaluations_server("evaluations", resident_data, current_period, rdm_data, app_data_rv)
 
     # Call Section 3 module
     learning_data <- mod_learning_server("learning", resident_data, current_period, rdm_data)
@@ -456,10 +453,10 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     career_data <- mod_career_server("career", resident_data, current_period, rdm_data)
 
     # Call Section 6 module (Goals & ILP - moved before Milestones)
-    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data, data_dict)
+    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data, app_data_rv)
 
     # Call Section 7 module (Milestones - moved after ILP)
-    milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, data_dict)
+    milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, app_data_rv)
 
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({

@@ -635,36 +635,109 @@ rdm_data$residents <- rdm_data$residents %>%
   # CRITICAL FIX: Add ass_level field to assessment and questions data
   # The gmed package functions expect this field to be present
 
+  # First, translate level codes to labels if data dictionary is available
+  level_code_to_label <- NULL
+  if (!is.null(rdm_data$data_dict)) {
+    # Check for fac_eval_level or q_level field in data dictionary
+    level_field <- "fac_eval_level"
+    level_choices <- rdm_data$data_dict %>%
+      filter(field_name == !!level_field) %>%
+      pull(select_choices_or_calculations)
+
+    if (length(level_choices) > 0 && !is.na(level_choices[1])) {
+      # Parse level choices (format: "1, Intern | 2, PGY2 | 3, PGY3")
+      choice_pairs <- strsplit(level_choices[1], "\\|")[[1]]
+      level_map <- list()
+      for (pair in choice_pairs) {
+        parts <- strsplit(trimws(pair), ",", fixed = TRUE)[[1]]
+        if (length(parts) >= 2) {
+          code <- trimws(parts[1])
+          label <- trimws(paste(parts[-1], collapse = ","))
+          level_map[[code]] <- label
+        }
+      }
+      level_code_to_label <- unlist(level_map)
+      message("    Found level translation map: ", paste(names(level_code_to_label), "=", level_code_to_label, collapse=", "))
+    }
+  }
+
   if ("assessment" %in% names(rdm_data$all_forms)) {
-    message("    Adding ass_level to assessment data...")
+    message("    Processing ass_level for assessment data...")
 
-    # Create a lookup table of record_id -> Level
-    level_lookup <- rdm_data$residents %>%
-      select(record_id, Level) %>%
-      distinct()
+    # Check if ass_level already exists (it should!)
+    if ("ass_level" %in% names(rdm_data$all_forms$assessment)) {
+      message("    ass_level field already exists - translating codes to labels")
 
-    # Add ass_level to assessment data by joining with residents
-    rdm_data$all_forms$assessment <- rdm_data$all_forms$assessment %>%
-      left_join(level_lookup, by = "record_id") %>%
-      mutate(ass_level = Level) %>%
-      select(-Level)  # Remove the joined Level column, keep ass_level
+      # Translate codes to labels if we have the map
+      if (!is.null(level_code_to_label)) {
+        rdm_data$all_forms$assessment <- rdm_data$all_forms$assessment %>%
+          mutate(
+            ass_level = if_else(
+              !is.na(ass_level) & as.character(ass_level) %in% names(level_code_to_label),
+              level_code_to_label[as.character(ass_level)],
+              as.character(ass_level)
+            )
+          )
+        message("    Translated ass_level codes to labels")
+      } else {
+        message("    WARNING: No translation map found, keeping raw codes")
+      }
+    } else {
+      # This is the old fallback - shouldn't normally happen
+      message("    WARNING: ass_level field not found, creating from resident Level")
+      level_lookup <- rdm_data$residents %>%
+        select(record_id, Level) %>%
+        distinct()
+
+      rdm_data$all_forms$assessment <- rdm_data$all_forms$assessment %>%
+        left_join(level_lookup, by = "record_id") %>%
+        mutate(ass_level = Level) %>%
+        select(-Level)
+    }
 
     message("    ass_level field added to assessment data")
+
+    # Debug: Show sample of ass_level values
+    sample_levels <- rdm_data$all_forms$assessment %>%
+      select(record_id, ass_level) %>%
+      head(5)
+    message("    Sample ass_level values: ", paste(capture.output(print(sample_levels)), collapse="\n    "))
   }
 
   if ("questions" %in% names(rdm_data$all_forms)) {
     message("    Adding ass_level to questions data...")
 
-    # Create a lookup table of record_id -> Level
-    level_lookup <- rdm_data$residents %>%
-      select(record_id, Level) %>%
-      distinct()
+    # Check if q_level already exists in questions data
+    if ("q_level" %in% names(rdm_data$all_forms$questions)) {
+      message("    Using existing q_level field")
 
-    # Add ass_level to questions data by joining with residents
-    rdm_data$all_forms$questions <- rdm_data$all_forms$questions %>%
-      left_join(level_lookup, by = "record_id") %>%
-      mutate(ass_level = Level) %>%
-      select(-Level)  # Remove the joined Level column, keep ass_level
+      # Translate codes to labels if we have the map
+      if (!is.null(level_code_to_label)) {
+        rdm_data$all_forms$questions <- rdm_data$all_forms$questions %>%
+          mutate(
+            ass_level = if_else(
+              !is.na(q_level) & as.character(q_level) %in% names(level_code_to_label),
+              level_code_to_label[as.character(q_level)],
+              as.character(q_level)
+            )
+          )
+      } else {
+        # No translation map, just copy the field
+        rdm_data$all_forms$questions <- rdm_data$all_forms$questions %>%
+          mutate(ass_level = as.character(q_level))
+      }
+    } else {
+      # Fall back to using resident's current Level
+      message("    No q_level found, using resident Level")
+      level_lookup <- rdm_data$residents %>%
+        select(record_id, Level) %>%
+        distinct()
+
+      rdm_data$all_forms$questions <- rdm_data$all_forms$questions %>%
+        left_join(level_lookup, by = "record_id") %>%
+        mutate(ass_level = Level) %>%
+        select(-Level)
+    }
 
     message("    ass_level field added to questions data")
   }
@@ -673,16 +746,35 @@ rdm_data$residents <- rdm_data$residents %>%
   if (!is.null(rdm_data$assessment_data)) {
     message("    Adding ass_level to assessment_data...")
 
-    # Create a lookup table of record_id -> Level
-    level_lookup <- rdm_data$residents %>%
-      select(record_id, Level) %>%
-      distinct()
+    # Check if assessment_data already has a level field
+    if ("fac_eval_level" %in% names(rdm_data$assessment_data)) {
+      message("    Using existing fac_eval_level field in assessment_data")
 
-    # Add ass_level to assessment_data by joining with residents
-    rdm_data$assessment_data <- rdm_data$assessment_data %>%
-      left_join(level_lookup, by = "record_id") %>%
-      mutate(ass_level = if_else(is.na(Level) | Level == "Unknown", NA_character_, Level)) %>%
-      select(-Level)  # Remove the joined Level column, keep ass_level
+      # Translate codes to labels if we have the map
+      if (!is.null(level_code_to_label)) {
+        rdm_data$assessment_data <- rdm_data$assessment_data %>%
+          mutate(
+            ass_level = if_else(
+              !is.na(fac_eval_level) & as.character(fac_eval_level) %in% names(level_code_to_label),
+              level_code_to_label[as.character(fac_eval_level)],
+              as.character(fac_eval_level)
+            )
+          )
+      } else {
+        rdm_data$assessment_data <- rdm_data$assessment_data %>%
+          mutate(ass_level = as.character(fac_eval_level))
+      }
+    } else {
+      # Fall back to using resident Level
+      level_lookup <- rdm_data$residents %>%
+        select(record_id, Level) %>%
+        distinct()
+
+      rdm_data$assessment_data <- rdm_data$assessment_data %>%
+        left_join(level_lookup, by = "record_id") %>%
+        mutate(ass_level = if_else(is.na(Level) | Level == "Unknown", NA_character_, Level)) %>%
+        select(-Level)
+    }
 
     message("    ass_level field added to assessment_data")
   }
