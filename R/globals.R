@@ -662,35 +662,29 @@ rdm_data$residents <- rdm_data$residents %>%
   }
 
   if ("assessment" %in% names(rdm_data$all_forms)) {
-    message("    Adding ass_level to assessment data...")
+    message("    Processing ass_level for assessment data...")
 
-    # DEBUG: Show what fields are in assessment data
-    message("    Assessment data columns: ", paste(names(rdm_data$all_forms$assessment)[1:20], collapse = ", "))
-    level_fields <- grep("level|Level", names(rdm_data$all_forms$assessment), value = TRUE)
-    message("    Level-related fields in assessment: ", paste(level_fields, collapse = ", "))
-
-    # Check if fac_eval_level already exists in assessment data
-    if ("fac_eval_level" %in% names(rdm_data$all_forms$assessment)) {
-      message("    Using existing fac_eval_level field")
+    # Check if ass_level already exists (it should!)
+    if ("ass_level" %in% names(rdm_data$all_forms$assessment)) {
+      message("    ass_level field already exists - translating codes to labels")
 
       # Translate codes to labels if we have the map
       if (!is.null(level_code_to_label)) {
         rdm_data$all_forms$assessment <- rdm_data$all_forms$assessment %>%
           mutate(
             ass_level = if_else(
-              !is.na(fac_eval_level) & as.character(fac_eval_level) %in% names(level_code_to_label),
-              level_code_to_label[as.character(fac_eval_level)],
-              as.character(fac_eval_level)
+              !is.na(ass_level) & as.character(ass_level) %in% names(level_code_to_label),
+              level_code_to_label[as.character(ass_level)],
+              as.character(ass_level)
             )
           )
+        message("    Translated ass_level codes to labels")
       } else {
-        # No translation map, just copy the field
-        rdm_data$all_forms$assessment <- rdm_data$all_forms$assessment %>%
-          mutate(ass_level = as.character(fac_eval_level))
+        message("    WARNING: No translation map found, keeping raw codes")
       }
     } else {
-      # Fall back to using resident's current Level
-      message("    No fac_eval_level found, using resident Level")
+      # This is the old fallback - shouldn't normally happen
+      message("    WARNING: ass_level field not found, creating from resident Level")
       level_lookup <- rdm_data$residents %>%
         select(record_id, Level) %>%
         distinct()
