@@ -278,6 +278,10 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
         app_data()$all_forms$questions %>% dplyr::mutate(source_form = "questions")
       )
 
+      # CRITICAL FIX: Filter out records with empty or NA ass_level
+      combined <- combined %>%
+        dplyr::filter(!is.na(ass_level) & ass_level != "")
+
       # DEBUG: Check data for current resident
       req(record_id())
       resident_data <- combined %>% dplyr::filter(record_id == !!record_id())
@@ -291,6 +295,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
         message(sprintf("  Has ass_level: %s", "ass_level" %in% names(resident_data)))
         if ("ass_level" %in% names(resident_data)) {
           message(sprintf("  ass_level values: %s", paste(unique(resident_data$ass_level), collapse = ", ")))
+          message(sprintf("  Empty ass_level count: %d", sum(is.na(resident_data$ass_level) | resident_data$ass_level == "")))
         }
       }
 
@@ -308,21 +313,21 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
     )
 
     # Custom detail viz from gmed - returns reactive values for data display
-    # CRITICAL: data_dict must be actual data (not reactive) - use isolate()
+    # NOTE: Passing data_dict directly (not wrapped in isolate) to match self-assessment app pattern
     detail_viz_state <- gmed::mod_assessment_detail_custom_server(
       "custom_detail",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = isolate(data_dict())  # Extract actual data frame
+      data_dict = data_dict  # Pass reactive directly, not isolated
     )
 
     # Custom data display for selected evaluation
-    # CRITICAL: data_dict must be actual data (not reactive)
+    # NOTE: Passing data_dict directly (not wrapped in isolate) to match self-assessment app pattern
     gmed::mod_assessment_data_display_server(
       "data_display",
       selected_category = detail_viz_state$selected_category,
       category_data = detail_viz_state$category_data,
-      data_dict = isolate(data_dict())  # Extract actual data frame
+      data_dict = data_dict  # Pass reactive directly, not isolated
     )
 
     # CC Completion Status
@@ -338,7 +343,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       "questions",
       rdm_data = combined_data,
       record_id = record_id,
-      data_dict = isolate(data_dict())  # Extract actual data frame
+      data_dict = data_dict  # Pass reactive directly, not isolated
     )
 
     # Plus/Delta table
