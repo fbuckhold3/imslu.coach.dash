@@ -278,9 +278,8 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
         app_data()$all_forms$questions %>% dplyr::mutate(source_form = "questions")
       )
 
-      # CRITICAL FIX: Filter out records with empty or NA ass_level
-      combined <- combined %>%
-        dplyr::filter(!is.na(ass_level) & ass_level != "")
+      # NOTE: Don't filter out empty ass_level - some assessments/questions legitimately don't have levels
+      # The gmed modules should handle these appropriately
 
       # DEBUG: Check data for current resident
       req(record_id())
