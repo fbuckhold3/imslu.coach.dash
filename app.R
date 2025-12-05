@@ -285,12 +285,19 @@ server <- function(input, output, session) {
   # REVIEW INTERFACE (PHASE 2)
   # ==========================================================================
 
+  # Create reactive for data_dict (matches self-assessment app pattern)
+  data_dict_reactive <- reactive({
+    req(app_data())
+    app_data()$data_dict
+  })
+
   # Primary review interface
   review_interface <- mod_review_interface_server(
     "review",
     selected_resident = reactive({ resident_selection$selected_resident() }),
     rdm_data = app_data,
-    current_period = resident_selection$current_period  # CORRECT - pass the reactive itself
+    current_period = resident_selection$current_period,  # CORRECT - pass the reactive itself
+    data_dict = data_dict_reactive  # Pass reactive for data_dict
   )
 
   # Second review interface

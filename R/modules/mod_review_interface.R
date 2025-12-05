@@ -395,20 +395,20 @@ mod_review_interface_ui <- function(id) {
   )
 }
 
-mod_review_interface_server <- function(id, selected_resident, rdm_data, current_period) {
+mod_review_interface_server <- function(id, selected_resident, rdm_data, current_period, data_dict) {
   moduleServer(id, function(input, output, session) {
-    
+
     # Reactive to get resident data
     resident_data <- reactive({
       req(selected_resident())
       req(rdm_data())
       req(current_period())
-      
+
       # Extract values from reactives BEFORE passing to helper
       resident_id <- selected_resident()$record_id
       period_number <- current_period()
       data <- rdm_data()
-      
+
       # Call helper function with actual values, not reactives
       get_resident_period_data(
         rdm_data = data,           # Actual data, not reactive
@@ -417,15 +417,15 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         include_previous = TRUE
       )
     })
-    
+
     # Display resident header
     output$resident_header <- renderUI({
       req(resident_data())
       req(current_period())
-      
+
       res_data <- resident_data()$resident_info
       period_num <- current_period()
-      
+
       HTML(sprintf(
         "<span style='color: #2c3e50;'>%s</span> | <span style='color: #7f8c8d;'>%s | Period: %s</span>",
         res_data$full_name,
@@ -433,15 +433,15 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         PERIOD_NAMES[period_num + 1]
       ))
     })
-    
-    # Extract data_dict as non-reactive value (gmed modules expect data frame, not reactive)
-    # Use isolate() to extract value without creating reactive dependency
+
+    # data_dict is passed as a reactive from parent - extract value here
+    # Use isolate() to extract once without creating reactive dependency
     data_dict_value <- isolate({
-      req(rdm_data())
-      dd <- rdm_data()$data_dict
-      message("DEBUG [mod_review_interface]: data_dict extracted, is.null = ", is.null(dd),
+      req(data_dict)  # data_dict is a reactive
+      dd <- data_dict()
+      message("DEBUG [mod_review_interface]: Extracted data_dict, is.null = ", is.null(dd),
               ", nrow = ", if(!is.null(dd)) nrow(dd) else "NULL")
-      req(dd)  # Make sure we have data_dict before proceeding
+      req(dd)
       dd
     })
 
