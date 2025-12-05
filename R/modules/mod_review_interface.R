@@ -434,17 +434,15 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       ))
     })
     
-    # Extract data_dict from rdm_data to pass to child modules (matches working app pattern)
-    data_dict <- reactive({
-      req(rdm_data())
-      rdm_data()$data_dict
-    })
+    # Extract data_dict as non-reactive value (gmed modules expect data frame, not reactive)
+    # This extracts once at module initialization, which is fine since data_dict doesn't change
+    data_dict_value <- rdm_data()$data_dict
 
     # Call Section 1 module
     wellness_data <- mod_wellness_server("wellness", resident_data, current_period, rdm_data)
 
-    # Call Section 2 module - pass data_dict as separate parameter (matches working app)
-    evaluations_data <- mod_evaluations_server("evaluations", resident_data, current_period, rdm_data, data_dict)
+    # Call Section 2 module - pass data_dict as non-reactive data frame
+    evaluations_data <- mod_evaluations_server("evaluations", resident_data, current_period, rdm_data, data_dict_value)
 
     # Call Section 3 module
     learning_data <- mod_learning_server("learning", resident_data, current_period, rdm_data)
@@ -456,10 +454,10 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     career_data <- mod_career_server("career", resident_data, current_period, rdm_data)
 
     # Call Section 6 module (Goals & ILP - moved before Milestones)
-    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data, data_dict)
+    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data, data_dict_value)
 
     # Call Section 7 module (Milestones - moved after ILP)
-    milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, data_dict)
+    milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, data_dict_value)
 
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({
