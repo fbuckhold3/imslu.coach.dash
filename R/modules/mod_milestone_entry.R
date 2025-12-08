@@ -18,7 +18,7 @@ mod_milestone_entry_ui <- function(id) {
         shiny::fluidRow(
           shiny::column(
             6,
-            shiny::h5("Previous Self-Assessment"),
+            shiny::h5("Resident Self-Assessment"),
             plotly::plotlyOutput(ns("prev_self_plot"), height = "400px")
           ),
           shiny::column(
@@ -219,34 +219,44 @@ mod_milestone_entry_server <- function(id, rdm_data, record_id, current_period, 
       })
     })
 
-    # Render current ACGME plot (PLOTLY) - showing CURRENT period program assessment
-    output$prev_acgme_plot <- plotly::renderPlotly({
-      req(acgme_milestone_data(), record_id())
-      req(current_period())
+    # Render previous ACGME plot (PLOTLY) - showing PREVIOUS period program assessment
+output$prev_acgme_plot <- plotly::renderPlotly({
+  req(acgme_milestone_data(), record_id())
+  req(current_period())
 
-      curr_period <- current_period()
+  prev_period <- previous_period()  # ← Use previous_period() reactive
+  
+  # Handle case where there is no previous period
+  if (is.na(prev_period)) {
+    return(plotly::plotly_empty() %>%
+             plotly::add_annotations(
+               text = "No previous period data available",
+               x = 0.5, y = 0.5, showarrow = FALSE,
+               font = list(size = 14, color = "gray")
+             ))
+  }
 
-      tryCatch({
-        dashboard <- gmed::create_milestone_overview_dashboard(
-          milestone_results = milestone_results(),
-          resident_id = record_id(),
-          period_text = curr_period,  # Changed from prev_period to current_period
-          milestone_type = "program",      # Program = CCC assessment
-          milestone_system = "acgme",       # ACGME system
-          resident_data = rdm_data()$residents
-        )
+  tryCatch({
+    dashboard <- gmed::create_milestone_overview_dashboard(
+      milestone_results = milestone_results(),
+      resident_id = record_id(),
+      period_text = prev_period,  # ← Changed from curr_period to prev_period
+      milestone_type = "program",
+      milestone_system = "acgme",
+      resident_data = rdm_data()$residents
+    )
 
-        return(dashboard$spider_plot)
+    return(dashboard$spider_plot)
 
-      }, error = function(e) {
-        return(plotly::plotly_empty() %>%
-                 plotly::add_annotations(
-                   text = "No data available",
-                   x = 0.5, y = 0.5, showarrow = FALSE,
-                   font = list(size = 14, color = "orange")
-                 ))
-      })
-    })
+  }, error = function(e) {
+    return(plotly::plotly_empty() %>%
+             plotly::add_annotations(
+               text = "No data available",
+               x = 0.5, y = 0.5, showarrow = FALSE,
+               font = list(size = 14, color = "orange")
+             ))
+  })
+})
 
     # Initialize milestone rating module
     # Ensure period is never NA (gmed module can't handle NA in if statements)
