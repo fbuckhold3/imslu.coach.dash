@@ -60,13 +60,16 @@ mod_wellness_ui <- function(id) {
 
 mod_wellness_server <- function(id, resident_data, current_period, app_data) {
   moduleServer(id, function(input, output, session) {
-    
+
+    # Track current resident to detect changes
+    current_resident_id <- reactiveVal(NULL)
+
     # Display current period wellness data
     output$previous_wellness <- renderUI({
       req(resident_data())
-      
+
       curr_data <- resident_data()$current_period$s_eval
-      
+
       if (is.null(curr_data) || nrow(curr_data) == 0) {
         return(
           div(
@@ -75,9 +78,9 @@ mod_wellness_server <- function(id, resident_data, current_period, app_data) {
           )
         )
       }
-      
+
       wellness_text <- curr_data$s_e_well[1]
-      
+
       if (is.na(wellness_text) || wellness_text == "") {
         return(
           div(
@@ -86,19 +89,19 @@ mod_wellness_server <- function(id, resident_data, current_period, app_data) {
           )
         )
       }
-      
+
       div(
         style = "padding: 10px; background-color: white; border-radius: 4px;",
         HTML(gsub("\n", "<br>", wellness_text))
       )
     })
-    
+
     # Display current period progress/assistance data
     output$previous_progress <- renderUI({
       req(resident_data())
-      
+
       curr_data <- resident_data()$current_period$s_eval
-      
+
       if (is.null(curr_data) || nrow(curr_data) == 0) {
         return(
           div(
@@ -107,9 +110,9 @@ mod_wellness_server <- function(id, resident_data, current_period, app_data) {
           )
         )
       }
-      
+
       progress_text <- curr_data$s_e_prog_assist[1]
-      
+
       if (is.na(progress_text) || trimws(progress_text) == "") {
         return(
           div(
@@ -118,38 +121,67 @@ mod_wellness_server <- function(id, resident_data, current_period, app_data) {
           )
         )
       }
-      
+
       div(
         style = "padding: 10px; background-color: white; border-radius: 4px;",
         HTML(gsub("\n", "<br>", progress_text))
       )
     })
-    
+
     # Character count for coach entry
     output$char_count <- renderText({
       char_count <- nchar(input$coach_wellness)
       sprintf("%d characters", char_count)
     })
-    
-    # Pre-populate if data already exists for current period
+
+    # Load or clear data when resident changes
     observe({
       req(resident_data())
-      
-      curr_data <- resident_data()$current_period$coach_rev
-      
-      if (!is.null(curr_data) && nrow(curr_data) > 0) {
-        existing_wellness <- curr_data$coach_wellness[1]
-        
-        if (!is.na(existing_wellness) && existing_wellness != "") {
+
+      # Get the current resident's record_id
+      res_info <- resident_data()$resident_info
+      new_resident_id <- res_info$record_id[1]
+
+      # Check if resident has changed
+      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
+        # Update tracked resident ID
+        current_resident_id(new_resident_id)
+
+        # Try to load existing coach review data
+        curr_data <- resident_data()$current_period$coach_rev
+
+        if (!is.null(curr_data) && nrow(curr_data) > 0) {
+          existing_wellness <- curr_data$coach_wellness[1]
+
+          # Populate with existing data if available
+          if (!is.na(existing_wellness) && existing_wellness != "") {
+            updateTextAreaInput(
+              session,
+              "coach_wellness",
+              value = existing_wellness
+            )
+            message(sprintf("Loaded existing wellness data for resident %s", new_resident_id))
+          } else {
+            # Clear form if no existing data
+            updateTextAreaInput(
+              session,
+              "coach_wellness",
+              value = ""
+            )
+            message(sprintf("Cleared wellness form for new resident %s (no existing data)", new_resident_id))
+          }
+        } else {
+          # Clear form if no coach_rev record exists
           updateTextAreaInput(
             session,
             "coach_wellness",
-            value = existing_wellness
+            value = ""
           )
+          message(sprintf("Cleared wellness form for new resident %s (no coach_rev record)", new_resident_id))
         }
       }
     })
-    
+
     # Return reactive with entered data
     return(
       reactive({

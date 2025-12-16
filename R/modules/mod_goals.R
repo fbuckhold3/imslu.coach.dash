@@ -588,31 +588,49 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, data_d
       sprintf("%d characters", char_count)
     })
 
-    # Pre-populate if data already exists for current period
+    # Load or clear data when resident changes
+    # Track current resident to detect changes
+    current_resident_id <- reactiveVal(NULL)
+
     observe({
       req(resident_data())
 
-      curr_data <- resident_data()$current_period$coach_rev
+      # Get the current resident's record_id
+      res_info <- resident_data()$resident_info
+      new_resident_id <- res_info$record_id[1]
 
-      if (!is.null(curr_data) && nrow(curr_data) > 0) {
-        # Pre-populate goal comments
-        existing_goals <- curr_data$coach_mile_goal[1]
-        if (!is.na(existing_goals) && existing_goals != "") {
-          updateTextAreaInput(
-            session,
-            "coach_mile_goal",
-            value = existing_goals
-          )
-        }
+      # Check if resident has changed
+      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
+        # Update tracked resident ID
+        current_resident_id(new_resident_id)
 
-        # Pre-populate ILP final
-        existing_ilp <- curr_data$coach_ilp_final[1]
-        if (!is.na(existing_ilp) && existing_ilp != "") {
-          updateTextAreaInput(
-            session,
-            "coach_ilp_final",
-            value = existing_ilp
-          )
+        # Try to load existing coach review data
+        curr_data <- resident_data()$current_period$coach_rev
+
+        if (!is.null(curr_data) && nrow(curr_data) > 0) {
+          existing_goals <- curr_data$coach_mile_goal[1]
+          existing_ilp <- curr_data$coach_ilp_final[1]
+
+          # Populate or clear goal comments field
+          if (!is.na(existing_goals) && existing_goals != "") {
+            updateTextAreaInput(session, "coach_mile_goal", value = existing_goals)
+          } else {
+            updateTextAreaInput(session, "coach_mile_goal", value = "")
+          }
+
+          # Populate or clear ILP final field
+          if (!is.na(existing_ilp) && existing_ilp != "") {
+            updateTextAreaInput(session, "coach_ilp_final", value = existing_ilp)
+          } else {
+            updateTextAreaInput(session, "coach_ilp_final", value = "")
+          }
+
+          message(sprintf("Loaded existing goals data for resident %s", new_resident_id))
+        } else {
+          # Clear both fields if no coach_rev record exists
+          updateTextAreaInput(session, "coach_mile_goal", value = "")
+          updateTextAreaInput(session, "coach_ilp_final", value = "")
+          message(sprintf("Cleared goals forms for new resident %s (no coach_rev record)", new_resident_id))
         }
       }
     })

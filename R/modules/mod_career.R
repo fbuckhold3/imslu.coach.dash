@@ -293,21 +293,40 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
       )
     })
 
-    # Pre-populate if data already exists for current period
+    # Load or clear data when resident changes
+    # Track current resident to detect changes
+    current_resident_id <- reactiveVal(NULL)
+
     observe({
       req(resident_data())
 
-      curr_data <- resident_data()$current_period$coach_rev
+      # Get the current resident's record_id
+      res_info <- resident_data()$resident_info
+      new_resident_id <- res_info$record_id[1]
 
-      if (!is.null(curr_data) && nrow(curr_data) > 0) {
-        existing_career <- curr_data$coach_career[1]
+      # Check if resident has changed
+      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
+        # Update tracked resident ID
+        current_resident_id(new_resident_id)
 
-        if (!is.na(existing_career) && existing_career != "") {
-          updateTextAreaInput(
-            session,
-            "coach_career",
-            value = existing_career
-          )
+        # Try to load existing coach review data
+        curr_data <- resident_data()$current_period$coach_rev
+
+        if (!is.null(curr_data) && nrow(curr_data) > 0) {
+          existing_career <- curr_data$coach_career[1]
+
+          # Populate or clear career field
+          if (!is.na(existing_career) && existing_career != "") {
+            updateTextAreaInput(session, "coach_career", value = existing_career)
+            message(sprintf("Loaded existing career data for resident %s", new_resident_id))
+          } else {
+            updateTextAreaInput(session, "coach_career", value = "")
+            message(sprintf("Cleared career form for new resident %s (no existing data)", new_resident_id))
+          }
+        } else {
+          # Clear field if no coach_rev record exists
+          updateTextAreaInput(session, "coach_career", value = "")
+          message(sprintf("Cleared career form for new resident %s (no coach_rev record)", new_resident_id))
         }
       }
     })

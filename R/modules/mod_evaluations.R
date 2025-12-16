@@ -505,32 +505,57 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       )
     })
 
-    # ===== PRE-POPULATE EXISTING COACH DATA =====
+    # ===== LOAD OR CLEAR DATA WHEN RESIDENT CHANGES =====
+
+    # Track current resident to detect changes
+    current_resident_id <- reactiveVal(NULL)
 
     observe({
       req(resident_data())
 
-      curr_data <- resident_data()$current_period$coach_rev
+      # Get the current resident's record_id
+      res_info <- resident_data()$resident_info
+      new_resident_id <- res_info$record_id[1]
 
-      if (!is.null(curr_data) && nrow(curr_data) > 0) {
-        # Pre-populate P/D comments if they exist
-        existing_pd <- curr_data$coach_p_d_comments[1]
-        if (!is.na(existing_pd) && existing_pd != "") {
-          updateTextAreaInput(
-            session,
-            "coach_p_d_comments",
-            value = existing_pd
-          )
-        }
+      # Check if resident has changed
+      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
+        # Update tracked resident ID
+        current_resident_id(new_resident_id)
 
-        # Pre-populate evaluation comments if they exist
-        existing_eval <- curr_data$coach_evaluations[1]
-        if (!is.na(existing_eval) && existing_eval != "") {
-          updateTextAreaInput(
-            session,
-            "coach_evaluations",
-            value = existing_eval
-          )
+        # Try to load existing coach review data
+        curr_data <- resident_data()$current_period$coach_rev
+
+        if (!is.null(curr_data) && nrow(curr_data) > 0) {
+          # Pre-populate P/D comments if they exist
+          existing_pd <- curr_data$coach_p_d_comments[1]
+          if (!is.na(existing_pd) && existing_pd != "") {
+            updateTextAreaInput(
+              session,
+              "coach_p_d_comments",
+              value = existing_pd
+            )
+          } else {
+            updateTextAreaInput(session, "coach_p_d_comments", value = "")
+          }
+
+          # Pre-populate evaluation comments if they exist
+          existing_eval <- curr_data$coach_evaluations[1]
+          if (!is.na(existing_eval) && existing_eval != "") {
+            updateTextAreaInput(
+              session,
+              "coach_evaluations",
+              value = existing_eval
+            )
+          } else {
+            updateTextAreaInput(session, "coach_evaluations", value = "")
+          }
+
+          message(sprintf("Loaded existing evaluation data for resident %s", new_resident_id))
+        } else {
+          # Clear both forms if no coach_rev record exists
+          updateTextAreaInput(session, "coach_p_d_comments", value = "")
+          updateTextAreaInput(session, "coach_evaluations", value = "")
+          message(sprintf("Cleared evaluation forms for new resident %s (no coach_rev record)", new_resident_id))
         }
       }
     })
