@@ -260,24 +260,31 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, data_d
       if (is.null(goal_code) || is.na(goal_code) || goal_code == "") return("Level not specified")
       if (is.null(level_code) || is.na(level_code) || level_code == "") return("Level not specified")
 
+      # Convert to numeric for arithmetic operations
+      goal_code_num <- as.numeric(as.character(goal_code))
+      if (is.na(goal_code_num)) {
+        message(sprintf("WARNING: Could not convert goal_code '%s' to numeric", goal_code))
+        return(paste("Level", level_code))
+      }
+
       # Map goal code to milestone subcompetency code
       if (domain_type == "pcmk") {
-        if (goal_code <= 6) {
-          subcomp <- paste0("pc", goal_code)
+        if (goal_code_num <= 6) {
+          subcomp <- paste0("pc", goal_code_num)
         } else {
-          subcomp <- paste0("mk", goal_code - 6)
+          subcomp <- paste0("mk", goal_code_num - 6)
         }
       } else if (domain_type == "sbppbl") {
-        if (goal_code <= 3) {
-          subcomp <- paste0("sbp", goal_code)
+        if (goal_code_num <= 3) {
+          subcomp <- paste0("sbp", goal_code_num)
         } else {
-          subcomp <- paste0("pbl", goal_code - 3)
+          subcomp <- paste0("pbl", goal_code_num - 3)
         }
       } else if (domain_type == "profics") {
-        if (goal_code <= 4) {
-          subcomp <- paste0("prof", goal_code)
+        if (goal_code_num <= 4) {
+          subcomp <- paste0("prof", goal_code_num)
         } else {
-          subcomp <- paste0("ics", goal_code - 4)
+          subcomp <- paste0("ics", goal_code_num - 4)
         }
       } else {
         return(paste("Level", level_code))

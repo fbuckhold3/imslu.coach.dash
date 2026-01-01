@@ -80,7 +80,89 @@ mod_second_review_ui <- function(id) {
         )
       ),
 
-      # Section 2: Coach ILP Final Comments
+      # Section 2: Assessment Data & Visualizations (Collapsible)
+      div(
+        class = "card mb-4",
+        style = "border-left: 4px solid #4caf50;",
+
+        # Clickable header to toggle visualizations
+        tags$a(
+          `data-toggle` = "collapse",
+          href = paste0("#", ns("assessment_viz_collapse")),
+          class = "text-decoration-none",
+          div(
+            class = "card-header",
+            style = "background-color: #e8f5e9; border-bottom: 2px solid #4caf50; cursor: pointer;",
+            h4(
+              style = "margin: 0; color: #2c3e50;",
+              icon("chart-bar"), " Assessment Data & Visualizations ",
+              tags$small(
+                style = "float: right; color: #666;",
+                icon("chevron-down"), " Click to expand/collapse"
+              )
+            )
+          )
+        ),
+
+        # Collapsible content (starts collapsed)
+        div(
+          id = ns("assessment_viz_collapse"),
+          class = "collapse",
+          div(
+            class = "card-body",
+            style = "background-color: #fafafa;",
+
+            # Assessment progress charts
+            gmed::assessment_viz_ui(ns("charts"), title = "Assessment Progress"),
+
+            hr(),
+
+            # Custom detail viz from gmed
+            gmed::mod_assessment_detail_custom_ui(ns("custom_detail")),
+
+            hr(),
+
+            # Custom data display for selected evaluation
+            gmed::mod_assessment_data_display_ui(ns("data_display")),
+
+            hr(),
+
+            # CC Completion Status
+            gmed::mod_cc_completion_ui(ns("cc_completion")),
+
+            hr(),
+
+            # Conference attendance/questions
+            gmed::mod_questions_viz_ui(ns("questions"), title = "Conference Attendance by Rotation"),
+
+            hr(),
+
+            # Plus/Delta feedback table - collapsible (starts open for visibility)
+            div(
+              class = "mb-3",
+              h5(
+                style = "color: #9b59b6; margin-bottom: 15px;",
+                icon("comments"), " Plus / Delta Feedback Details"
+              ),
+              p(
+                class = "text-muted",
+                style = "font-size: 14px; margin-bottom: 10px;",
+                "Click on any evaluation below to view the detailed feedback comments."
+              ),
+              bslib::accordion(
+                id = ns("plus_delta_accordion"),
+                open = TRUE,  # Start open so users can see the table
+                bslib::accordion_panel(
+                  "Faculty Feedback Table (Click to expand/collapse)",
+                  gmed::mod_plus_delta_table_ui(ns("plus_delta"), title = NULL)
+                )
+              )
+            )
+          )
+        )
+      ),
+
+      # Section 3: Coach ILP Final Comments
       div(
         class = "card mb-4",
         div(
@@ -93,7 +175,7 @@ mod_second_review_ui <- function(id) {
         )
       ),
 
-      # Section 3: Second Reviewer Entry
+      # Section 4: Second Reviewer Entry
       div(
         class = "card mb-4",
         div(
@@ -179,9 +261,22 @@ mod_second_review_ui <- function(id) {
 #' @param selected_resident Reactive containing selected resident info
 #' @param rdm_data Reactive containing all RDM data
 #' @param current_period Reactive containing current period number
+#' @param app_data_rv ReactiveValues containing data_dict and other app data
 #' @export
-mod_second_review_server <- function(id, selected_resident, rdm_data, current_period) {
+mod_second_review_server <- function(id, selected_resident, rdm_data, current_period, app_data_rv = NULL) {
   moduleServer(id, function(input, output, session) {
+
+    # Create reactive for data_dict from reactiveValues - will update when data loads
+    data_dict <- reactive({
+      if (!is.null(app_data_rv)) {
+        dd <- app_data_rv$data_dict
+        message("DEBUG [mod_second_review]: data_dict reactive, is.null = ", is.null(dd),
+                ", nrow = ", if(!is.null(dd)) nrow(dd) else "NULL")
+        dd
+      } else {
+        NULL
+      }
+    })
 
     # Reactive to get resident data
     resident_data <- reactive({
@@ -228,6 +323,148 @@ mod_second_review_server <- function(id, selected_resident, rdm_data, current_pe
       }
 
       NULL
+    })
+
+    # ===== PREPARE DATA FOR ASSESSMENT VISUALIZATIONS =====
+
+    # Extract record_id as separate reactive
+    record_id <- reactive({
+      req(resident_data())
+      resident_data()$resident_info$record_id
+    })
+
+    # Extract resident name as separate reactive
+    resident_name <- reactive({
+      req(resident_data())
+      resident_data()$resident_info$full_name
+    })
+
+    # Get resident info for CC completion
+    resident_info_data <- reactive({
+      req(rdm_data(), record_id())
+
+      rdm_data()$residents %>%
+        dplyr::filter(record_id == !!record_id()) %>%
+        dplyr::slice(1)
+    })
+
+    # Get raw assessment data for plus/delta table
+    raw_assessment_data <- reactive({
+      req(rdm_data())
+
+      if ("assessment" %in% names(rdm_data()$all_forms)) {
+        assessment_data <- rdm_data()$all_forms$assessment
+        return(assessment_data)
+      } else {
+        message("WARNING: No assessment form found in rdm_data")
+        return(data.frame())
+      }
+    })
+
+    # Prepare combined assessment + questions + faculty_evaluation data
+    combined_data <- reactive({
+      req(rdm_data())
+
+      # Assessment data: Faculty feedback ABOUT residents
+      assessment_data <- if ("assessment" %in% names(rdm_data()$all_forms)) {
+        rdm_data()$all_forms$assessment %>%
+          dplyr::mutate(source_form = "assessment")
+      } else {
+        data.frame()
+      }
+
+      # Faculty evaluation data: Resident evaluations OF faculty (counts only)
+      faculty_eval_data <- if ("faculty_evaluation" %in% names(rdm_data()$all_forms)) {
+        rdm_data()$all_forms$faculty_evaluation %>%
+          dplyr::mutate(
+            source_form = "faculty_evaluation",
+            # Map faculty_evaluation fields to assessment field names for consistency
+            ass_date = if("fac_eval_date" %in% names(.)) fac_eval_date else NA_character_,
+            ass_level = if("fac_eval_level" %in% names(.)) fac_eval_level else NA_character_
+          )
+      } else {
+        data.frame()
+      }
+
+      # Questions data: Conference attendance
+      questions_data <- if ("questions" %in% names(rdm_data()$all_forms)) {
+        rdm_data()$all_forms$questions %>%
+          dplyr::mutate(source_form = "questions")
+      } else {
+        data.frame()
+      }
+
+      combined <- dplyr::bind_rows(assessment_data, faculty_eval_data, questions_data)
+
+      # DEBUG: Check data for current resident
+      req(record_id())
+      resident_data_subset <- combined %>% dplyr::filter(record_id == !!record_id())
+
+      message(sprintf("DEBUG [mod_second_review]: Combined data for assessment_viz (resident %s):", record_id()))
+      message(sprintf("  Total rows: %d", nrow(resident_data_subset)))
+      message(sprintf("  Assessment rows (faculty→resident): %d", sum(resident_data_subset$source_form == "assessment", na.rm = TRUE)))
+      message(sprintf("  Faculty evaluation rows (resident→faculty): %d", sum(resident_data_subset$source_form == "faculty_evaluation", na.rm = TRUE)))
+      message(sprintf("  Questions rows: %d", sum(resident_data_subset$source_form == "questions", na.rm = TRUE)))
+
+      return(combined)
+    })
+
+    # ===== CALL GMED MODULES FOR ASSESSMENT VISUALIZATIONS =====
+
+    # Assessment charts - expects data as reactive and calls it internally
+    gmed::assessment_viz_server(
+      "charts",
+      data = combined_data,
+      record_id = record_id,
+      resident_name = resident_name
+    )
+
+    # CC Completion Status - doesn't use data_dict
+    gmed::mod_cc_completion_server(
+      "cc_completion",
+      rdm_data = combined_data,
+      record_id = record_id,
+      resident_data = resident_info_data
+    )
+
+    # Plus/Delta table - doesn't use data_dict
+    gmed::mod_plus_delta_table_server(
+      "plus_delta",
+      rdm_data = raw_assessment_data,
+      record_id = record_id
+    )
+
+    # Wrap gmed modules that need data_dict as data frame (not reactive) in observe()
+    observe({
+      req(data_dict())  # Ensure data_dict has loaded
+
+      dd <- data_dict()  # Extract the actual data frame once
+
+      message("DEBUG [mod_second_review observe]: Extracted data_dict for gmed modules, nrow = ", nrow(dd))
+
+      # Custom detail viz from gmed - pass extracted data frame
+      detail_viz_state <- gmed::mod_assessment_detail_custom_server(
+        "custom_detail",
+        rdm_data = combined_data,
+        record_id = record_id,
+        data_dict = dd  # Pass data frame, not reactive
+      )
+
+      # Custom data display for selected evaluation - pass extracted data frame
+      gmed::mod_assessment_data_display_server(
+        "data_display",
+        selected_category = detail_viz_state$selected_category,
+        category_data = detail_viz_state$category_data,
+        data_dict = dd  # Pass data frame, not reactive
+      )
+
+      # Questions/conference attendance - pass extracted data frame
+      gmed::mod_questions_viz_server(
+        "questions",
+        rdm_data = combined_data,
+        record_id = record_id,
+        data_dict = dd  # Pass data frame, not reactive
+      )
     })
 
     # Render self-assessment milestone plot

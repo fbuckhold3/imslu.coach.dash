@@ -302,12 +302,13 @@ server <- function(input, output, session) {
     app_data_rv = app_data  # Pass reactiveValues for direct data_dict access
   )
 
-  # Second review interface
+  # Second review interface - pass both reactive data and reactiveValues for data_dict
   second_review_interface <- mod_second_review_server(
     "second_review",
     selected_resident = reactive({ resident_selection$selected_resident() }),
     rdm_data = app_data_reactive,
-    current_period = resident_selection$current_period
+    current_period = resident_selection$current_period,
+    app_data_rv = app_data  # Pass reactiveValues for direct data_dict access
   )
   
   # Update view when resident is selected
