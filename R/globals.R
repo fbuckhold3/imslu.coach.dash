@@ -271,7 +271,7 @@ load_coaching_data <- function(
     "[%s] Loading RDM data for coaching dashboard...",
     format(Sys.time(), "%H:%M:%S")
   ))
-  message("  -> Step 1/4: Connecting to REDCap API...")
+  message("  -> Step 1/5: Connecting to REDCap API...")
   
   # Use gmed's data loading function
   # CRITICAL: Must use "raw" format to preserve numerical data and checkbox codes
@@ -281,8 +281,8 @@ load_coaching_data <- function(
     rdm_token = rdm_token,
     raw_or_label = "raw"  # Use raw format (required for numeric fields and checkboxes)
   )
-  
-  message("  -> Step 2/4: Processing resident data...")
+
+  message("  -> Step 2/5: Processing resident data...")
 
 # Translate period fields from codes to labels
 # Period fields in forms need to match the period names we use for filtering
@@ -366,7 +366,7 @@ if (!is.null(rdm_data$data_dict)) {
 # Just let gmed's Level field be used as-is
 # ==============================================================================
 
-message("  -> Step 3/4: Adding convenience fields...")
+message("  -> Step 3/5: Adding convenience fields...")
 
 # Calculate Level using gmed's logic (which works correctly)
 current_date <- Sys.Date()
@@ -630,7 +630,7 @@ rdm_data$residents <- rdm_data$residents %>%
   ) %>%
   ungroup()
 
-  message("  -> Step 4/4: Adding level fields to assessment data...")
+  message("  -> Step 4/5: Adding level fields to assessment data...")
 
   # CRITICAL FIX: Add ass_level field to assessment and questions data
   # The gmed package functions expect this field to be present
@@ -777,6 +777,27 @@ rdm_data$residents <- rdm_data$residents %>%
     }
 
     message("    ass_level field added to assessment_data")
+  }
+
+  message("  -> Step 5/5: Creating milestone workflow...")
+
+  # Create milestone workflow for coach and self milestones
+  rdm_data$milestone_workflow <- tryCatch({
+    gmed::create_milestone_workflow_from_dict(
+      all_forms = rdm_data$all_forms,
+      data_dict = rdm_data$data_dict,
+      resident_data = rdm_data$residents,
+      verbose = FALSE
+    )
+  }, error = function(e) {
+    message("    WARNING: Could not create milestone workflow: ", e$message)
+    NULL
+  })
+
+  if (!is.null(rdm_data$milestone_workflow)) {
+    message("    Milestone workflow created successfully")
+  } else {
+    message("    Milestone workflow creation failed - will be created on demand")
   }
 
   message("  -> Finalizing...")
