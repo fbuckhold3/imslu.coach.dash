@@ -923,8 +923,32 @@ check_second_review_complete <- function(all_forms, record_id, period_number) {
          nzchar(second_data$second_comments[1]))
 }
 
+#' Get Next Available Instance for Interim (Ad Hoc) Review
+#'
+#' Interim reviews use instances >= 100 to avoid conflicts with scheduled
+#' reviews (which use small integers assigned by gmed::get_redcap_instance).
+#'
+#' @param all_forms List of all form data
+#' @param record_id Resident record ID
+#' @return Integer, next available instance number (>= 100)
+#' @export
+get_next_interim_instance <- function(all_forms, record_id) {
+  if (is.null(all_forms$coach_rev)) return(100L)
+
+  existing <- all_forms$coach_rev %>%
+    filter(record_id == !!record_id, !is.na(redcap_repeat_instance)) %>%
+    pull(redcap_repeat_instance) %>%
+    suppressWarnings(as.integer()) %>%
+    na.omit()
+
+  interim_instances <- existing[existing >= 100L]
+
+  if (length(interim_instances) == 0L) return(100L)
+  return(as.integer(max(interim_instances) + 1L))
+}
+
 #' Get Form Data for Resident and Period
-#' 
+#'
 #' Handles different period field names and logic for each form
 #' 
 #' @param all_forms List of all form data
