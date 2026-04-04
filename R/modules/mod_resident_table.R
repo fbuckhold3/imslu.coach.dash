@@ -166,6 +166,13 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
     # Refresh trigger counter (incremented when user clicks Refresh)
     refresh_triggered <- reactiveVal(0)
 
+    # Session-level tracker for interim instances submitted this session.
+    # Named list: record_id -> highest instance used so far.
+    # Needed because app_data() is a snapshot and won't reflect records
+    # submitted after the last data load — without this a second interim
+    # review for the same resident would calculate the same instance number.
+    session_interim_tracker <- reactiveVal(list())
+
     # Display last loaded time
     output$last_loaded_display <- renderUI({
       if (is.null(last_loaded) || is.null(last_loaded())) return(NULL)
@@ -482,27 +489,42 @@ observeEvent(input$resident_table_rows_selected, {
       req(res_info)
       req(nrow(res_info) > 0)
 
-      instance <- get_next_interim_instance(app_data()$all_forms, input$interim_resident)
+      # Calculate instance: take the max of what app_data knows about AND
+      # what we've already submitted this session (in case the user submits
+      # multiple interim reviews before the next data refresh).
+      rid <- input$interim_resident
+      instance_from_data    <- get_next_interim_instance(app_data()$all_forms, rid)
+      instance_from_session <- {
+        tracker <- session_interim_tracker()
+        if (!is.null(tracker[[rid]])) tracker[[rid]] + 1L else 99L
+      }
+      instance <- max(instance_from_data, instance_from_session)
 
       interim_record <- data.frame(
-        record_id          = input$interim_resident,
+        record_id                = rid,
         redcap_repeat_instrument = "coach_rev",
         redcap_repeat_instance   = instance,
-        coach_date         = format(as.Date(input$interim_date), "%Y-%m-%d"),
-        coach_period       = "8",   # Interim code in REDCap
-        coach_summary      = as.character(input$interim_summary),
-        coach_rev_complete = "2",
-        stringsAsFactors   = FALSE
+        coach_date               = format(as.Date(input$interim_date), "%Y-%m-%d"),
+        coach_period             = "8",   # Interim code in REDCap
+        coach_summary            = as.character(input$interim_summary),
+        coach_rev_complete       = "2",
+        stringsAsFactors         = FALSE
       )
 
       tryCatch({
         result <- REDCapR::redcap_write_oneshot(
-          ds          = interim_record,
-          redcap_uri  = REDCAP_CONFIG$url,
-          token       = REDCAP_CONFIG$rdm_token
+          ds         = interim_record,
+          redcap_uri = REDCAP_CONFIG$url,
+          token      = REDCAP_CONFIG$rdm_token
         )
 
         if (result$success) {
+          # Record the used instance so the next submission in this session
+          # knows to go one higher.
+          tracker <- session_interim_tracker()
+          tracker[[rid]] <- instance
+          session_interim_tracker(tracker)
+
           removeModal()
           showNotification(
             paste("Interim review submitted for", res_info$full_name[1]),
