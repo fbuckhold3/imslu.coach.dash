@@ -34,6 +34,7 @@ library(lubridate)
 library(plotly)
 library(ggplot2)
 library(httr)
+library(pins)
 
 # Load gmed package (from GitHub: fbuckhold3/gmed)
 if (!require(gmed)) {
@@ -66,6 +67,15 @@ REDCAP_CONFIG <- list(
 if (!nzchar(REDCAP_CONFIG$rdm_token)) {
   stop("RDM_TOKEN not found. Please set in .Renviron or config.yml")
 }
+
+# Posit Connect pin configuration (optional — falls back to direct REDCap)
+# Set CONNECT_SERVER and CONNECT_API_KEY in .Renviron to enable fast pin loading.
+# Leave blank for local dev; the app will load direct from REDCap instead.
+PIN_CONFIG <- list(
+  server  = Sys.getenv("CONNECT_SERVER"),
+  api_key = Sys.getenv("CONNECT_API_KEY"),
+  pin_name = Sys.getenv("PIN_NAME", unset = "rdm_complete_raw")
+)
 
 # Authentication configuration
 AUTH_CONFIG <- list(
@@ -271,16 +281,35 @@ load_coaching_data <- function(
     "[%s] Loading RDM data for coaching dashboard...",
     format(Sys.time(), "%H:%M:%S")
   ))
-  message("  -> Step 1/4: Connecting to REDCap API...")
-  
-  # Use gmed's data loading function
-  # CRITICAL: Must use "raw" format to preserve numerical data and checkbox codes
-  # Translation layers will be created in UI modules for display purposes
-  rdm_data <- gmed::load_rdm_complete(
-    redcap_url = redcap_url,
-    rdm_token = rdm_token,
-    raw_or_label = "raw"  # Use raw format (required for numeric fields and checkboxes)
-  )
+  message("  -> Step 1/4: Loading RDM data...")
+
+  # Try the Posit Connect pin first (fast — ~1s).
+  # Falls back to a direct REDCap pull (~30-60s) when:
+  #   - Running locally without Connect credentials
+  #   - Pin is unavailable or stale
+  # CRITICAL: raw format must be preserved — translation happens in steps 2-4 below.
+  rdm_data <- tryCatch({
+    if (nzchar(PIN_CONFIG$server) && nzchar(PIN_CONFIG$api_key)) {
+      message("  -> Reading from Posit Connect pin '", PIN_CONFIG$pin_name, "'...")
+      board <- pins::board_connect(
+        server  = PIN_CONFIG$server,
+        api_key = PIN_CONFIG$api_key
+      )
+      data <- pins::pin_read(board, PIN_CONFIG$pin_name)
+      message("  -> Pin loaded successfully")
+      data
+    } else {
+      stop("No Connect credentials configured")
+    }
+  }, error = function(e) {
+    message("  -> Pin unavailable (", conditionMessage(e), ")")
+    message("  -> Falling back to direct REDCap pull...")
+    gmed::load_rdm_complete(
+      redcap_url   = redcap_url,
+      rdm_token    = rdm_token,
+      raw_or_label = "raw"
+    )
+  })
   
   message("  -> Step 2/4: Processing resident data...")
 
