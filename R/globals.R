@@ -35,6 +35,7 @@ library(plotly)
 library(ggplot2)
 library(httr)
 library(pins)
+library(memoise)
 
 # Load gmed package (from GitHub: fbuckhold3/gmed)
 if (!require(gmed)) {
@@ -817,6 +818,15 @@ rdm_data$residents <- rdm_data$residents %>%
 
   return(rdm_data)
 }
+
+# Memoised version — caches the result for 30 minutes in memory.
+# On Posit Connect, multiple users share the same R process, so only the
+# first request hits REDCap; everyone else gets the cached result instantly.
+# The "Refresh Data" button calls memoise::forget() to bust the cache early.
+load_coaching_data_cached <- memoise::memoise(
+  load_coaching_data,
+  cache = memoise::timeout_cache(30 * 60)
+)
 
 # ==============================================================================
 # COACH FILTERING FUNCTIONS

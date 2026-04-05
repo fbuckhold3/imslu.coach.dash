@@ -212,7 +212,7 @@ server <- function(input, output, session) {
         incProgress(0.2, detail = "Connecting to REDCap...")
 
         tryCatch({
-          loaded_data <- load_coaching_data()
+          loaded_data <- load_coaching_data_cached()
           app_data$data <- loaded_data
           app_data$data_dict <- loaded_data$data_dict
           app_data$last_loaded_time <- Sys.time()
@@ -297,8 +297,8 @@ server <- function(input, output, session) {
     tryCatch({
       count <- resident_selection$refresh_triggered()
       if (!is.null(count) && count > 0) {
-        # Reset data_loaded so the loader observer fires again
-        app_state$data_loaded <- FALSE
+        memoise::forget(load_coaching_data_cached)  # bust the cache
+        app_state$data_loaded <- FALSE              # trigger reload
       }
     }, error = function(e) {})
   })
