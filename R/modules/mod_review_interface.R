@@ -141,16 +141,18 @@ create_review_preview <- function(review_data, resident_data, current_period, se
 
 mod_review_interface_ui <- function(id) {
   ns <- NS(id)
-  
+
   tagList(
+    # Inject the small JS handler used by the shell to scroll on advance
+    coach_scroll_js(),
+
     # Header with resident info and navigation buttons
     fluidRow(
       column(
         width = 12,
         div(
-          style = "margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;",
-          
-          # Left side: Navigation buttons
+          style = "margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;",
+
           div(
             style = "display: flex; gap: 10px;",
             actionButton(
@@ -166,8 +168,7 @@ mod_review_interface_ui <- function(id) {
               icon = icon("user-tie")
             )
           ),
-          
-          # Right side: Resident info header
+
           div(
             style = "font-size: 16px; font-weight: bold;",
             uiOutput(ns("resident_header"))
@@ -175,201 +176,21 @@ mod_review_interface_ui <- function(id) {
         )
       )
     ),
-    
-    hr(),
 
-    # Vertical scroll layout - all sections visible
+    # Sticky progress bar — sections-as-pills + percentage + bar
+    coach_progress_bar_ui(ns("progress_bar")),
+
+    # Sequential layout — sections rendered server-side based on the
+    # current period (P1-5 standard, P6 graduating, P7 intern intro).
     div(
-      style = "max-width: 1400px; margin: 0 auto;",
-
-      # Section 1: Wellness & Progress (collapsible, starts expanded)
-      div(
-        class = "card mb-4",
-        style = "border-left: 4px solid #3498db;",
-        tags$a(
-          `data-toggle` = "collapse",
-          href = paste0("#", ns("collapse1")),
-          class = "text-decoration-none",
-          div(
-            class = "card-header",
-            style = "background-color: #ecf0f1; border-bottom: 2px solid #3498db; cursor: pointer;",
-            h4(style = "margin: 0; color: #2c3e50;",
-               icon("heart"), " 1. Wellness & Progress ",
-               tags$small(class = "float-right", icon("chevron-down")))
-          )
-        ),
-        div(
-          id = ns("collapse1"),
-          class = "collapse show",
-          div(
-            class = "card-body",
-            mod_wellness_ui(ns("wellness"))
-          )
-        )
-      ),
-
-      # Section 2: Evaluations & Feedback (collapsible)
-      div(
-        class = "card mb-4",
-        style = "border-left: 4px solid #9b59b6;",
-        tags$a(
-          `data-toggle` = "collapse",
-          href = paste0("#", ns("collapse2")),
-          class = "text-decoration-none",
-          div(
-            class = "card-header",
-            style = "background-color: #ecf0f1; border-bottom: 2px solid #9b59b6; cursor: pointer;",
-            h4(style = "margin: 0; color: #2c3e50;",
-               icon("clipboard"), " 2. Evaluations & Feedback ",
-               tags$small(class = "float-right", icon("chevron-down")))
-          )
-        ),
-        div(
-          id = ns("collapse2"),
-          class = "collapse",
-          div(
-            class = "card-body",
-            mod_evaluations_ui(ns("evaluations"))
-          )
-        )
-      ),
-
-      # Sections 3-8 (all collapsible, start collapsed)
-
-      # Section 3
-      div(
-        class = "card mb-4",
-        style = "border-left: 4px solid #e67e22;",
-        tags$a(
-          `data-toggle` = "collapse",
-          href = paste0("#", ns("collapse3")),
-          class = "text-decoration-none",
-          div(
-            class = "card-header",
-            style = "background-color: #ecf0f1; border-bottom: 2px solid #e67e22; cursor: pointer;",
-            h4(style = "margin: 0; color: #2c3e50;",
-               icon("book"), " 3. Learning & Board Preparation ",
-               tags$small(class = "float-right", icon("chevron-down")))
-          )
-        ),
-        div(
-          id = ns("collapse3"),
-          class = "collapse",
-          div(
-            class = "card-body",
-            mod_learning_ui(ns("learning"))
-          )
-        )
-      ),
-
-      # Section 4
-      div(
-        class = "card mb-4",
-        style = "border-left: 4px solid #16a085;",
-        tags$a(
-          `data-toggle` = "collapse",
-          href = paste0("#", ns("collapse4")),
-          class = "text-decoration-none",
-          div(
-            class = "card-header",
-            style = "background-color: #ecf0f1; border-bottom: 2px solid #16a085; cursor: pointer;",
-            h4(style = "margin: 0; color: #2c3e50;",
-               icon("graduation-cap"), " 4. Scholarship ",
-               tags$small(class = "float-right", icon("chevron-down")))
-          )
-        ),
-        div(
-          id = ns("collapse4"),
-          class = "collapse",
-          div(
-            class = "card-body",
-            mod_scholarship_ui(ns("scholarship"))
-          )
-        )
-      ),
-
-      # Section 5
-      div(
-        class = "card mb-4",
-        style = "border-left: 4px solid #f39c12;",
-        tags$a(
-          `data-toggle` = "collapse",
-          href = paste0("#", ns("collapse5")),
-          class = "text-decoration-none",
-          div(
-            class = "card-header",
-            style = "background-color: #ecf0f1; border-bottom: 2px solid #f39c12; cursor: pointer;",
-            h4(style = "margin: 0; color: #2c3e50;",
-               icon("briefcase"), " 5. Career Planning ",
-               tags$small(class = "float-right", icon("chevron-down")))
-          )
-        ),
-        div(
-          id = ns("collapse5"),
-          class = "collapse",
-          div(
-            class = "card-body",
-            mod_career_ui(ns("career"))
-          )
-        )
-      ),
-
-      # Section 6: Goals & ILP (moved before Milestones)
-      div(
-        class = "card mb-4",
-        style = "border-left: 4px solid #27ae60;",
-        tags$a(
-          `data-toggle` = "collapse",
-          href = paste0("#", ns("collapse6")),
-          class = "text-decoration-none",
-          div(
-            class = "card-header",
-            style = "background-color: #ecf0f1; border-bottom: 2px solid #27ae60; cursor: pointer;",
-            h4(style = "margin: 0; color: #2c3e50;",
-               icon("bullseye"), " 6. Goals & ILP ",
-               tags$small(class = "float-right", icon("chevron-down")))
-          )
-        ),
-        div(
-          id = ns("collapse6"),
-          class = "collapse",
-          div(
-            class = "card-body",
-            mod_goals_ui(ns("goals"))
-          )
-        )
-      ),
-
-      # Section 7: Milestones (moved after ILP)
-      div(
-        class = "card mb-4",
-        style = "border-left: 4px solid #e74c3c;",
-        tags$a(
-          `data-toggle` = "collapse",
-          href = paste0("#", ns("collapse7")),
-          class = "text-decoration-none",
-          div(
-            class = "card-header",
-            style = "background-color: #ecf0f1; border-bottom: 2px solid #e74c3c; cursor: pointer;",
-            h4(style = "margin: 0; color: #2c3e50;",
-               icon("chart-line"), " 7. Milestones ",
-               tags$small(class = "float-right", icon("chevron-down")))
-          )
-        ),
-        div(
-          id = ns("collapse7"),
-          class = "collapse",
-          div(
-            class = "card-body",
-            mod_milestones_ui(ns("milestones"))
-          )
-        )
-      )
+      style = "max-width: 1400px; margin: 0 auto; padding-top: 12px;",
+      uiOutput(ns("sections_ui"))
     ),
-    
+
     hr(),
-    
-    # Submit button at bottom
+
+    # Final submission row — visible always, but only meaningful once
+    # the coach has completed enough sections to submit.
     fluidRow(
       column(
         width = 12,
@@ -395,8 +216,71 @@ mod_review_interface_ui <- function(id) {
   )
 }
 
+# Period -> ordered list of section names + display labels + icons.
+# Names must match the moduleServer ids wired below in the server function.
+.coach_sections_for_period <- function(period_num) {
+  pn <- suppressWarnings(as.integer(period_num))
+  if (is.na(pn)) pn <- 1L
+
+  std <- list(
+    wellness    = list(label = "Wellness & Progress",        icon = "heart"),
+    evaluations = list(label = "Evaluations & Feedback",     icon = "clipboard"),
+    learning    = list(label = "Learning & Board Prep",      icon = "book"),
+    scholarship = list(label = "Scholarship",                icon = "mortarboard"),
+    career      = list(label = "Career Planning",            icon = "briefcase"),
+    goals       = list(label = "Goals & ILP",                icon = "bullseye"),
+    milestones  = list(label = "Milestones",                 icon = "graph-up"),
+    summary     = list(label = "Summary",                    icon = "list-check")
+  )
+
+  if (pn == 6L) {
+    # Graduation: drop Career and Goals; add a stub for board plan / alumni
+    # (full P6 content lands in Phase E).
+    sec <- std[c("wellness", "evaluations", "learning", "scholarship",
+                 "milestones", "summary")]
+    sec$grad_stub <- list(label = "Graduation Plan & Alumni",
+                           icon  = "mortarboard-fill")
+    sec <- sec[c("wellness", "evaluations", "learning", "scholarship",
+                 "milestones", "grad_stub", "summary")]
+    return(sec)
+  }
+
+  if (pn == 7L) {
+    # Intern Intro: Skills Review + Concerns + initial Goals; no
+    # Evaluations / Scholarship / Career.
+    sec <- std[c("wellness", "learning", "goals", "milestones", "summary")]
+    sec$intro_stub <- list(label = "Skills Review & Concerns",
+                            icon  = "person-arms-up")
+    sec <- sec[c("intro_stub", "wellness", "learning", "goals",
+                 "milestones", "summary")]
+    return(sec)
+  }
+
+  # P1-5 standard
+  std
+}
+
+# Render placeholder body for a section that doesn't have its own module
+# yet (P6 graduation block, P7 intern intro). Phase E replaces these.
+.coach_period_stub_body <- function(period_num, kind) {
+  msg <- switch(
+    kind,
+    grad_stub  = "Graduation board plan, alumni info, and post-residency contact details \u2014 coming soon. Other sections above are live for P6.",
+    intro_stub = "Period 7 skills-preparedness ratings, learning goals (s_e_ume_goal1-3), and entering-residency concerns \u2014 coming soon. Wellness / Learning / Milestones are live below.",
+    "Coming soon."
+  )
+  div(
+    class = "alert alert-info mb-0",
+    style = "border-left: 4px solid #0d6efd; font-size: 0.9rem;",
+    icon("info-circle"), " ", msg
+  )
+}
+
 mod_review_interface_server <- function(id, selected_resident, rdm_data, current_period, app_data_rv) {
   moduleServer(id, function(input, output, session) {
+
+    # Local namespace helper (used by renderUI calls below)
+    ns <- session$ns
 
     # Don't extract data_dict here - pass app_data_rv to child modules
     # They will create reactive for data_dict that updates when data loads
@@ -443,8 +327,8 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     # Call Section 2 module - pass app_data_rv for reactive data_dict access
     evaluations_data <- mod_evaluations_server("evaluations", resident_data, current_period, rdm_data, app_data_rv)
 
-    # Call Section 3 module
-    learning_data <- mod_learning_server("learning", resident_data, current_period, rdm_data)
+    # Call Section 3 module - pass app_data_rv for reactive data_dict access
+    learning_data <- mod_learning_server("learning", resident_data, current_period, rdm_data, app_data_rv)
 
     # Call Section 4 module
     scholarship_data <- mod_scholarship_server("scholarship", resident_data, current_period, rdm_data)
@@ -457,6 +341,134 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
 
     # Call Section 7 module (Milestones - moved after ILP)
     milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, app_data_rv)
+
+    # Section 8: Summary checklist + review preview (was orphaned; now wired)
+    summary_data <- mod_summary_server(
+      "summary",
+      wellness_data, evaluations_data, learning_data,
+      scholarship_data, career_data, milestones_data, goals_data
+    )
+
+    # ────────────────────────────────────────────────────────────────────
+    # Sequential-section shell: progress bar + per-period section list
+    # ────────────────────────────────────────────────────────────────────
+
+    # Period-aware section list — recomputed when the period changes.
+    sections_r <- reactive({
+      req(current_period())
+      .coach_sections_for_period(current_period())
+    })
+
+    # Shell state: tracks which section is "active" + per-section completion.
+    # We rebuild the state when the section list changes (period switch).
+    shell_state <- reactiveVal(NULL)
+    observeEvent(sections_r(), {
+      shell_state(coach_shell_state(names(sections_r())))
+    }, ignoreNULL = FALSE)
+
+    # Map each section name to the reactive `is_complete` it exposes.
+    section_reactives <- reactive({
+      list(
+        wellness    = wellness_data,
+        evaluations = evaluations_data,
+        learning    = learning_data,
+        scholarship = scholarship_data,
+        career      = career_data,
+        goals       = goals_data,
+        milestones  = milestones_data,
+        summary     = NULL,        # validation-only; complete iff all others
+        grad_stub   = NULL,        # placeholder, soft-skip
+        intro_stub  = NULL         # placeholder, soft-skip
+      )
+    })
+
+    # Push each section module's `is_complete` into shell_state$complete.
+    observe({
+      st <- shell_state(); req(st)
+      reacts <- section_reactives()
+      for (nm in names(sections_r())) {
+        r <- reacts[[nm]]
+        if (is.null(r)) next
+        val <- tryCatch(r(), error = function(e) NULL)
+        if (!is.null(val) && !is.null(val$is_complete)) {
+          st$set_complete(nm, isTRUE(val$is_complete))
+        }
+      }
+    })
+
+    # Render sections sequentially with status badge + Continue button.
+    output$sections_ui <- renderUI({
+      st <- shell_state(); req(st)
+      secs <- sections_r()
+      reacts <- section_reactives()
+      complete_vec <- st$complete
+
+      tagList(lapply(names(secs), function(nm) {
+        meta <- secs[[nm]]
+        done <- isTRUE(complete_vec[[nm]])
+        is_active <- identical(nm, names(secs)[st$step])
+        status <- if (done) "complete"
+                  else if (is_active) "active"
+                  else "incomplete"
+
+        body <- switch(
+          nm,
+          wellness    = mod_wellness_ui(ns("wellness")),
+          evaluations = mod_evaluations_ui(ns("evaluations")),
+          learning    = mod_learning_ui(ns("learning")),
+          scholarship = mod_scholarship_ui(ns("scholarship")),
+          career      = mod_career_ui(ns("career")),
+          goals       = mod_goals_ui(ns("goals")),
+          milestones  = mod_milestones_ui(ns("milestones")),
+          summary     = mod_summary_ui(ns("summary")),
+          grad_stub   = .coach_period_stub_body(current_period(), "grad_stub"),
+          intro_stub  = .coach_period_stub_body(current_period(), "intro_stub"),
+          tags$em("Unknown section")
+        )
+
+        coach_sec_card(
+          name   = nm,
+          title  = meta$label,
+          icon   = meta$icon,
+          status = status,
+          body,
+          # Skip continue button on the final summary section
+          if (!identical(nm, "summary"))
+            coach_continue_btn(ns, paste0("continue_", nm),
+                               label       = "Save & Continue",
+                               is_complete = done)
+        )
+      }))
+    })
+
+    # Render the sticky progress bar.
+    output$progress_bar <- renderUI({
+      st <- shell_state(); req(st)
+      secs <- sections_r()
+      labels <- setNames(vapply(secs, `[[`, character(1), "label"), names(secs))
+      active <- names(secs)[st$step]
+      render_coach_progress(labels, st$complete, active)
+    })
+
+    # Continue-button observers: bump active step + scroll to next section.
+    # We register one observer per *possible* section name (matches input ids).
+    .all_section_names <- c("wellness", "evaluations", "learning",
+                            "scholarship", "career", "goals", "milestones",
+                            "grad_stub", "intro_stub")
+    lapply(.all_section_names, function(nm) {
+      observeEvent(input[[paste0("continue_", nm)]], {
+        st <- shell_state(); req(st)
+        secs <- sections_r()
+        if (!nm %in% names(secs)) return()
+        idx <- match(nm, names(secs))
+        if (is.na(idx)) return()
+        # Advance only if the user is on (or past) this section.
+        if (idx >= st$step) st$advance()
+        nxt_idx <- min(idx + 1L, length(secs))
+        nxt <- names(secs)[nxt_idx]
+        session$sendCustomMessage("coach_scroll_to", nxt)
+      }, ignoreInit = TRUE)
+    })
 
     # Back to table button - returns reactive that triggers navigation
     back_to_table_clicked <- reactive({

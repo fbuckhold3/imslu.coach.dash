@@ -825,7 +825,7 @@ rdm_data$residents <- rdm_data$residents %>%
 # The "Refresh Data" button calls memoise::forget() to bust the cache early.
 load_coaching_data_cached <- memoise::memoise(
   load_coaching_data,
-  cache = memoise::timeout_cache(30 * 60)
+  cache = cachem::cache_mem(max_age = 30 * 60)
 )
 
 # ==============================================================================
@@ -1249,6 +1249,12 @@ get_review_instance <- function(level, period_name, review_type = "scheduled") {
   # Fallback: use period number
   return(get_period_number(period_name))
 }
+
+# ==============================================================================
+# SOURCE HELPER FILES (must come before modules that depend on them)
+# ==============================================================================
+
+source("R/helpers/section_shell.R")
 
 # ==============================================================================
 # SOURCE MODULE FILES

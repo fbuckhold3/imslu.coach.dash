@@ -5,21 +5,20 @@ mod_wellness_ui <- function(id) {
   ns <- NS(id)
   
   tagList(
-    # Previous Period Data Section
-    h4("Previous Period Responses", style = "color: #34495e; margin-top: 10px;"),
-    
+    # Resident self-reflection (read-only) — full reflection block from s_eval:
+    # plus / delta / wellness / mentor-discussion topics / program-assistance.
+    # Previous period text is shown as a reference panel above each field.
+    h4("Resident Self-Reflection", style = "color: #34495e; margin-top: 10px;"),
+
     wellPanel(
       style = "background-color: #f8f9fa; border-left: 4px solid #3498db;",
-      
-      h5("Resident Self-Assessment - Wellness", style = "color: #2980b9;"),
-      uiOutput(ns("previous_wellness")),
-      
-      hr(),
-      
-      h5("Resident Self-Assessment - Progress and Assistance", style = "color: #2980b9;"),
-      uiOutput(ns("previous_progress"))
+      gmed::mod_seval_reflection_display_ui(
+        ns("reflection"),
+        title  = NULL,
+        fields = c("well", "discussion", "prog_assist")
+      )
     ),
-    
+
     hr(),
     
     # Current Period Coach Entry
@@ -64,69 +63,21 @@ mod_wellness_server <- function(id, resident_data, current_period, app_data) {
     # Track current resident to detect changes
     current_resident_id <- reactiveVal(NULL)
 
-    # Display current period wellness data
-    output$previous_wellness <- renderUI({
-      req(resident_data())
-
-      curr_data <- resident_data()$current_period$s_eval
-
-      if (is.null(curr_data) || nrow(curr_data) == 0) {
-        return(
-          div(
-            style = "font-style: italic; color: #95a5a6;",
-            "No wellness data available for current period"
-          )
-        )
-      }
-
-      wellness_text <- curr_data$s_e_well[1]
-
-      if (is.na(wellness_text) || wellness_text == "") {
-        return(
-          div(
-            style = "font-style: italic; color: #95a5a6;",
-            "Resident did not provide wellness information"
-          )
-        )
-      }
-
-      div(
-        style = "padding: 10px; background-color: white; border-radius: 4px;",
-        HTML(gsub("\n", "<br>", wellness_text))
-      )
-    })
-
-    # Display current period progress/assistance data
-    output$previous_progress <- renderUI({
-      req(resident_data())
-
-      curr_data <- resident_data()$current_period$s_eval
-
-      if (is.null(curr_data) || nrow(curr_data) == 0) {
-        return(
-          div(
-            style = "font-style: italic; color: #95a5a6;",
-            "No progress data available for current period"
-          )
-        )
-      }
-
-      progress_text <- curr_data$s_e_prog_assist[1]
-
-      if (is.na(progress_text) || trimws(progress_text) == "") {
-        return(
-          div(
-            style = "font-style: italic; color: #95a5a6;",
-            "Resident did not provide progress information"
-          )
-        )
-      }
-
-      div(
-        style = "padding: 10px; background-color: white; border-radius: 4px;",
-        HTML(gsub("\n", "<br>", progress_text))
-      )
-    })
+    # Resident self-reflection (read-only) — gmed display module renders all
+    # five s_eval reflection fields (plus, delta, well, discussion, prog_assist)
+    # with previous-period reference text where present.
+    gmed::mod_seval_reflection_display_server(
+      "reflection",
+      current_row  = reactive({
+        rd <- resident_data()
+        if (is.null(rd)) NULL else rd$current_period$s_eval
+      }),
+      previous_row = reactive({
+        rd <- resident_data()
+        if (is.null(rd)) NULL else rd$previous_period$s_eval
+      }),
+      fields = c("well", "discussion", "prog_assist")
+    )
 
     # Character count for coach entry
     output$char_count <- renderText({

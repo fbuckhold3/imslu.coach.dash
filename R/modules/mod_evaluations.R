@@ -28,24 +28,17 @@ mod_evaluations_ui <- function(id) {
       )
     ),
 
-    # Current Period - Resident Reflections
+    # Resident reflection on feedback received (plus/delta only).
+    # Wellness/discussion/prog_assist live in the Wellness section.
     div(
       class = "mb-4",
-      h5(icon("user"), " Current Period - Resident Self-Assessment", style = "color: #2c3e50;"),
+      h5(icon("user"), " Resident Reflection on Feedback", style = "color: #2c3e50;"),
       wellPanel(
         style = "background-color: #fff8e1;",
-        div(
-          class = "row",
-          div(
-            class = "col-md-6",
-            h6("Reflection on Plus Feedback", style = "color: #f39c12;"),
-            uiOutput(ns("current_plus"))
-          ),
-          div(
-            class = "col-md-6",
-            h6("Reflection on Delta Feedback", style = "color: #f39c12;"),
-            uiOutput(ns("current_delta"))
-          )
+        gmed::mod_seval_reflection_display_ui(
+          ns("reflection"),
+          title  = NULL,
+          fields = c("plus", "delta")
         )
       )
     ),
@@ -449,61 +442,19 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       )
     })
 
-    # ===== CURRENT PERIOD RESIDENT REFLECTIONS =====
-
-    output$current_plus <- renderUI({
-      req(resident_data())
-
-      curr_data <- resident_data()$current_period$s_eval
-
-      if (is.null(curr_data) || nrow(curr_data) == 0) {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "No self-evaluation data for current period")
-        )
-      }
-
-      plus_text <- curr_data$s_e_plus[1]
-
-      if (is.na(plus_text) || trimws(plus_text) == "") {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "Resident has not yet reflected on plus feedback")
-        )
-      }
-
-      div(
-        style = "padding: 10px; background-color: white; border-radius: 4px;",
-        HTML(gsub("\n", "<br>", plus_text))
-      )
-    })
-
-    output$current_delta <- renderUI({
-      req(resident_data())
-
-      curr_data <- resident_data()$current_period$s_eval
-
-      if (is.null(curr_data) || nrow(curr_data) == 0) {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "No self-evaluation data for current period")
-        )
-      }
-
-      delta_text <- curr_data$s_e_delta[1]
-
-      if (is.na(delta_text) || trimws(delta_text) == "") {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "Resident has not yet reflected on delta feedback")
-        )
-      }
-
-      div(
-        style = "padding: 10px; background-color: white; border-radius: 4px;",
-        HTML(gsub("\n", "<br>", delta_text))
-      )
-    })
+    # Resident reflection on feedback received — plus/delta only here.
+    gmed::mod_seval_reflection_display_server(
+      "reflection",
+      current_row  = reactive({
+        rd <- resident_data()
+        if (is.null(rd)) NULL else rd$current_period$s_eval
+      }),
+      previous_row = reactive({
+        rd <- resident_data()
+        if (is.null(rd)) NULL else rd$previous_period$s_eval
+      }),
+      fields = c("plus", "delta")
+    )
 
     # ===== LOAD OR CLEAR DATA WHEN RESIDENT CHANGES =====
 
