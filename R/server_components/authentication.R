@@ -48,13 +48,13 @@ initialize_authentication <- function(input, output, session, values) {
     
     if (!is.null(data$error)) {
       showNotification(
-        paste("⚠️ Data loading issue:", data$error),
+        paste("\u26a0\ufe0f Data loading issue:", data$error),
         type = "warning",
         duration = 15
       )
     } else {
       showNotification(
-        "✅ Enhanced application loaded successfully with gmed integration",
+        "\u2705 Enhanced application loaded successfully with gmed integration",
         type = "message",
         duration = 5
       )

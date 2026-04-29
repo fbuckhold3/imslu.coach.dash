@@ -226,7 +226,7 @@ mod_coach_select_server <- function(id, app_data) {
               ")"
             )
           }
-          paste(level_parts, collapse = " • ")
+          paste(level_parts, collapse = " \u2022 ")
         } else {
           "No level data"
         }

@@ -224,7 +224,7 @@ output$prev_acgme_plot <- plotly::renderPlotly({
   req(acgme_milestone_data(), record_id())
   req(current_period())
 
-  prev_period <- previous_period()  # ← Use previous_period() reactive
+  prev_period <- previous_period()  # \u2190 Use previous_period() reactive
   
   # Handle case where there is no previous period
   if (is.na(prev_period)) {
@@ -240,7 +240,7 @@ output$prev_acgme_plot <- plotly::renderPlotly({
     dashboard <- gmed::create_milestone_overview_dashboard(
       milestone_results = milestone_results(),
       resident_id = record_id(),
-      period_text = prev_period,  # ← Changed from curr_period to prev_period
+      period_text = prev_period,  # \u2190 Changed from curr_period to prev_period
       milestone_type = "program",
       milestone_system = "acgme",
       resident_data = rdm_data()$residents

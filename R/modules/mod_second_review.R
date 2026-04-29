@@ -30,7 +30,7 @@ mod_second_review_ui <- function(id) {
             style = "display: flex; gap: 10px;",
             actionButton(
               ns("back_to_table"),
-              "← Back to Residents",
+              "\u2190 Back to Residents",
               class = "btn-secondary",
               icon = icon("table")
             )

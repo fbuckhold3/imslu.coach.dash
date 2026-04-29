@@ -69,7 +69,7 @@ if (!nzchar(REDCAP_CONFIG$rdm_token)) {
   stop("RDM_TOKEN not found. Please set in .Renviron or config.yml")
 }
 
-# Posit Connect pin configuration (optional — falls back to direct REDCap)
+# Posit Connect pin configuration (optional \u2014 falls back to direct REDCap)
 # Set CONNECT_SERVER and CONNECT_API_KEY in .Renviron to enable fast pin loading.
 # Leave blank for local dev; the app will load direct from REDCap instead.
 PIN_CONFIG <- list(
@@ -284,11 +284,11 @@ load_coaching_data <- function(
   ))
   message("  -> Step 1/4: Loading RDM data...")
 
-  # Try the Posit Connect pin first (fast — ~1s).
+  # Try the Posit Connect pin first (fast \u2014 ~1s).
   # Falls back to a direct REDCap pull (~30-60s) when:
   #   - Running locally without Connect credentials
   #   - Pin is unavailable or stale
-  # CRITICAL: raw format must be preserved — translation happens in steps 2-4 below.
+  # CRITICAL: raw format must be preserved \u2014 translation happens in steps 2-4 below.
   rdm_data <- tryCatch({
     if (nzchar(PIN_CONFIG$server) && nzchar(PIN_CONFIG$api_key)) {
       message("  -> Reading from Posit Connect pin '", PIN_CONFIG$pin_name, "'...")
@@ -819,7 +819,7 @@ rdm_data$residents <- rdm_data$residents %>%
   return(rdm_data)
 }
 
-# Memoised version — caches the result for 30 minutes in memory.
+# Memoised version \u2014 caches the result for 30 minutes in memory.
 # On Posit Connect, multiple users share the same R process, so only the
 # first request hits REDCap; everyone else gets the cached result instantly.
 # The "Refresh Data" button calls memoise::forget() to bust the cache early.

@@ -157,7 +157,7 @@ mod_review_interface_ui <- function(id) {
             style = "display: flex; gap: 10px;",
             actionButton(
               ns("back_to_table"),
-              "← Back to Residents",
+              "\u2190 Back to Residents",
               class = "btn-secondary",
               icon = icon("table")
             ),
@@ -177,10 +177,10 @@ mod_review_interface_ui <- function(id) {
       )
     ),
 
-    # Sticky progress bar — sections-as-pills + percentage + bar
+    # Sticky progress bar \u2014 sections-as-pills + percentage + bar
     coach_progress_bar_ui(ns("progress_bar")),
 
-    # Sequential layout — sections rendered server-side based on the
+    # Sequential layout \u2014 sections rendered server-side based on the
     # current period (P1-5 standard, P6 graduating, P7 intern intro).
     div(
       style = "max-width: 1400px; margin: 0 auto; padding-top: 12px;",
@@ -189,7 +189,7 @@ mod_review_interface_ui <- function(id) {
 
     hr(),
 
-    # Final submission row — visible always, but only meaningful once
+    # Final submission row \u2014 visible always, but only meaningful once
     # the coach has completed enough sections to submit.
     fluidRow(
       column(
@@ -349,11 +349,11 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       scholarship_data, career_data, milestones_data, goals_data
     )
 
-    # ────────────────────────────────────────────────────────────────────
+    # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     # Sequential-section shell: progress bar + per-period section list
-    # ────────────────────────────────────────────────────────────────────
+    # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
-    # Period-aware section list — recomputed when the period changes.
+    # Period-aware section list \u2014 recomputed when the period changes.
     sections_r <- reactive({
       req(current_period())
       .coach_sections_for_period(current_period())
@@ -396,20 +396,15 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       }
     })
 
-    # Render sections sequentially with status badge + Continue button.
+    # Render sections sequentially. Section bodies are emitted ONCE per
+    # period change \u2014 the textareas inside live across reactive updates so
+    # typing isn't lost. Per-section badge + Continue-button warning text
+    # are routed through dedicated uiOutput slots so they can update
+    # reactively without re-rendering the body.
     output$sections_ui <- renderUI({
-      st <- shell_state(); req(st)
-      secs <- sections_r()
-      reacts <- section_reactives()
-      complete_vec <- st$complete
-
+      secs <- sections_r()                       # only re-render on period change
       tagList(lapply(names(secs), function(nm) {
         meta <- secs[[nm]]
-        done <- isTRUE(complete_vec[[nm]])
-        is_active <- identical(nm, names(secs)[st$step])
-        status <- if (done) "complete"
-                  else if (is_active) "active"
-                  else "incomplete"
 
         body <- switch(
           nm,
@@ -427,18 +422,56 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         )
 
         coach_sec_card(
-          name   = nm,
-          title  = meta$label,
-          icon   = meta$icon,
-          status = status,
+          name       = nm,
+          title      = meta$label,
+          icon       = meta$icon,
+          status     = "incomplete",   # consumed; badge actually driven by badge_slot
+          badge_slot = uiOutput(ns(paste0("badge_", nm)),
+                                inline = TRUE),
           body,
           # Skip continue button on the final summary section
           if (!identical(nm, "summary"))
             coach_continue_btn(ns, paste0("continue_", nm),
-                               label       = "Save & Continue",
-                               is_complete = done)
+                               label     = "Save & Continue",
+                               warn_slot = uiOutput(ns(paste0("warn_", nm)),
+                                                    inline = TRUE))
         )
       }))
+    })
+
+    # Per-section reactive renderers for badge + Continue-button warning.
+    # These are the ONLY pieces that re-render when shell_state changes,
+    # so the textareas in the section bodies keep their state on every
+    # keystroke.
+    observe({
+      secs <- sections_r()
+      st   <- shell_state(); req(st)
+      for (nm in names(secs)) local({
+        sec_name <- nm
+        is_active <- identical(sec_name, names(secs)[st$step])
+
+        output[[paste0("badge_", sec_name)]] <- renderUI({
+          done <- isTRUE(shell_state()$complete[[sec_name]])
+          if (done) {
+            tags$span(class = "badge",
+              style = "background:#198754; color:#fff; font-weight:600;",
+              tags$i(class = "bi bi-check-circle-fill me-1"), "Complete")
+          } else {
+            tags$span(class = "badge",
+              style = "background:#e5e7eb; color:#475569; font-weight:600;",
+              "In progress")
+          }
+        })
+
+        output[[paste0("warn_", sec_name)]] <- renderUI({
+          done <- isTRUE(shell_state()$complete[[sec_name]])
+          if (done) return(NULL)
+          tags$span(class = "text-warning ms-2",
+            style = "font-size:0.78rem;",
+            tags$i(class = "bi bi-exclamation-triangle-fill me-1"),
+            "Section incomplete \u2014 you can continue, but please return later")
+        })
+      })
     })
 
     # Render the sticky progress bar.

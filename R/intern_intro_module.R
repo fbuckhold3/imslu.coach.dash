@@ -33,12 +33,12 @@ get_intern_intro_data <- function(resident_name, app_data) {
     slice(1)
   
   if (nrow(resident_record) == 0) {
-    message("❌ Resident not found in resident_data")
+    message("\u274c Resident not found in resident_data")
     return(intro_data)
   }
   
   resident_record_id <- resident_record$record_id
-  message("✅ Found record_id: ", resident_record_id)
+  message("\u2705 Found record_id: ", resident_record_id)
   
   # STEP 2: Find s_eval records
   message("Step 2: Finding S Eval records")
@@ -49,7 +49,7 @@ get_intern_intro_data <- function(resident_name, app_data) {
   message("Found ", nrow(s_eval_data), " total S Eval records")
   
   if (nrow(s_eval_data) == 0) {
-    message("❌ No S Eval records found")
+    message("\u274c No S Eval records found")
     return(intro_data)
   }
   
@@ -62,11 +62,11 @@ get_intern_intro_data <- function(resident_name, app_data) {
     slice(1)
   
   if (nrow(resident_s_eval) == 0) {
-    message("❌ No S Eval data found for record_id: ", resident_record_id)
+    message("\u274c No S Eval data found for record_id: ", resident_record_id)
     return(intro_data)
   }
   
-  message("✅ Found S Eval data for ", resident_name, " (record_id: ", resident_record_id, ")")
+  message("\u2705 Found S Eval data for ", resident_name, " (record_id: ", resident_record_id, ")")
   intro_data$has_data <- TRUE
   
   row <- resident_s_eval[1, ]
@@ -197,7 +197,7 @@ get_intern_intro_data <- function(resident_name, app_data) {
     intro_data$track$types <- selected_tracks
   }
   
-  message("✅ Successfully extracted intern intro data for ", resident_name)
+  message("\u2705 Successfully extracted intern intro data for ", resident_name)
   
   return(intro_data)
 }
@@ -279,7 +279,7 @@ create_preparedness_display_safe <- function(intro_data, rdm_dict) {
           class = "card shadow-sm",
           div(
             class = "card-header bg-primary text-white",
-            h5("📊 Preparedness Self-Assessment", class = "mb-0 card-title")
+            h5("\U0001f4ca Preparedness Self-Assessment", class = "mb-0 card-title")
           ),
           div(
             class = "card-body",
@@ -396,7 +396,7 @@ create_preparedness_display_safe <- function(intro_data, rdm_dict) {
         class = "card shadow-sm",
         div(
           class = "card-header bg-primary text-white",
-          h5("📊 Preparedness Self-Assessment", class = "mb-0 card-title"),
+          h5("\U0001f4ca Preparedness Self-Assessment", class = "mb-0 card-title"),
           tags$small("Sorted by preparation level (least prepared first)", class = "text-white-50")
         ),
         div(class = "card-body", prep_items)
@@ -423,7 +423,7 @@ create_topics_and_learning_display_safe <- function(intro_data, rdm_dict) {
       class = "card shadow-sm h-100",
       div(
         class = "card-header bg-warning text-dark",
-        h5("⚠️ Topics Feeling Least Confident About", class = "mb-0 card-title")
+        h5("\u26a0\ufe0f Topics Feeling Least Confident About", class = "mb-0 card-title")
       ),
       div(
         class = "card-body",
@@ -476,7 +476,7 @@ create_topics_and_learning_display_safe <- function(intro_data, rdm_dict) {
       class = "card shadow-sm h-100",
       div(
         class = "card-header bg-success text-white",
-        h5("🎯 Desired Learning Experiences", class = "mb-0 card-title")
+        h5("\U0001f3af Desired Learning Experiences", class = "mb-0 card-title")
       ),
       div(
         class = "card-body",
@@ -537,7 +537,7 @@ create_goals_display_safe <- function(intro_data) {
         class = "card shadow-sm",
         div(
           class = "card-header bg-info text-white",
-          h5("🎯 Goals for First 6 Months", class = "mb-0 card-title")
+          h5("\U0001f3af Goals for First 6 Months", class = "mb-0 card-title")
         ),
         div(
           class = "card-body",
@@ -628,7 +628,7 @@ create_track_and_career_display_safe <- function(intro_data, rdm_dict) {
           class = "card shadow-sm",
           div(
             class = "card-header bg-secondary text-white",
-            h5("🚀 Career Path & Track Interests", class = "mb-0 card-title")
+            h5("\U0001f680 Career Path & Track Interests", class = "mb-0 card-title")
           ),
           div(
             class = "card-body",
@@ -731,7 +731,7 @@ create_track_and_career_display_safe <- function(intro_data, rdm_dict) {
         class = "card shadow-sm",
         div(
           class = "card-header bg-secondary text-white",
-          h5("🚀 Career Path & Track Interests", class = "mb-0 card-title")
+          h5("\U0001f680 Career Path & Track Interests", class = "mb-0 card-title")
         ),
         div(class = "card-body", content_items)
       )
@@ -755,7 +755,7 @@ create_concerns_display_safe <- function(intro_data) {
         class = "card shadow-sm",
         div(
           class = "card-header bg-light text-dark",
-          h5("💭 Comments and Concerns", class = "mb-0 card-title")
+          h5("\U0001f4ad Comments and Concerns", class = "mb-0 card-title")
         ),
         div(
           class = "card-body",
@@ -1113,7 +1113,7 @@ create_intern_intro_interface_with_submit <- function(resident_name, app_data) {
         div(class = "d-flex align-items-center",
             icon("user-graduate", class = "me-3", style = "font-size: 2rem;"),
             div(
-              h3("🎓 Intern Introduction Review", class = "alert-heading mb-1"),
+              h3("\U0001f393 Intern Introduction Review", class = "alert-heading mb-1"),
               p("Complete review for new interns during their introduction period", class = "mb-0 opacity-75")
             )
         )

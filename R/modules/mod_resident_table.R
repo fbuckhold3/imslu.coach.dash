@@ -99,7 +99,7 @@ mod_resident_table_ui <- function(id) {
           ),
           actionButton(
             ns("back_to_coach_select"),
-            "← Back to Coach Selection",
+            "\u2190 Back to Coach Selection",
             class = "btn-secondary",
             icon = icon("user-tie")
           )
@@ -169,7 +169,7 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
     # Session-level tracker for interim instances submitted this session.
     # Named list: record_id -> highest instance used so far.
     # Needed because app_data() is a snapshot and won't reflect records
-    # submitted after the last data load — without this a second interim
+    # submitted after the last data load \u2014 without this a second interim
     # review for the same resident would calculate the same instance number.
     session_interim_tracker <- reactiveVal(list())
 

@@ -5,7 +5,7 @@ mod_wellness_ui <- function(id) {
   ns <- NS(id)
   
   tagList(
-    # Resident self-reflection (read-only) — full reflection block from s_eval:
+    # Resident self-reflection (read-only) \u2014 full reflection block from s_eval:
     # plus / delta / wellness / mentor-discussion topics / program-assistance.
     # Previous period text is shown as a reference panel above each field.
     h4("Resident Self-Reflection", style = "color: #34495e; margin-top: 10px;"),
@@ -63,7 +63,7 @@ mod_wellness_server <- function(id, resident_data, current_period, app_data) {
     # Track current resident to detect changes
     current_resident_id <- reactiveVal(NULL)
 
-    # Resident self-reflection (read-only) — gmed display module renders all
+    # Resident self-reflection (read-only) \u2014 gmed display module renders all
     # five s_eval reflection fields (plus, delta, well, discussion, prog_assist)
     # with previous-period reference text where present.
     gmed::mod_seval_reflection_display_server(

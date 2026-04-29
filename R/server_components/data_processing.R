@@ -122,7 +122,7 @@ initialize_data_processing <- function(input, output, session, values) {
       )
       
       values$dropdown_updated <- TRUE
-      message("✅ Coach dropdown updated successfully!")
+      message("\u2705 Coach dropdown updated successfully!")
       
       showNotification(
         paste("Loaded", length(all_coaches), "coaches successfully!"),
@@ -130,7 +130,7 @@ initialize_data_processing <- function(input, output, session, values) {
       )
       
     }, error = function(e) {
-      message("❌ Dropdown update failed: ", e$message)
+      message("\u274c Dropdown update failed: ", e$message)
     })
   })
   

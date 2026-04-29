@@ -314,8 +314,8 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       req(app_data())
 
       # CRITICAL: assessment_viz_server shows MULTIPLE charts:
-      # 1. Main assessment charts (faculty → resident) need source_form = "assessment"
-      # 2. Faculty evaluation counts (resident → faculty) need source_form = "faculty_evaluation"
+      # 1. Main assessment charts (faculty \u2192 resident) need source_form = "assessment"
+      # 2. Faculty evaluation counts (resident \u2192 faculty) need source_form = "faculty_evaluation"
       # We need to include BOTH forms for complete visualization
 
       # Assessment data: Faculty feedback ABOUT residents
@@ -358,8 +358,8 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
 
       message(sprintf("DEBUG [mod_evaluations]: Combined data for assessment_viz (resident %s):", record_id()))
       message(sprintf("  Total rows: %d", nrow(resident_data)))
-      message(sprintf("  Assessment rows (faculty→resident): %d", sum(resident_data$source_form == "assessment", na.rm = TRUE)))
-      message(sprintf("  Faculty evaluation rows (resident→faculty): %d", sum(resident_data$source_form == "faculty_evaluation", na.rm = TRUE)))
+      message(sprintf("  Assessment rows (faculty\u2192resident): %d", sum(resident_data$source_form == "assessment", na.rm = TRUE)))
+      message(sprintf("  Faculty evaluation rows (resident\u2192faculty): %d", sum(resident_data$source_form == "faculty_evaluation", na.rm = TRUE)))
       message(sprintf("  Questions rows: %d", sum(resident_data$source_form == "questions", na.rm = TRUE)))
 
       if (nrow(resident_data) > 0) {
@@ -442,7 +442,7 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       )
     })
 
-    # Resident reflection on feedback received — plus/delta only here.
+    # Resident reflection on feedback received \u2014 plus/delta only here.
     gmed::mod_seval_reflection_display_server(
       "reflection",
       current_row  = reactive({

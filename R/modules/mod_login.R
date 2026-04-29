@@ -67,7 +67,7 @@ mod_login_ui <- function(id) {
       div(
         class = "login-header",
         h2("IMSLU Coaching Dashboard"),
-        p("Internal Medicine Residency • Saint Louis University"),
+        p("Internal Medicine Residency \u2022 Saint Louis University"),
         hr()
       ),
       

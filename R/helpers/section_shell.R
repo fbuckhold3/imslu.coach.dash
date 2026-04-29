@@ -13,7 +13,7 @@
 #      save to scroll the next section into view.
 
 
-# ── UI ────────────────────────────────────────────────────────────────────
+# \u2500\u2500 UI \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 #' Progress bar for the coach review shell
 #'
@@ -86,16 +86,21 @@ render_coach_progress <- function(sections, status, active = NULL) {
   )
 }
 
-#' Section card — title, status badge, body
+#' Section card \u2014 title, status badge, body
 #'
-#' @param name     Internal name (used for anchor + DOM id).
-#' @param title    Display title.
-#' @param icon     Bootstrap icon name (without "bi-" prefix).
-#' @param status   "incomplete" | "complete" | "skipped".
-#' @param ...      Body content.
+#' @param name        Internal name (used for anchor + DOM id).
+#' @param title       Display title.
+#' @param icon        Bootstrap icon name (without "bi-" prefix).
+#' @param status      "incomplete" | "complete" | "skipped". Used only when
+#'                    `badge_slot` is NULL.
+#' @param badge_slot  Optional Shiny tag (typically `uiOutput(...)`) that
+#'                    replaces the static badge \u2014 lets the badge update
+#'                    reactively without re-rendering the card body.
+#' @param ...         Body content.
 coach_sec_card <- function(name, title, icon = "card-text",
-                           status = "incomplete", ...) {
-  badge <- switch(
+                           status = "incomplete",
+                           badge_slot = NULL, ...) {
+  badge <- if (!is.null(badge_slot)) badge_slot else switch(
     status,
     complete   = shiny::tags$span(
       class = "badge",
@@ -140,16 +145,23 @@ coach_sec_card <- function(name, title, icon = "card-text",
   )
 }
 
-#' Continue button — bumps the active section but does not block on
+#' Continue button \u2014 bumps the active section but does not block on
 #' incompleteness.
 #'
 #' @param ns      Module namespace function.
 #' @param id      Input id (e.g., "continue_wellness").
 #' @param label   Button label.
-#' @param is_complete Logical. Drives the visual state.
+#' @param is_complete Logical. Drives the visual state when `warn_slot`
+#'                    is NULL.
+#' @param warn_slot   Optional Shiny tag (typically `uiOutput(...)`) that
+#'                    replaces the static "Section incomplete" warning so
+#'                    the warning can update reactively without re-rendering
+#'                    the parent card body.
 coach_continue_btn <- function(ns, id, label = "Save & Continue",
-                               is_complete = FALSE) {
-  warn_text <- if (!isTRUE(is_complete)) {
+                               is_complete = FALSE,
+                               warn_slot   = NULL) {
+  warn_text <- if (!is.null(warn_slot)) warn_slot
+               else if (!isTRUE(is_complete)) {
     shiny::tags$span(
       class = "text-warning ms-2",
       style = "font-size:0.78rem;",
@@ -171,7 +183,7 @@ coach_continue_btn <- function(ns, id, label = "Save & Continue",
 }
 
 
-# ── Server-side state ─────────────────────────────────────────────────────
+# \u2500\u2500 Server-side state \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 #' Reactive state container for the coach shell
 #'
@@ -201,7 +213,7 @@ coach_shell_state <- function(section_names) {
 }
 
 
-# ── Internal utils ────────────────────────────────────────────────────────
+# \u2500\u2500 Internal utils \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 isTRUE_safe <- function(x) {
   if (length(x) == 0) return(logical(0))
@@ -209,7 +221,7 @@ isTRUE_safe <- function(x) {
 }
 
 
-# ── Browser-side helper (registered by the shell once at startup) ─────────
+# \u2500\u2500 Browser-side helper (registered by the shell once at startup) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 #
 # Sends a custom message "coach_scroll_to" with section name; the JS scrolls
 # that section into view smoothly. Call from server on continue/save.
