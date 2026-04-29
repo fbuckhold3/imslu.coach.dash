@@ -183,7 +183,8 @@ server <- function(input, output, session) {
   # This allows direct access to app_data$... outside reactive contexts
   app_data <- reactiveValues(
     data = NULL,
-    data_dict = NULL
+    data_dict = NULL,
+    last_loaded_time = NULL
   )
   
   # ==========================================================================
@@ -203,17 +204,18 @@ server <- function(input, output, session) {
   observe({
     req(app_state$authenticated)
     req(!app_state$data_loaded)
-    
+
     message("Starting data load...")
-    
+
     isolate({
       withProgress(message = "Loading data...", value = 0, {
         incProgress(0.2, detail = "Connecting to REDCap...")
-        
+
         tryCatch({
-          loaded_data <- load_coaching_data()
+          loaded_data <- load_coaching_data_cached()
           app_data$data <- loaded_data
-          app_data$data_dict <- loaded_data$data_dict  # Store separately for easy access
+          app_data$data_dict <- loaded_data$data_dict
+          app_data$last_loaded_time <- Sys.time()
           app_state$data_loaded <- TRUE
 
           incProgress(0.8, detail = "Processing complete")
@@ -223,7 +225,7 @@ server <- function(input, output, session) {
             type = "message",
             duration = 3
           )
-          
+
         }, error = function(e) {
           showNotification(
             sprintf("Error loading data: %s", e$message),
@@ -286,8 +288,20 @@ server <- function(input, output, session) {
   resident_selection <- mod_resident_table_server(
     "resident_table",
     coach_data,
-    app_data_reactive
+    app_data_reactive,
+    last_loaded = reactive({ app_data$last_loaded_time })
   )
+
+  # Handle refresh trigger from resident table
+  observe({
+    tryCatch({
+      count <- resident_selection$refresh_triggered()
+      if (!is.null(count) && count > 0) {
+        memoise::forget(load_coaching_data_cached)  # bust the cache
+        app_state$data_loaded <- FALSE              # trigger reload
+      }
+    }, error = function(e) {})
+  })
 
   # ==========================================================================
   # REVIEW INTERFACE (PHASE 2)

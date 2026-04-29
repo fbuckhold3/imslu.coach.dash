@@ -34,6 +34,8 @@ library(lubridate)
 library(plotly)
 library(ggplot2)
 library(httr)
+library(pins)
+library(memoise)
 
 # Load gmed package (from GitHub: fbuckhold3/gmed)
 if (!require(gmed)) {
@@ -66,6 +68,15 @@ REDCAP_CONFIG <- list(
 if (!nzchar(REDCAP_CONFIG$rdm_token)) {
   stop("RDM_TOKEN not found. Please set in .Renviron or config.yml")
 }
+
+# Posit Connect pin configuration (optional — falls back to direct REDCap)
+# Set CONNECT_SERVER and CONNECT_API_KEY in .Renviron to enable fast pin loading.
+# Leave blank for local dev; the app will load direct from REDCap instead.
+PIN_CONFIG <- list(
+  server  = Sys.getenv("CONNECT_SERVER"),
+  api_key = Sys.getenv("CONNECT_API_KEY"),
+  pin_name = Sys.getenv("PIN_NAME", unset = "rdm_complete_raw")
+)
 
 # Authentication configuration
 AUTH_CONFIG <- list(
@@ -271,16 +282,35 @@ load_coaching_data <- function(
     "[%s] Loading RDM data for coaching dashboard...",
     format(Sys.time(), "%H:%M:%S")
   ))
-  message("  -> Step 1/4: Connecting to REDCap API...")
-  
-  # Use gmed's data loading function
-  # CRITICAL: Must use "raw" format to preserve numerical data and checkbox codes
-  # Translation layers will be created in UI modules for display purposes
-  rdm_data <- gmed::load_rdm_complete(
-    redcap_url = redcap_url,
-    rdm_token = rdm_token,
-    raw_or_label = "raw"  # Use raw format (required for numeric fields and checkboxes)
-  )
+  message("  -> Step 1/4: Loading RDM data...")
+
+  # Try the Posit Connect pin first (fast — ~1s).
+  # Falls back to a direct REDCap pull (~30-60s) when:
+  #   - Running locally without Connect credentials
+  #   - Pin is unavailable or stale
+  # CRITICAL: raw format must be preserved — translation happens in steps 2-4 below.
+  rdm_data <- tryCatch({
+    if (nzchar(PIN_CONFIG$server) && nzchar(PIN_CONFIG$api_key)) {
+      message("  -> Reading from Posit Connect pin '", PIN_CONFIG$pin_name, "'...")
+      board <- pins::board_connect(
+        server  = PIN_CONFIG$server,
+        api_key = PIN_CONFIG$api_key
+      )
+      data <- pins::pin_read(board, PIN_CONFIG$pin_name)
+      message("  -> Pin loaded successfully")
+      data
+    } else {
+      stop("No Connect credentials configured")
+    }
+  }, error = function(e) {
+    message("  -> Pin unavailable (", conditionMessage(e), ")")
+    message("  -> Falling back to direct REDCap pull...")
+    gmed::load_rdm_complete(
+      redcap_url   = redcap_url,
+      rdm_token    = rdm_token,
+      raw_or_label = "raw"
+    )
+  })
   
   message("  -> Step 2/4: Processing resident data...")
 
@@ -789,6 +819,15 @@ rdm_data$residents <- rdm_data$residents %>%
   return(rdm_data)
 }
 
+# Memoised version — caches the result for 30 minutes in memory.
+# On Posit Connect, multiple users share the same R process, so only the
+# first request hits REDCap; everyone else gets the cached result instantly.
+# The "Refresh Data" button calls memoise::forget() to bust the cache early.
+load_coaching_data_cached <- memoise::memoise(
+  load_coaching_data,
+  cache = cachem::cache_mem(max_age = 30 * 60)
+)
+
 # ==============================================================================
 # COACH FILTERING FUNCTIONS
 # ==============================================================================
@@ -923,8 +962,32 @@ check_second_review_complete <- function(all_forms, record_id, period_number) {
          nzchar(second_data$second_comments[1]))
 }
 
+#' Get Next Available Instance for Interim (Ad Hoc) Review
+#'
+#' Interim reviews use instances >= 100 to avoid conflicts with scheduled
+#' reviews (which use small integers assigned by gmed::get_redcap_instance).
+#'
+#' @param all_forms List of all form data
+#' @param record_id Resident record ID
+#' @return Integer, next available instance number (>= 100)
+#' @export
+get_next_interim_instance <- function(all_forms, record_id) {
+  if (is.null(all_forms$coach_rev)) return(100L)
+
+  existing <- all_forms$coach_rev %>%
+    filter(record_id == !!record_id, !is.na(redcap_repeat_instance)) %>%
+    pull(redcap_repeat_instance) %>%
+    suppressWarnings(as.integer()) %>%
+    na.omit()
+
+  interim_instances <- existing[existing >= 100L]
+
+  if (length(interim_instances) == 0L) return(100L)
+  return(as.integer(max(interim_instances) + 1L))
+}
+
 #' Get Form Data for Resident and Period
-#' 
+#'
 #' Handles different period field names and logic for each form
 #' 
 #' @param all_forms List of all form data
@@ -1186,6 +1249,12 @@ get_review_instance <- function(level, period_name, review_type = "scheduled") {
   # Fallback: use period number
   return(get_period_number(period_name))
 }
+
+# ==============================================================================
+# SOURCE HELPER FILES (must come before modules that depend on them)
+# ==============================================================================
+
+source("R/helpers/section_shell.R")
 
 # ==============================================================================
 # SOURCE MODULE FILES

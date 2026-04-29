@@ -89,6 +89,14 @@ mod_resident_table_ui <- function(id) {
           h4(icon("users"), " Your Residents")
         ),
         div(
+          style = "display: flex; gap: 10px; align-items: center;",
+          uiOutput(ns("last_loaded_display")),
+          actionButton(
+            ns("refresh_data_btn"),
+            "Refresh Data",
+            icon = icon("sync"),
+            class = "btn-info btn-sm"
+          ),
           actionButton(
             ns("back_to_coach_select"),
             "← Back to Coach Selection",
@@ -121,24 +129,19 @@ mod_resident_table_ui <- function(id) {
         )
       ),
       
-      # Ad hoc review section
+      # Interim review section
       div(
         class = "ad-hoc-section",
-        h5(icon("calendar-plus"), " Ad Hoc Reviews"),
+        h5(icon("calendar-plus"), " Interim Reviews"),
         p(
           style = "color: #666; font-size: 14px;",
-          "For unscheduled reviews outside regular periods"
+          "Create an interim (ad hoc) coaching review outside regular scheduled periods."
         ),
         actionButton(
           ns("ad_hoc_btn"),
-          "Create Ad Hoc Review",
+          "Create Interim Review",
           icon = icon("plus"),
-          class = "btn-secondary",
-          disabled = "disabled"  # Will enable in future phase
-        ),
-        span(
-          style = "margin-left: 10px; color: #999; font-size: 13px;",
-          "(Coming soon)"
+          class = "btn-secondary"
         )
       )
     )
@@ -152,13 +155,38 @@ mod_resident_table_ui <- function(id) {
 #' @param app_data Reactive containing complete RDM data structure
 #' @return Reactive list with selected resident and period information
 #' @export
-mod_resident_table_server <- function(id, coach_data, app_data) {
+mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     # Selected resident state
     selected_resident <- reactiveVal(NULL)
     selected_period <- reactiveVal(NULL)
+
+    # Refresh trigger counter (incremented when user clicks Refresh)
+    refresh_triggered <- reactiveVal(0)
+
+    # Session-level tracker for interim instances submitted this session.
+    # Named list: record_id -> highest instance used so far.
+    # Needed because app_data() is a snapshot and won't reflect records
+    # submitted after the last data load — without this a second interim
+    # review for the same resident would calculate the same instance number.
+    session_interim_tracker <- reactiveVal(list())
+
+    # Display last loaded time
+    output$last_loaded_display <- renderUI({
+      if (is.null(last_loaded) || is.null(last_loaded())) return(NULL)
+      span(
+        style = "color: #999; font-size: 12px; align-self: center;",
+        paste("Last loaded:", format(last_loaded(), "%I:%M %p"))
+      )
+    })
+
+    # Handle refresh button
+    observeEvent(input$refresh_data_btn, {
+      showNotification("Refreshing data from REDCap...", type = "message", duration = 2)
+      refresh_triggered(refresh_triggered() + 1)
+    })
     
     # Build table data with completion status
     table_data <- reactive({
@@ -399,23 +427,135 @@ observeEvent(input$resident_table_rows_selected, {
       )
     })
 
-    # Ad hoc review button (placeholder for future)
+    # Interim review button - show modal to collect resident, date, summary
     observeEvent(input$ad_hoc_btn, {
-      showNotification(
-        "Ad hoc reviews will be available in a future update.",
-        type = "message",
-        duration = 3
+      coach_info <- tryCatch(coach_data(), error = function(e) NULL)
+      req(coach_info)
+
+      residents <- coach_info$residents
+      resident_choices <- setNames(residents$record_id, residents$full_name)
+
+      showModal(modalDialog(
+        title = tagList(icon("calendar-plus"), " Create Interim Review"),
+        size = "m",
+        easyClose = TRUE,
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton(
+            ns("submit_interim"),
+            "Submit Interim Review",
+            class = "btn-primary",
+            icon = icon("save")
+          )
+        ),
+
+        selectInput(
+          ns("interim_resident"),
+          "Resident:",
+          choices = resident_choices,
+          width = "100%"
+        ),
+        dateInput(
+          ns("interim_date"),
+          "Review Date:",
+          value = Sys.Date(),
+          width = "100%"
+        ),
+        textAreaInput(
+          ns("interim_summary"),
+          "Summary:",
+          placeholder = "Enter interim review summary...",
+          rows = 6,
+          width = "100%"
+        )
+      ))
+    })
+
+    # Submit interim review to REDCap
+    observeEvent(input$submit_interim, {
+      req(input$interim_resident, input$interim_date, input$interim_summary)
+
+      if (!nzchar(trimws(input$interim_summary))) {
+        showNotification("Please enter a summary.", type = "warning")
+        return()
+      }
+
+      res_info <- tryCatch(
+        app_data()$residents %>%
+          filter(record_id == input$interim_resident) %>%
+          slice(1),
+        error = function(e) NULL
       )
+      req(res_info)
+      req(nrow(res_info) > 0)
+
+      # Calculate instance: take the max of what app_data knows about AND
+      # what we've already submitted this session (in case the user submits
+      # multiple interim reviews before the next data refresh).
+      rid <- input$interim_resident
+      instance_from_data    <- get_next_interim_instance(app_data()$all_forms, rid)
+      instance_from_session <- {
+        tracker <- session_interim_tracker()
+        if (!is.null(tracker[[rid]])) tracker[[rid]] + 1L else 99L
+      }
+      instance <- max(instance_from_data, instance_from_session)
+
+      interim_record <- data.frame(
+        record_id                = rid,
+        redcap_repeat_instrument = "coach_rev",
+        redcap_repeat_instance   = instance,
+        coach_date               = format(as.Date(input$interim_date), "%Y-%m-%d"),
+        coach_period             = "8",   # Interim code in REDCap
+        coach_summary            = as.character(input$interim_summary),
+        coach_rev_complete       = "2",
+        stringsAsFactors         = FALSE
+      )
+
+      tryCatch({
+        result <- REDCapR::redcap_write_oneshot(
+          ds         = interim_record,
+          redcap_uri = REDCAP_CONFIG$url,
+          token      = REDCAP_CONFIG$rdm_token
+        )
+
+        if (result$success) {
+          # Record the used instance so the next submission in this session
+          # knows to go one higher.
+          tracker <- session_interim_tracker()
+          tracker[[rid]] <- instance
+          session_interim_tracker(tracker)
+
+          removeModal()
+          showNotification(
+            paste("Interim review submitted for", res_info$full_name[1]),
+            type     = "message",
+            duration = 4
+          )
+        } else {
+          showNotification(
+            paste("Submission failed:", result$outcome_message),
+            type     = "error",
+            duration = 10
+          )
+        }
+      }, error = function(e) {
+        showNotification(
+          paste("Error submitting review:", e$message),
+          type     = "error",
+          duration = 10
+        )
+      })
     })
 
     # Return reactive values and functions
     return(
       list(
-        selected_resident = selected_resident,
-        selected_period = selected_period,
-        current_period = reactive({ get_period_number(selected_period()) }),  # Add this for compatibility
-        clear_selection = deselect_resident,  # Renamed for clarity
-        back_to_coach_clicked = back_to_coach_clicked  # Add back button reactive
+        selected_resident  = selected_resident,
+        selected_period    = selected_period,
+        current_period     = reactive({ get_period_number(selected_period()) }),
+        clear_selection    = deselect_resident,
+        back_to_coach_clicked = back_to_coach_clicked,
+        refresh_triggered  = refresh_triggered
       )
     )
   })

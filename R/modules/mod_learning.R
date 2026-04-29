@@ -32,32 +32,11 @@ mod_learning_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
-    # Exam Scores Section
-    h4("Exam Performance", style = "color: #34495e; margin-top: 10px;"),
-
+    # Step 3 status + ITE-derived ABIM board prediction + MKSAP tracker link
+    h4("Step 3 & Board Preparation", style = "color: #34495e; margin-top: 10px;"),
     wellPanel(
       style = "background-color: #f8f9fa; border-left: 4px solid #e67e22;",
-      uiOutput(ns("exam_scores_table"))
-    ),
-
-    hr(),
-
-    # Risk Assessment Section
-    h4("Performance Risk Assessment", style = "color: #34495e; margin-top: 20px;"),
-
-    wellPanel(
-      style = "background-color: #f8f9fa; border-left: 4px solid #e67e22;",
-      div(
-        class = "alert alert-info mb-3",
-        icon("info-circle", class = "me-2"),
-        p(
-          class = "mb-0",
-          "We are determining a 'risk status' for passing boards based on in-training scores. ",
-          "This takes into account a combination of total percentage and/or a drop in scores over a year. ",
-          "In meeting with your coach, you will be assigned a learning plan."
-        )
-      ),
-      uiOutput(ns("risk_assessment"))
+      gmed::mod_seval_boards_display_ui(ns("boards"))
     ),
 
     hr(),
@@ -80,16 +59,6 @@ mod_learning_ui <- function(id) {
           uiOutput(ns("learning_styles"))
         )
       )
-    ),
-
-    hr(),
-
-    # Board Preparation Status
-    h4("Board Preparation Status", style = "color: #34495e; margin-top: 20px;"),
-
-    wellPanel(
-      style = "background-color: #f8f9fa; border-left: 4px solid #e67e22;",
-      uiOutput(ns("board_prep_table"))
     ),
 
     hr(),
@@ -150,231 +119,48 @@ mod_learning_ui <- function(id) {
   )
 }
 
-mod_learning_server <- function(id, resident_data, current_period, app_data) {
+mod_learning_server <- function(id, resident_data, current_period, app_data, app_data_rv = NULL) {
   moduleServer(id, function(input, output, session) {
 
-    # Display exam scores table
-    output$exam_scores_table <- renderUI({
-      req(resident_data(), app_data())
-
-      resident_info <- resident_data()$resident_info
-      record_id <- resident_info$record_id
-
-      # Get test_data for this resident
-      test_data <- app_data()$all_forms$test_data %>%
-        dplyr::filter(record_id == !!record_id)
-
-      # Translation map for ITE subspecialty abbreviations
-      subspecialty_map <- c(
-        "total_ile" = "Total",
-        "cards_ile" = "Cardiology",
-        "endo_ile" = "Endocrinology",
-        "gi_ile" = "Gastroenterology",
-        "gim_ile" = "General Internal Medicine",
-        "geri_ile" = "Geriatrics",
-        "hemonc_ile" = "Hematology/Oncology",
-        "id_ile" = "Infectious Disease",
-        "nephro_ile" = "Nephrology",
-        "neuro_ile" = "Neurology",
-        "pulm_ccm_ile" = "Pulmonary/Critical Care",
-        "rheum_ile" = "Rheumatology",
-        "hvc_ile" = "High Value Care"
-      )
-
-      output_sections <- list()
-
-      # ===== USMLE/COMLEX Section =====
-      exam_list <- list()
-
-      # Helper function to safely check and add exam score from resident_info
-      add_exam_if_present <- function(field_name, exam_name) {
-        if (field_name %in% names(resident_info)) {
-          value <- resident_info[[field_name]]
-          if (!is.na(value) && !is.null(value) && trimws(as.character(value)) != "") {
-            exam_list[[length(exam_list) + 1]] <<- c(exam_name, as.character(value))
-          }
-        }
-      }
-
-      # USMLE/COMLEX scores (from resident_data form)
-      add_exam_if_present("usmle_step1", "USMLE Step 1")
-      add_exam_if_present("usmle_step2", "USMLE Step 2")
-      add_exam_if_present("usmle_step3_score", "USMLE Step 3")
-      add_exam_if_present("comlex_step1", "COMLEX Level 1")
-      add_exam_if_present("comlex_step2", "COMLEX Level 2")
-      add_exam_if_present("comlex_step3", "COMLEX Level 3")
-
-      if (length(exam_list) > 0) {
-        exam_df <- as.data.frame(do.call(rbind, exam_list), stringsAsFactors = FALSE)
-        colnames(exam_df) <- c("Exam", "Score")
-
-        output_sections[[length(output_sections) + 1]] <- tagList(
-          h5("USMLE/COMLEX Scores", style = "color: #2c3e50; margin-top: 0;"),
-          tags$table(
-            class = "table table-striped table-bordered",
-            style = "background-color: white; margin-bottom: 20px;",
-            tags$thead(
-              tags$tr(
-                tags$th("Exam"),
-                tags$th("Score")
-              )
-            ),
-            tags$tbody(
-              lapply(1:nrow(exam_df), function(i) {
-                tags$tr(
-                  tags$td(exam_df[i, 1]),
-                  tags$td(exam_df[i, 2])
-                )
-              })
-            )
-          )
-        )
-      }
-
-      # ===== ITE Section (Pivoted) =====
-      if (nrow(test_data) > 0) {
-        # Determine which PGY years have data
-        available_years <- c()
-        for (pgy in c("pgy1", "pgy2", "pgy3")) {
-          # Check if any subspecialty field exists for this year
-          has_data <- FALSE
-          for (subspec_abbr in names(subspecialty_map)) {
-            field_name <- paste0(pgy, "_", subspec_abbr)
-            if (field_name %in% names(test_data)) {
-              value <- test_data[[field_name]][1]
-              if (!is.na(value) && !is.null(value) && trimws(as.character(value)) != "") {
-                has_data <- TRUE
-                break
-              }
-            }
-          }
-          if (has_data) {
-            available_years <- c(available_years, pgy)
-          }
-        }
-
-        if (length(available_years) > 0) {
-          # Build ITE table with subspecialties as rows, years as columns
-          ite_rows <- list()
-
-          for (subspec_abbr in names(subspecialty_map)) {
-            row_data <- list(subspecialty = subspecialty_map[subspec_abbr])
-
-            # Get score for each available year
-            for (pgy in available_years) {
-              field_name <- paste0(pgy, "_", subspec_abbr)
-              if (field_name %in% names(test_data)) {
-                value <- test_data[[field_name]][1]
-                if (!is.na(value) && !is.null(value) && trimws(as.character(value)) != "") {
-                  row_data[[pgy]] <- as.character(value)
-                } else {
-                  row_data[[pgy]] <- "-"
-                }
-              } else {
-                row_data[[pgy]] <- "-"
-              }
-            }
-
-            # Only include row if at least one score is not "-"
-            if (any(unlist(row_data[available_years]) != "-")) {
-              ite_rows[[length(ite_rows) + 1]] <- row_data
-            }
-          }
-
-          if (length(ite_rows) > 0) {
-            # Create column headers
-            year_headers <- lapply(available_years, function(pgy) {
-              year_num <- substr(pgy, 4, 4)
-              tags$th(paste0("PGY-", year_num))
-            })
-
-            # Create table rows
-            table_rows <- lapply(ite_rows, function(row_data) {
-              year_cells <- lapply(available_years, function(pgy) {
-                tags$td(row_data[[pgy]])
-              })
-
-              tags$tr(
-                tags$td(row_data$subspecialty),
-                year_cells
-              )
-            })
-
-            output_sections[[length(output_sections) + 1]] <- tagList(
-              h5("In-Training Exam (ITE) Percentiles", style = "color: #2c3e50; margin-top: 0;"),
-              tags$table(
-                class = "table table-striped table-bordered",
-                style = "background-color: white;",
-                tags$thead(
-                  tags$tr(
-                    tags$th("Subspecialty"),
-                    year_headers
-                  )
-                ),
-                tags$tbody(
-                  table_rows
-                )
-              )
-            )
-          }
-        }
-      }
-
-      # Return combined output
-      if (length(output_sections) == 0) {
-        return(
-          div(
-            style = "font-style: italic; color: #95a5a6; padding: 15px;",
-            "No exam scores recorded"
-          )
-        )
-      }
-
-      tagList(output_sections)
+    # Reactive accessor for the REDCap data dictionary; used by the gmed
+    # boards display module to translate s_e_mksap_comp into its label.
+    data_dict <- reactive({
+      if (is.null(app_data_rv)) return(NULL)
+      app_data_rv$data_dict
     })
 
-    # Display risk assessment
-    output$risk_assessment <- renderUI({
-      req(resident_data(), app_data())
-
-      resident_info <- resident_data()$resident_info
-      record_id <- resident_info$record_id
-
-      # Get test_data for this resident
-      test_data <- app_data()$all_forms$test_data %>%
-        dplyr::filter(record_id == !!record_id)
-
-      if (is.null(test_data) || nrow(test_data) == 0) {
-        return(
-          div(
-            class = "alert alert-info",
-            role = "alert",
-            icon("info-circle"),
-            " No ITE scores available for risk assessment."
-          )
+    # ----- Boards / Step 3 / MKSAP (gmed display) -----
+    # Pulls Step 3 status from resident_data + s_eval, derives ABIM pass
+    # probability from the most recent test_data ITE row, and renders the
+    # MKSAP tracker link.
+    gmed::mod_seval_boards_display_server(
+      "boards",
+      current_s_eval = reactive({
+        rd <- resident_data(); if (is.null(rd)) NULL else rd$current_period$s_eval
+      }),
+      resident_info  = reactive({
+        rd <- resident_data(); if (is.null(rd)) NULL else rd$resident_info
+      }),
+      test_data      = reactive({
+        ad <- app_data(); rd <- resident_data()
+        if (is.null(ad) || is.null(rd)) return(NULL)
+        td <- ad$all_forms$test_data
+        rid <- rd$resident_info$record_id[1]
+        if (is.null(td) || !nrow(td)) NULL else td[td$record_id == rid, , drop = FALSE]
+      }),
+      pgy = reactive({
+        rd <- resident_data(); if (is.null(rd)) return(NA_integer_)
+        lvl <- rd$resident_info$Level
+        dplyr::case_when(
+          lvl == "Intern" ~ 1L,
+          lvl == "PGY2"   ~ 2L,
+          lvl == "PGY3"   ~ 3L,
+          grepl("PGY[0-9]", lvl) ~ as.integer(gsub("[^0-9]", "", lvl)),
+          TRUE ~ NA_integer_
         )
-      }
-
-      # Use gmed function to assess risk
-      tryCatch({
-        risk <- gmed::assess_ite_risk(test_data)
-
-        div(
-          class = paste("alert", risk$risk_class),
-          role = "alert",
-          tags$strong("Risk Level: ", risk$risk_level),
-          tags$br(),
-          tags$small(risk$details)
-        )
-      }, error = function(e) {
-        div(
-          class = "alert alert-info",
-          role = "alert",
-          icon("info-circle"),
-          " Risk assessment not available yet."
-        )
-      })
-    })
+      }),
+      data_dict = data_dict
+    )
 
     # Display learning topics
     output$learning_topics <- renderUI({
@@ -540,84 +326,6 @@ mod_learning_server <- function(id, resident_data, current_period, app_data) {
       )
     })
 
-    # Display board prep status
-    output$board_prep_table <- renderUI({
-      req(resident_data(), app_data())
-
-      curr_data <- resident_data()$current_period$s_eval
-
-      if (is.null(curr_data) || nrow(curr_data) == 0) {
-        return(
-          div(
-            style = "font-style: italic; color: #95a5a6; padding: 15px;",
-            "No board preparation data available"
-          )
-        )
-      }
-
-      # Helper function to parse yesno fields (1 = Yes, 0 = No)
-      parse_yesno <- function(value) {
-        if (is.na(value) || value == "") return("")
-        if (value == "1") return("Yes")
-        if (value == "0") return("No")
-        return(as.character(value))
-      }
-
-      # Build board prep data list
-      board_list <- list()
-
-      if (!is.na(curr_data$s_e_step3[1]) && curr_data$s_e_step3[1] != "") {
-        board_list[[length(board_list) + 1]] <- c("Step 3 Completed", parse_yesno(curr_data$s_e_step3[1]))
-      }
-      if (!is.na(curr_data$s_e_step3_contact[1]) && curr_data$s_e_step3_contact[1] != "") {
-        board_list[[length(board_list) + 1]] <- c("Emailed Score to Program", parse_yesno(curr_data$s_e_step3_contact[1]))
-      }
-      if (!is.na(curr_data$s_e_step3_date_set[1]) && curr_data$s_e_step3_date_set[1] != "") {
-        board_list[[length(board_list) + 1]] <- c("Step 3 Date Set", parse_yesno(curr_data$s_e_step3_date_set[1]))
-      }
-      if (!is.na(curr_data$s_e_step3_date[1]) && curr_data$s_e_step3_date[1] != "") {
-        board_list[[length(board_list) + 1]] <- c("Step 3 Scheduled Date", curr_data$s_e_step3_date[1])
-      }
-      if (!is.na(curr_data$s_e_board_concern[1]) && curr_data$s_e_board_concern[1] != "") {
-        board_list[[length(board_list) + 1]] <- c("Board Concerns", parse_yesno(curr_data$s_e_board_concern[1]))
-      }
-      if (!is.na(curr_data$s_e_board_help[1]) && curr_data$s_e_board_help[1] != "") {
-        board_list[[length(board_list) + 1]] <- c("Discussed with Program", parse_yesno(curr_data$s_e_board_help[1]))
-      }
-
-      if (length(board_list) == 0) {
-        return(
-          div(
-            style = "font-style: italic; color: #95a5a6; padding: 15px;",
-            "No board preparation information provided"
-          )
-        )
-      }
-
-      # Convert to data frame
-      board_df <- as.data.frame(do.call(rbind, board_list), stringsAsFactors = FALSE)
-      colnames(board_df) <- c("Category", "Value")
-
-      # Render as HTML table
-      tags$table(
-        class = "table table-striped table-bordered",
-        style = "background-color: white;",
-        tags$thead(
-          tags$tr(
-            tags$th("Category"),
-            tags$th("Status")
-          )
-        ),
-        tags$tbody(
-          lapply(1:nrow(board_df), function(i) {
-            tags$tr(
-              tags$td(board_df[i, 1]),
-              tags$td(board_df[i, 2])
-            )
-          })
-        )
-      )
-    })
 
     # Display previous period coach comments
     output$previous_coach_comments <- renderUI({
