@@ -31,20 +31,35 @@ mod_summary_ui <- function(id) {
 }
 
 mod_summary_server <- function(id, wellness_data, evaluations_data, learning_data,
-                               scholarship_data, career_data, milestones_data, goals_data) {
+                               scholarship_data, career_data, milestones_data, goals_data,
+                               grad_plan_data = reactive(NULL),
+                               current_period = reactive(NULL)) {
   moduleServer(id, function(input, output, session) {
+
+    # P6 (graduation) drops Wellness/Learning/Career/Goals and adds grad_plan;
+    # P7 (intern intro) drops Evaluations/Scholarship/Career.
+    is_p6 <- reactive(identical(as.integer(current_period()), 6L))
+    is_p7 <- reactive(identical(as.integer(current_period()), 7L))
 
     # Calculate overall completion status
     completion_status <- reactive({
-      list(
-        wellness = if (!is.null(wellness_data())) wellness_data()$is_complete else FALSE,
+      base <- list(
+        wellness    = if (!is.null(wellness_data()))    wellness_data()$is_complete    else FALSE,
         evaluations = if (!is.null(evaluations_data())) evaluations_data()$is_complete else FALSE,
-        learning = if (!is.null(learning_data())) learning_data()$is_complete else FALSE,
+        learning    = if (!is.null(learning_data()))    learning_data()$is_complete    else FALSE,
         scholarship = if (!is.null(scholarship_data())) scholarship_data()$is_complete else FALSE,
-        career = if (!is.null(career_data())) career_data()$is_complete else FALSE,
-        milestones = if (!is.null(milestones_data())) milestones_data()$is_complete else FALSE,
-        goals = if (!is.null(goals_data())) goals_data()$is_complete else FALSE
+        career      = if (!is.null(career_data()))      career_data()$is_complete      else FALSE,
+        milestones  = if (!is.null(milestones_data()))  milestones_data()$is_complete  else FALSE,
+        goals       = if (!is.null(goals_data()))       goals_data()$is_complete       else FALSE
       )
+      if (is_p6()) {
+        keep <- setdiff(names(base), c("wellness", "learning", "career", "goals"))
+        base <- base[keep]
+        base$grad_plan <- if (!is.null(grad_plan_data())) grad_plan_data()$is_complete else FALSE
+        base
+      } else if (is_p7()) {
+        base[setdiff(names(base), c("evaluations", "scholarship", "career"))]
+      } else base
     })
 
     # Display completion checklist
@@ -74,14 +89,23 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
         )
       }
 
+      labels <- c(
+        wellness    = "Wellness & Progress",
+        evaluations = "Evaluations & Feedback",
+        learning    = "Learning & Board Preparation",
+        scholarship = "Scholarship",
+        career      = "Career Planning",
+        milestones  = "Milestones",
+        goals       = "Goals & ILP (including ILP Final Summary)",
+        grad_plan   = "Graduation Plan & Alumni"
+      )
+
+      items <- lapply(names(status), function(nm) {
+        create_checkbox_item(labels[[nm]], status[[nm]])
+      })
+
       tagList(
-        create_checkbox_item("Section 1: Wellness & Progress", status$wellness),
-        create_checkbox_item("Section 2: Evaluations & Feedback", status$evaluations),
-        create_checkbox_item("Section 3: Learning & Board Preparation", status$learning),
-        create_checkbox_item("Section 4: Scholarship", status$scholarship),
-        create_checkbox_item("Section 5: Career Planning", status$career),
-        create_checkbox_item("Section 6: Milestones", status$milestones),
-        create_checkbox_item("Section 7: Goals & ILP (including ILP Final Summary)", status$goals),
+        items,
 
         hr(),
 
@@ -128,7 +152,8 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
         scholarship = "Scholarship",
         career = "Career Planning",
         milestones = "Milestones",
-        goals = "Goals & ILP"
+        goals = "Goals & ILP",
+        grad_plan = "Graduation Plan & Alumni"
       )
 
       incomplete_labels <- sapply(incomplete_sections, function(x) section_labels[x])
@@ -211,7 +236,7 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
           )
         },
 
-        if (!is.null(career_data())) {
+        if (!is.null(career_data()) && !is_p6() && !is_p7()) {
           create_summary_section(
             "Career Planning",
             career_data()$coach_career
@@ -233,7 +258,7 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
           )
         },
 
-        if (!is.null(goals_data())) {
+        if (!is.null(goals_data()) && !is_p6()) {
           tagList(
             create_summary_section(
               "Goals Assessment",
@@ -243,6 +268,13 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
               "ILP Final Summary",
               goals_data()$coach_ilp_final
             )
+          )
+        },
+
+        if (is_p6() && !is.null(grad_plan_data())) {
+          create_summary_section(
+            "Graduation Summary & Transition Notes",
+            grad_plan_data()$coach_ilp_final
           )
         }
       )

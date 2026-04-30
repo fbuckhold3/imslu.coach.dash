@@ -50,7 +50,7 @@ create_review_preview <- function(review_data, resident_data, current_period, se
       )
     ),
 
-    # Coach Review Text Fields
+    # Coach Review Text Fields — only render sections that have data
     div(
       class = "card mb-3",
       div(
@@ -60,72 +60,70 @@ create_review_preview <- function(review_data, resident_data, current_period, se
       div(
         class = "card-body",
 
-        # Wellness
-        div(
-          class = "mb-3 p-2 border-start border-primary border-3",
-          h6(icon("heart"), " Wellness & Progress"),
-          p(class = "text-muted small", review_data$wellness$coach_wellness)
+        if (!is.null(review_data$wellness)) tagList(
+          div(
+            class = "mb-3 p-2 border-start border-primary border-3",
+            h6(icon("heart"), " Wellness & Progress"),
+            p(class = "text-muted small", review_data$wellness$coach_wellness)
+          ),
+          hr()
         ),
 
-        hr(),
-
-        # Evaluations
-        div(
-          class = "mb-3 p-2 border-start border-purple border-3",
-          h6(icon("clipboard"), " Evaluations & Feedback"),
+        if (!is.null(review_data$evaluations)) tagList(
           div(
-            class = "mb-2",
-            strong("Evaluations: "),
-            p(class = "text-muted small", review_data$evaluations$coach_evaluations)
+            class = "mb-3 p-2 border-start border-purple border-3",
+            h6(icon("clipboard"), " Evaluations & Feedback"),
+            div(class = "mb-2",
+                strong("Evaluations: "),
+                p(class = "text-muted small", review_data$evaluations$coach_evaluations)),
+            div(strong("Plus/Delta Comments: "),
+                p(class = "text-muted small", review_data$evaluations$coach_p_d_comments))
           ),
+          hr()
+        ),
+
+        if (!is.null(review_data$learning)) tagList(
           div(
-            strong("Plus/Delta Comments: "),
-            p(class = "text-muted small", review_data$evaluations$coach_p_d_comments)
+            class = "mb-3 p-2 border-start border-warning border-3",
+            h6(icon("book"), " Learning & Board Preparation"),
+            div(class = "mb-2",
+                strong("Learning Topics & Styles: "),
+                p(class = "text-muted small", review_data$learning$coach_ls_and_topic)),
+            div(strong("Board Preparation: "),
+                p(class = "text-muted small", review_data$learning$coach_step_board))
+          ),
+          hr()
+        ),
+
+        if (!is.null(review_data$career)) tagList(
+          div(
+            class = "mb-3 p-2 border-start border-info border-3",
+            h6(icon("briefcase"), " Career Planning"),
+            p(class = "text-muted small", review_data$career$coach_career)
+          ),
+          hr()
+        ),
+
+        if (!is.null(review_data$goals)) tagList(
+          div(
+            class = "mb-3 p-2 border-start border-success border-3",
+            h6(icon("bullseye"), " Goals & ILP"),
+            div(class = "mb-2",
+                strong("Milestone Goals: "),
+                p(class = "text-muted small", review_data$goals$coach_mile_goal)),
+            div(strong("ILP Final Comments: "),
+                p(class = "text-muted small", review_data$goals$coach_ilp_final))
           )
         ),
 
-        hr(),
-
-        # Learning
-        div(
-          class = "mb-3 p-2 border-start border-warning border-3",
-          h6(icon("book"), " Learning & Board Preparation"),
+        if (!is.null(review_data$grad_plan)) {
           div(
-            class = "mb-2",
-            strong("Learning Topics & Styles: "),
-            p(class = "text-muted small", review_data$learning$coach_ls_and_topic)
-          ),
-          div(
-            strong("Board Preparation: "),
-            p(class = "text-muted small", review_data$learning$coach_step_board)
+            class = "mb-3 p-2 border-start border-success border-3",
+            h6(icon("mortarboard"), " Graduation Plan & Alumni"),
+            div(strong("Graduation Summary: "),
+                p(class = "text-muted small", review_data$grad_plan$coach_ilp_final))
           )
-        ),
-
-        hr(),
-
-        # Career
-        div(
-          class = "mb-3 p-2 border-start border-info border-3",
-          h6(icon("briefcase"), " Career Planning"),
-          p(class = "text-muted small", review_data$career$coach_career)
-        ),
-
-        hr(),
-
-        # Goals
-        div(
-          class = "mb-3 p-2 border-start border-success border-3",
-          h6(icon("bullseye"), " Goals & ILP"),
-          div(
-            class = "mb-2",
-            strong("Milestone Goals: "),
-            p(class = "text-muted small", review_data$goals$coach_mile_goal)
-          ),
-          div(
-            strong("ILP Final Comments: "),
-            p(class = "text-muted small", review_data$goals$coach_ilp_final)
-          )
-        )
+        }
       )
     ),
 
@@ -234,14 +232,15 @@ mod_review_interface_ui <- function(id) {
   )
 
   if (pn == 6L) {
-    # Graduation: drop Career and Goals; add a stub for board plan / alumni
-    # (full P6 content lands in Phase E).
-    sec <- std[c("wellness", "evaluations", "learning", "scholarship",
-                 "milestones", "summary")]
-    sec$grad_stub <- list(label = "Graduation Plan & Alumni",
-                           icon  = "mortarboard-fill")
-    sec <- sec[c("wellness", "evaluations", "learning", "scholarship",
-                 "milestones", "grad_stub", "summary")]
+    # Graduation: drop Wellness, Learning, Career, and Goals — graduating
+    # residents don't submit those self-eval blocks. The grad_plan section
+    # consolidates career path / chief / contact info AND boards / Step 3
+    # (which graduates DO submit) plus the coach summary (coach_ilp_final).
+    sec <- std[c("evaluations", "scholarship", "milestones", "summary")]
+    sec$grad_plan <- list(label = "Graduation Plan & Alumni",
+                          icon  = "mortarboard-fill")
+    sec <- sec[c("evaluations", "scholarship", "milestones", "grad_plan",
+                 "summary")]
     return(sec)
   }
 
@@ -261,11 +260,10 @@ mod_review_interface_ui <- function(id) {
 }
 
 # Render placeholder body for a section that doesn't have its own module
-# yet (P6 graduation block, P7 intern intro). Phase E replaces these.
+# yet (P7 intern intro). Phase E replaced grad_stub with mod_grad_plan.
 .coach_period_stub_body <- function(period_num, kind) {
   msg <- switch(
     kind,
-    grad_stub  = "Graduation board plan, alumni info, and post-residency contact details \u2014 coming soon. Other sections above are live for P6.",
     intro_stub = "Period 7 skills-preparedness ratings, learning goals (s_e_ume_goal1-3), and entering-residency concerns \u2014 coming soon. Wellness / Learning / Milestones are live below.",
     "Coming soon."
   )
@@ -339,6 +337,11 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     # Call Section 6 module (Goals & ILP - moved before Milestones)
     goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data, app_data_rv)
 
+    # P6 Graduation Plan & Alumni — uses gmed grad_plan + boards displays;
+    # writes coach_ilp_final (which surfaces in CCC dashboard).
+    grad_plan_data <- mod_grad_plan_server("grad_plan", resident_data, current_period,
+                                           rdm_data, app_data_rv)
+
     # Call Section 7 module (Milestones - moved after ILP)
     milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, app_data_rv)
 
@@ -346,7 +349,9 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     summary_data <- mod_summary_server(
       "summary",
       wellness_data, evaluations_data, learning_data,
-      scholarship_data, career_data, milestones_data, goals_data
+      scholarship_data, career_data, milestones_data, goals_data,
+      grad_plan_data,
+      current_period = current_period
     )
 
     # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -376,9 +381,9 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         career      = career_data,
         goals       = goals_data,
         milestones  = milestones_data,
+        grad_plan   = grad_plan_data,
         summary     = NULL,        # validation-only; complete iff all others
-        grad_stub   = NULL,        # placeholder, soft-skip
-        intro_stub  = NULL         # placeholder, soft-skip
+        intro_stub  = NULL         # placeholder, soft-skip (P7)
       )
     })
 
@@ -415,8 +420,8 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           career      = mod_career_ui(ns("career")),
           goals       = mod_goals_ui(ns("goals")),
           milestones  = mod_milestones_ui(ns("milestones")),
+          grad_plan   = mod_grad_plan_ui(ns("grad_plan")),
           summary     = mod_summary_ui(ns("summary")),
-          grad_stub   = .coach_period_stub_body(current_period(), "grad_stub"),
           intro_stub  = .coach_period_stub_body(current_period(), "intro_stub"),
           tags$em("Unknown section")
         )
@@ -487,7 +492,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     # We register one observer per *possible* section name (matches input ids).
     .all_section_names <- c("wellness", "evaluations", "learning",
                             "scholarship", "career", "goals", "milestones",
-                            "grad_stub", "intro_stub")
+                            "grad_plan", "intro_stub")
     lapply(.all_section_names, function(nm) {
       observeEvent(input[[paste0("continue_", nm)]], {
         st <- shell_state(); req(st)
@@ -548,33 +553,55 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     
     # Handle submission
     observeEvent(input$submit_review, {
-      req(wellness_data())
-      req(evaluations_data())
-      req(learning_data())
-      req(scholarship_data())
-      req(career_data())
-      req(milestones_data())
-      req(goals_data())
       req(resident_data())
       req(current_period())
 
-      # Collect data from all sections
+      pn <- as.integer(current_period())
+      is_p6 <- identical(pn, 6L)
+      is_p7 <- identical(pn, 7L)
+
+      # Required sections vary by period; only req() what we'll actually
+      # consume so P6/P7 don't get stuck waiting on dropped sections.
+      if (!is_p6 && !is_p7) {
+        req(wellness_data()); req(evaluations_data()); req(learning_data())
+        req(scholarship_data()); req(career_data()); req(milestones_data())
+        req(goals_data())
+      } else if (is_p6) {
+        req(evaluations_data()); req(scholarship_data())
+        req(milestones_data()); req(grad_plan_data())
+      } else {
+        req(wellness_data()); req(learning_data()); req(milestones_data())
+        req(goals_data())
+      }
+
+      # Collect data from all sections (NULL-safe for dropped sections)
       review_data <- list(
-        wellness = wellness_data(),
-        evaluations = evaluations_data(),
-        learning = learning_data(),
-        scholarship = scholarship_data(),
-        career = career_data(),
-        goals = goals_data(),
-        milestones = milestones_data()
+        wellness    = if (!is.null(wellness_data()))    wellness_data()    else NULL,
+        evaluations = if (!is.null(evaluations_data())) evaluations_data() else NULL,
+        learning    = if (!is.null(learning_data()))    learning_data()    else NULL,
+        scholarship = if (!is.null(scholarship_data())) scholarship_data() else NULL,
+        career      = if (!is.null(career_data()))      career_data()      else NULL,
+        goals       = if (!is.null(goals_data()))       goals_data()       else NULL,
+        milestones  = if (!is.null(milestones_data()))  milestones_data()  else NULL,
+        grad_plan   = if (!is.null(grad_plan_data()))   grad_plan_data()   else NULL
       )
 
-      # Validate all required sections are complete
+      # Validate per-period required sections
       incomplete_sections <- c()
-      if (!review_data$wellness$is_complete) incomplete_sections <- c(incomplete_sections, "Wellness")
-      if (!review_data$evaluations$is_complete) incomplete_sections <- c(incomplete_sections, "Evaluations")
-      if (!review_data$learning$is_complete) incomplete_sections <- c(incomplete_sections, "Learning")
-      if (!review_data$milestones$is_complete) incomplete_sections <- c(incomplete_sections, "Milestones")
+      if (is_p6) {
+        if (!isTRUE(review_data$evaluations$is_complete)) incomplete_sections <- c(incomplete_sections, "Evaluations")
+        if (!isTRUE(review_data$milestones$is_complete))  incomplete_sections <- c(incomplete_sections, "Milestones")
+        if (!isTRUE(review_data$grad_plan$is_complete))   incomplete_sections <- c(incomplete_sections, "Graduation Plan")
+      } else if (is_p7) {
+        if (!isTRUE(review_data$wellness$is_complete))   incomplete_sections <- c(incomplete_sections, "Wellness")
+        if (!isTRUE(review_data$learning$is_complete))   incomplete_sections <- c(incomplete_sections, "Learning")
+        if (!isTRUE(review_data$milestones$is_complete)) incomplete_sections <- c(incomplete_sections, "Milestones")
+      } else {
+        if (!isTRUE(review_data$wellness$is_complete))    incomplete_sections <- c(incomplete_sections, "Wellness")
+        if (!isTRUE(review_data$evaluations$is_complete)) incomplete_sections <- c(incomplete_sections, "Evaluations")
+        if (!isTRUE(review_data$learning$is_complete))    incomplete_sections <- c(incomplete_sections, "Learning")
+        if (!isTRUE(review_data$milestones$is_complete))  incomplete_sections <- c(incomplete_sections, "Milestones")
+      }
 
       if (length(incomplete_sections) > 0) {
         showNotification(
@@ -726,28 +753,25 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
 
     # Handle confirmed submission
     observeEvent(input$confirm_submit, {
-      req(wellness_data())
-      req(evaluations_data())
-      req(learning_data())
-      req(scholarship_data())
-      req(career_data())
-      req(milestones_data())
-      req(goals_data())
       req(resident_data())
       req(current_period())
+
+      pn <- as.integer(current_period())
+      is_p6 <- identical(pn, 6L)
 
       # Close preview modal
       removeModal()
 
-      # Collect data from all sections
+      # Collect data from all sections (NULL-safe per-period)
       review_data <- list(
-        wellness = wellness_data(),
-        evaluations = evaluations_data(),
-        learning = learning_data(),
-        scholarship = scholarship_data(),
-        career = career_data(),
-        goals = goals_data(),
-        milestones = milestones_data()
+        wellness    = if (!is.null(wellness_data()))    wellness_data()    else NULL,
+        evaluations = if (!is.null(evaluations_data())) evaluations_data() else NULL,
+        learning    = if (!is.null(learning_data()))    learning_data()    else NULL,
+        scholarship = if (!is.null(scholarship_data())) scholarship_data() else NULL,
+        career      = if (!is.null(career_data()))      career_data()      else NULL,
+        goals       = if (!is.null(goals_data()))       goals_data()       else NULL,
+        milestones  = if (!is.null(milestones_data()))  milestones_data()  else NULL,
+        grad_plan   = if (!is.null(grad_plan_data()))   grad_plan_data()   else NULL
       )
 
       # Show processing notification
@@ -792,7 +816,10 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           coach_step_board = as.character(review_data$learning$coach_step_board %||% ""),
           coach_career = as.character(review_data$career$coach_career %||% ""),
           coach_mile_goal = as.character(review_data$goals$coach_mile_goal %||% ""),
-          coach_ilp_final = as.character(review_data$goals$coach_ilp_final %||% ""),
+          coach_ilp_final = as.character(
+            if (is_p6) (review_data$grad_plan$coach_ilp_final %||% "")
+            else (review_data$goals$coach_ilp_final %||% "")
+          ),
           coach_rev_complete = "2",  # Raw format (string)
           stringsAsFactors = FALSE
         )
@@ -909,52 +936,58 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
 
               hr(),
 
-              h5(icon("heart"), " Wellness & Progress"),
-              div(
-                class = "well",
-                style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
-                HTML(gsub("\n", "<br>", review_data$wellness$coach_wellness))
-              ),
-
-              h5(icon("clipboard"), " Evaluations & Feedback"),
-              div(
-                class = "well",
-                style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
-                tags$strong("Evaluations: "),
-                HTML(gsub("\n", "<br>", review_data$evaluations$coach_evaluations)),
-                br(), br(),
-                tags$strong("Plus/Delta Comments: "),
-                HTML(gsub("\n", "<br>", review_data$evaluations$coach_p_d_comments))
-              ),
-
-              h5(icon("book"), " Learning & Board Preparation"),
-              div(
-                class = "well",
-                style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
-                tags$strong("Learning Topics & Styles: "),
-                HTML(gsub("\n", "<br>", review_data$learning$coach_ls_and_topic)),
-                br(), br(),
-                tags$strong("Board Preparation: "),
-                HTML(gsub("\n", "<br>", review_data$learning$coach_step_board))
-              ),
-
-              h5(icon("briefcase"), " Career Planning"),
-              div(
-                class = "well",
-                style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
-                HTML(gsub("\n", "<br>", review_data$career$coach_career))
-              ),
-
-              h5(icon("bullseye"), " Goals & ILP"),
-              div(
-                class = "well",
-                style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
-                tags$strong("Milestone Goals: "),
-                HTML(gsub("\n", "<br>", review_data$goals$coach_mile_goal)),
-                br(), br(),
-                tags$strong("ILP Final Comments: "),
-                HTML(gsub("\n", "<br>", review_data$goals$coach_ilp_final))
-              ),
+              local({
+                .nl <- function(x) gsub("\n", "<br>", as.character(x %||% ""))
+                .well_div <- function(...) div(
+                  class = "well",
+                  style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
+                  ...
+                )
+                tagList(
+                  if (!is.null(review_data$wellness)) tagList(
+                    h5(icon("heart"), " Wellness & Progress"),
+                    .well_div(HTML(.nl(review_data$wellness$coach_wellness)))
+                  ),
+                  if (!is.null(review_data$evaluations)) tagList(
+                    h5(icon("clipboard"), " Evaluations & Feedback"),
+                    .well_div(
+                      tags$strong("Evaluations: "),
+                      HTML(.nl(review_data$evaluations$coach_evaluations)),
+                      br(), br(),
+                      tags$strong("Plus/Delta Comments: "),
+                      HTML(.nl(review_data$evaluations$coach_p_d_comments))
+                    )
+                  ),
+                  if (!is.null(review_data$learning)) tagList(
+                    h5(icon("book"), " Learning & Board Preparation"),
+                    .well_div(
+                      tags$strong("Learning Topics & Styles: "),
+                      HTML(.nl(review_data$learning$coach_ls_and_topic)),
+                      br(), br(),
+                      tags$strong("Board Preparation: "),
+                      HTML(.nl(review_data$learning$coach_step_board))
+                    )
+                  ),
+                  if (!is.null(review_data$career)) tagList(
+                    h5(icon("briefcase"), " Career Planning"),
+                    .well_div(HTML(.nl(review_data$career$coach_career)))
+                  ),
+                  if (!is.null(review_data$goals)) tagList(
+                    h5(icon("bullseye"), " Goals & ILP"),
+                    .well_div(
+                      tags$strong("Milestone Goals: "),
+                      HTML(.nl(review_data$goals$coach_mile_goal)),
+                      br(), br(),
+                      tags$strong("ILP Final Comments: "),
+                      HTML(.nl(review_data$goals$coach_ilp_final))
+                    )
+                  ),
+                  if (!is.null(review_data$grad_plan)) tagList(
+                    h5(icon("mortarboard"), " Graduation Plan & Alumni"),
+                    .well_div(HTML(.nl(review_data$grad_plan$coach_ilp_final)))
+                  )
+                )
+              }),
 
               hr(),
 
