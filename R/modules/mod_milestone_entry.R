@@ -110,7 +110,9 @@ get_period_number_from_name <- function(period_name) {
 #' @param current_period Reactive value for current evaluation period (name)
 #' @param data_dict Reactive containing data dictionary
 #' @export
-mod_milestone_entry_server <- function(id, rdm_data, record_id, current_period, data_dict) {
+mod_milestone_entry_server <- function(id, rdm_data, record_id, current_period, data_dict,
+                                       initial_scores = shiny::reactive(NULL),
+                                       initial_descs  = shiny::reactive(NULL)) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Process milestone workflow when data loads
@@ -268,7 +270,12 @@ output$prev_acgme_plot <- plotly::renderPlotly({
       return(period_val)
     })
 
-    milestone_scores <- gmed::mod_miles_rating_server("rating", period = safe_period)
+    milestone_scores <- gmed::mod_miles_rating_server(
+      "rating",
+      period         = safe_period,
+      initial_scores = initial_scores,
+      initial_descs  = initial_descs
+    )
 
     # Return reactive with milestone data (no auto-submission - parent handles it)
     return(

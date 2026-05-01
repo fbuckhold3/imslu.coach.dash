@@ -139,12 +139,54 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
       resident_data()$resident_info$record_id
     })
 
+    # Prefill: if a milestone_entry row already exists for this resident +
+    # period, seed the rating module with those scores/descriptions so the
+    # coach sees what was previously entered (mirrors ind.dash self-eval).
+    .ms_field_map <- gmed::get_milestone_field_mapping_rdm2("milestone_entry")
+
+    existing_scores <- reactive({
+      rd <- resident_data()
+      if (is.null(rd)) return(NULL)
+      df <- rd$current_period$milestone_entry
+      if (is.null(df) || nrow(df) == 0) return(NULL)
+      out <- list()
+      for (k in names(.ms_field_map)) {
+        fld <- .ms_field_map[[k]]
+        if (fld %in% names(df)) {
+          v <- df[[fld]][1]
+          if (!is.na(v) && nzchar(as.character(v))) {
+            iv <- suppressWarnings(as.integer(v))
+            if (!is.na(iv)) out[[k]] <- iv
+          }
+        }
+      }
+      if (length(out) == 0) NULL else out
+    })
+
+    existing_descs <- reactive({
+      rd <- resident_data()
+      if (is.null(rd)) return(NULL)
+      df <- rd$current_period$milestone_entry
+      if (is.null(df) || nrow(df) == 0) return(NULL)
+      out <- list()
+      for (k in names(.ms_field_map)) {
+        fld <- paste0(.ms_field_map[[k]], "_desc")
+        if (fld %in% names(df)) {
+          v <- df[[fld]][1]
+          if (!is.na(v) && nzchar(as.character(v))) out[[k]] <- as.character(v)
+        }
+      }
+      if (length(out) == 0) NULL else out
+    })
+
     milestone_entry_data <- mod_milestone_entry_server(
       "milestone_entry",
       rdm_data = app_data,
       record_id = record_id,
       current_period = period_name,  # Pass period name, not number
-      data_dict = reactive(isolate(data_dict()))
+      data_dict = reactive(isolate(data_dict())),
+      initial_scores = existing_scores,
+      initial_descs  = existing_descs
     )
 
     # Return reactive with entered data
