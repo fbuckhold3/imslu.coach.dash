@@ -404,18 +404,13 @@ mod_second_review_server <- function(id, selected_resident, rdm_data, current_pe
         period_num <- current_period()
         period_name <- get_period_name(period_num)
 
-        # Extract numeric level
-        level_num <- case_when(
-          res_info$Level == "Intern" ~ 1,
-          res_info$Level == "PGY2" ~ 2,
-          res_info$Level == "PGY3" ~ 3,
-          grepl("PGY[0-9]", res_info$Level) ~ as.numeric(gsub("[^0-9]", "", res_info$Level)),
-          TRUE ~ NA_real_
-        )
+        # gmed::get_redcap_instance keys on string level — pass res_info$Level
+        # directly so PGY3 + "Graduating" resolves to instance 6.
+        level_str <- res_info$Level
 
         # Calculate instance
         instance <- gmed::get_redcap_instance(
-          level = level_num,
+          level = level_str,
           period = period_name,
           review_type = "scheduled"
         )

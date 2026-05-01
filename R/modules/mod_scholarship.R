@@ -11,6 +11,30 @@ mod_scholarship_ui <- function(id) {
     wellPanel(
       style = "background-color: #f8f9fa; border-left: 4px solid #9b59b6;",
       uiOutput(ns("scholarship_table"))
+    ),
+
+    hr(),
+
+    # Coach verification — confirm the scholarship record is complete and accurate.
+    wellPanel(
+      style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
+      tags$label(
+        "Verify Scholarship Record",
+        style = "font-weight: bold; color: #2c3e50;"
+      ),
+      tags$p(
+        "Review the scholarship list above with the resident. Confirm it includes ",
+        tags$strong("everything"), ": posters, QI projects, research, publications, ",
+        "noon conference and other residency presentations, regional/national presentations, ",
+        "committee work, and any other scholarly activity. We need accurate data — ",
+        "missing entries should be added by the resident in their dashboard before you continue.",
+        style = "font-size: 13px; color: #7f8c8d; margin-top: 5px; margin-bottom: 12px;"
+      ),
+      checkboxInput(
+        ns("scholarship_verified"),
+        label = "I have reviewed this with the resident and confirm the scholarship record is complete and up to date.",
+        value = FALSE
+      )
     )
   )
 }
@@ -157,12 +181,13 @@ mod_scholarship_server <- function(id, resident_data, current_period, app_data) 
       tagList(output_sections)
     })
 
-    # Return reactive with completion status
-    # No coach entry required for this section
+    # Return reactive with completion status — coach must verify the
+    # scholarship record is complete before this section is marked done.
     return(
       reactive({
         list(
-          is_complete = TRUE  # Always complete since no coach entry required
+          scholarship_verified = isTRUE(input$scholarship_verified),
+          is_complete = isTRUE(input$scholarship_verified)
         )
       })
     )

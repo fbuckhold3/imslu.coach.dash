@@ -786,18 +786,14 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         period_num <- current_period()
         period_name <- get_period_name(period_num)
 
-        # Extract numeric level from Level field (e.g., "PGY2" -> 2, "Intern" -> 1)
-        level_num <- case_when(
-          res_info$Level == "Intern" ~ 1,
-          res_info$Level == "PGY2" ~ 2,
-          res_info$Level == "PGY3" ~ 3,
-          grepl("PGY[0-9]", res_info$Level) ~ as.numeric(gsub("[^0-9]", "", res_info$Level)),
-          TRUE ~ NA_real_
-        )
+        # gmed::get_redcap_instance keys on string level ("Intern"/"PGY2"/"PGY3")
+        # — pass res_info$Level directly so the direct mapping resolves
+        # (e.g., PGY3 + "Graduating" -> instance 6, not the default fallback 8).
+        level_str <- res_info$Level
 
         # Calculate instance for coach_rev form
         instance <- gmed::get_redcap_instance(
-          level = level_num,
+          level = level_str,
           period = period_name,
           review_type = "scheduled"
         )
