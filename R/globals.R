@@ -39,7 +39,7 @@ library(memoise)
 
 # Load gmed package (from GitHub: fbuckhold3/gmed)
 if (!require(gmed)) {
-  stop("gmed package not installed. Install with: remotes::install_github('fbuckhold3/gmed')")
+  stop("gmed package not installed. Run dev_setup.R once to install all local dependencies.")
 }
 
 

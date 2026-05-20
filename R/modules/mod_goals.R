@@ -93,8 +93,21 @@ mod_goals_ui <- function(id) {
   )
 }
 
-mod_goals_server <- function(id, resident_data, current_period, app_data, data_dict) {
+mod_goals_server <- function(id, resident_data, current_period, app_data, app_data_rv) {
   moduleServer(id, function(input, output, session) {
+
+    # data_dict is held in app_data_rv (a reactiveValues); extract as a reactive
+    # so mod_ilp_display_server can call it when the data finishes loading.
+    data_dict_r <- reactive({
+      if (shiny::is.reactivevalues(app_data_rv)) {
+        app_data_rv$data_dict
+      } else if (is.function(app_data_rv)) {
+        dd <- app_data_rv()
+        if (is.list(dd) && !is.null(dd$data_dict)) dd$data_dict else dd
+      } else {
+        app_data_rv
+      }
+    })
 
     # ----- Read-only ILP display via gmed -----
     gmed::mod_ilp_display_server(
@@ -111,7 +124,7 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, data_d
         rd <- resident_data()
         if (is.null(rd)) NULL else rd$previous_period$coach_rev
       }),
-      data_dict = data_dict
+      data_dict = data_dict_r
     )
 
     # ----- Character counts -----
