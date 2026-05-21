@@ -894,6 +894,66 @@ load_coach_phase1 <- function(
     }
   }
 
+  # Compute Level, full_name, current_period, current_period_num so the
+  # resident table renders immediately from Phase 1 data (same logic as Phase 2).
+  if (nrow(residents) > 0) {
+    current_date  <- Sys.Date()
+    academic_year <- if (format(current_date, "%m-%d") >= "07-01")
+      as.numeric(format(current_date, "%Y"))
+    else
+      as.numeric(format(current_date, "%Y")) - 1
+
+    residents <- residents %>%
+      mutate(
+        grad_yr_numeric = suppressWarnings(as.numeric(grad_yr)),
+        Level = case_when(
+          is.na(type) | is.na(grad_yr_numeric)     ~ "Unknown",
+          tolower(type) == "preliminary"            ~ "Intern",
+          tolower(type) == "categorical" ~ case_when(
+            grad_yr_numeric - academic_year == 3   ~ "Intern",
+            grad_yr_numeric - academic_year == 2   ~ "PGY2",
+            grad_yr_numeric - academic_year == 1   ~ "PGY3",
+            grad_yr_numeric - academic_year <= 0   ~ "Graduated",
+            TRUE                                   ~ "Unknown"
+          ),
+          tolower(type) == "rotator"                ~ "Rotator",
+          TRUE                                      ~ "Unknown"
+        ),
+        full_name = if_else(
+          !is.na(first_name) & !is.na(last_name),
+          paste(first_name, last_name),
+          name
+        )
+      ) %>%
+      select(-grad_yr_numeric)
+
+    # Per-resident period detection (uses same gmed function as Phase 2)
+    residents <- residents %>%
+      rowwise() %>%
+      mutate(
+        current_period = tryCatch({
+          grad_year     <- suppressWarnings(as.numeric(grad_yr))
+          type_lower    <- tolower(trimws(type))
+          type_code     <- if (type_lower == "categorical") 2L
+                           else if (type_lower %in% c("preliminary", "prelim")) 1L
+                           else NA_integer_
+          if (!is.na(grad_year) && !is.na(type_code)) {
+            pc <- gmed::calculate_pgy_and_period(
+              grad_yr      = grad_year,
+              type         = type_code,
+              current_date = current_date
+            )
+            if (!is.null(pc$period_name) && !is.na(pc$period_name) &&
+                isTRUE(pc$is_valid)) pc$period_name else "Mid PGY3"
+          } else NA_character_
+        }, error = function(e) NA_character_),
+        current_period_num = get_period_number(current_period)
+      ) %>%
+      ungroup()
+
+    message("[Phase 1] Level/period fields added (", nrow(residents), " residents)")
+  }
+
   # Cached medians (pre-computed by rdm-data-refresh)
   message("[Phase 1] Cached medians...")
   cached_medians <- tryCatch(
