@@ -15,6 +15,39 @@
 
 # Load globals and modules
 source("R/globals.R")
+library(future)
+library(promises)
+
+# Enable async background loading
+future::plan(future::multisession)
+
+# ── Phase 1: fast startup (residents + data dict + cached medians, ~2-4 sec) ──
+coach_phase1_data <- load_coach_phase1()
+
+# ── Phase 2: full data loaded ONCE at server startup in a background worker ──
+# All sessions share this via server_state; sessions poll every 3 sec.
+server_state <- new.env(parent = emptyenv())
+server_state$full_data     <- coach_phase1_data
+server_state$load_complete <- FALSE
+
+local({
+  rdm_url   <- REDCAP_CONFIG$url
+  rdm_token <- REDCAP_CONFIG$rdm_token
+
+  promises::future_promise({
+    source("R/globals.R")
+    library(gmed); library(dplyr); library(purrr); library(REDCapR); library(lubridate)
+    httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
+    load_coaching_data(redcap_url = rdm_url, rdm_token = rdm_token)
+  }) %...>% (function(full_data) {
+    server_state$full_data     <- full_data
+    server_state$load_complete <- TRUE
+    message("[Phase 2] Coach dash full data loaded at ",
+            format(Sys.time(), "%H:%M:%S"))
+  }) %...!% (function(err) {
+    message("[Phase 2] Background load failed: ", err$message)
+  })
+})
 
 # ==============================================================================
 # UI
@@ -179,12 +212,12 @@ server <- function(input, output, session) {
     current_view = "login"  # login, coach_select, resident_table, review
   )
 
-  # App data (loaded after authentication) - CHANGED TO reactiveValues to match self-assessment app
-  # This allows direct access to app_data$... outside reactive contexts
+  # App data — pre-populated with Phase 1 data so coach selector shows immediately.
+  # Phase 2 polling observer (below) swaps in the full dataset when ready.
   app_data <- reactiveValues(
-    data = NULL,
-    data_dict = NULL,
-    last_loaded_time = NULL
+    data             = coach_phase1_data,
+    data_dict        = coach_phase1_data$data_dict,
+    last_loaded_time = Sys.time()
   )
   
   # ==========================================================================
@@ -200,43 +233,31 @@ server <- function(input, output, session) {
     app_state$current_view <- "coach_select"
   }
   
-  # Load data when authenticated (works for both bypass and login)
+  # Phase 1 data is already in app_data — mark loaded immediately so the
+  # coach selector renders without waiting for Phase 2.
   observe({
     req(app_state$authenticated)
-    req(!app_state$data_loaded)
+    if (!app_state$data_loaded) {
+      app_state$data_loaded <- TRUE
+      message("[Session] Using Phase 1 data (", nrow(app_data$data$residents),
+              " residents) while Phase 2 loads in background")
+    }
+  })
 
-    message("Starting data load...")
-
-    isolate({
-      withProgress(message = "Loading data...", value = 0, {
-        incProgress(0.2, detail = "Connecting to REDCap...")
-
-        tryCatch({
-          loaded_data <- load_coaching_data_cached()
-          app_data$data <- loaded_data
-          app_data$data_dict <- loaded_data$data_dict
-          app_data$last_loaded_time <- Sys.time()
-          app_state$data_loaded <- TRUE
-
-          incProgress(0.8, detail = "Processing complete")
-
-          showNotification(
-            sprintf("Data loaded: %d residents", nrow(loaded_data$residents)),
-            type = "message",
-            duration = 3
-          )
-
-        }, error = function(e) {
-          showNotification(
-            sprintf("Error loading data: %s", e$message),
-            type = "error",
-            duration = 10
-          )
-          message("ERROR in data loading: ", e$message)
-          print(e)
-        })
-      })
-    })
+  # ── Phase 2 polling ─────────────────────────────────────────────────────────
+  # server_state is set in app.R when the background load completes.
+  # Poll every 3 sec; swap in full data when ready.
+  observe({
+    invalidateLater(3000)
+    if (isTRUE(server_state$load_complete) &&
+        !isTRUE(app_data$data$full_load_complete)) {
+      full <- server_state$full_data
+      app_data$data             <- full
+      app_data$data_dict        <- full$data_dict
+      app_data$last_loaded_time <- Sys.time()
+      message("[Phase 2] Session received full data (",
+              nrow(full$residents), " residents)")
+    }
   })
   
   # Login module

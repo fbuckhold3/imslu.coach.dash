@@ -829,6 +829,78 @@ load_coaching_data_cached <- memoise::memoise(
 )
 
 # ==============================================================================
+# PHASE 1 FAST LOADER
+# ==============================================================================
+# Loads only what's needed to show the coach selector and resident table
+# (~2-4 sec). Full data loads in the background via server_state in app.R.
+
+load_coach_phase1 <- function(
+    redcap_url = REDCAP_CONFIG$url,
+    rdm_token  = REDCAP_CONFIG$rdm_token
+) {
+  message("[Phase 1] Starting fast startup load...")
+  t0 <- proc.time()["elapsed"]
+
+  # Data dictionary (needed for resident processing)
+  message("[Phase 1] Data dictionary...")
+  data_dict <- tryCatch(
+    gmed::get_evaluation_dictionary(redcap_url = redcap_url, rdm_token = rdm_token),
+    error = function(e) { message("[Phase 1] Dict error: ", e$message); NULL }
+  )
+
+  # Residents only
+  message("[Phase 1] Residents...")
+  res_raw <- tryCatch(
+    gmed::load_rdm_residents_only(redcap_url = redcap_url, rdm_token = rdm_token),
+    error = function(e) { message("[Phase 1] Residents error: ", e$message); data.frame() }
+  )
+
+  # Translate type and grad_yr from raw codes so resident table renders correctly
+  residents <- res_raw
+  if (!is.null(data_dict) && nrow(residents) > 0) {
+    translate_col <- function(df, col, dd) {
+      choices_str <- dd$select_choices_or_calculations[dd$field_name == col]
+      if (length(choices_str) == 0 || is.na(choices_str[1])) return(df)
+      pairs <- strsplit(choices_str[1], "\\|")[[1]]
+      map <- setNames(
+        trimws(sub("^[^,]+,", "", pairs)),
+        trimws(sub(",.*$", "", pairs))
+      )
+      df[[col]] <- ifelse(!is.na(df[[col]]) & df[[col]] %in% names(map),
+                          map[df[[col]]], df[[col]])
+      df
+    }
+    residents <- translate_col(residents, "type",    data_dict)
+    residents <- translate_col(residents, "grad_yr", data_dict)
+  }
+
+  # Filter archived residents (cache record has res_archive = "1")
+  if ("res_archive" %in% names(residents)) {
+    residents <- residents[is.na(residents$res_archive) | residents$res_archive != "1", ]
+  }
+
+  # Cached medians (pre-computed by rdm-data-refresh)
+  message("[Phase 1] Cached medians...")
+  cached_medians <- tryCatch(
+    gmed::load_cached_medians(rdm_token = rdm_token, redcap_url = redcap_url),
+    error = function(e) { message("Medians cache miss: ", e$message); NULL }
+  )
+
+  elapsed <- round(proc.time()["elapsed"] - t0, 1)
+  message("[Phase 1] Done in ", elapsed, " sec (", nrow(residents), " residents)")
+
+  list(
+    residents          = residents,
+    assessment_data    = data.frame(),
+    all_forms          = list(),
+    historical_medians = cached_medians,
+    milestone_data     = NULL,
+    data_dict          = data_dict,
+    full_load_complete = FALSE
+  )
+}
+
+# ==============================================================================
 # COACH FILTERING FUNCTIONS
 # ==============================================================================
 
