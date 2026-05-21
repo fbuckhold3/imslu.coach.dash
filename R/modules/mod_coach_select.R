@@ -96,13 +96,15 @@ mod_coach_select_server <- function(id, app_data) {
     observe({
       req(app_data())
 
-      # Get unique coaches from resident data
+      # Get unique coaches from resident data (primary coaches + second reviewers)
       tryCatch({
-        coaches <- app_data()$residents %>%
+        primary   <- app_data()$residents %>%
           filter(!is.na(coach) & coach != "") %>%
-          pull(coach) %>%
-          unique() %>%
-          sort()
+          pull(coach)
+        secondary <- app_data()$residents %>%
+          filter(!is.na(second_rev) & second_rev != "") %>%
+          pull(second_rev)
+        coaches <- unique(sort(c(primary, secondary)))
 
         # Add "Select coach..." placeholder
         coach_choices <- c("Select coach..." = "", setNames(coaches, coaches))
