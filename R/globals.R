@@ -879,6 +879,21 @@ load_coach_phase1 <- function(
     residents <- residents[is.na(residents$res_archive) | residents$res_archive != "1", ]
   }
 
+  # Translate coach and second_rev codes to names (needed for coach selector)
+  if (!is.null(data_dict) && "coach" %in% names(residents)) {
+    coach_choices <- data_dict$select_choices_or_calculations[data_dict$field_name == "coach"]
+    if (length(coach_choices) > 0 && !is.na(coach_choices[1])) {
+      pairs <- strsplit(coach_choices[1], "\\|")[[1]]
+      coach_map <- setNames(
+        trimws(sub("^[^,]+,\\s*", "", pairs)),
+        trimws(sub(",.*$", "", pairs))
+      )
+      translate <- function(x) ifelse(!is.na(x) & x %in% names(coach_map), coach_map[x], x)
+      residents$coach      <- translate(residents$coach)
+      residents$second_rev <- translate(residents$second_rev)
+    }
+  }
+
   # Cached medians (pre-computed by rdm-data-refresh)
   message("[Phase 1] Cached medians...")
   cached_medians <- tryCatch(
