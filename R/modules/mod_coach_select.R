@@ -67,12 +67,7 @@ mod_coach_select_ui <- function(id) {
         uiOutput(ns("refresh_btn"))
       ),
       
-      selectInput(
-        ns("coach_name"),
-        label = NULL,
-        choices = c("Select coach..." = ""),
-        width = "100%"
-      ),
+      uiOutput(ns("coach_name_ui")),
       
       uiOutput(ns("coach_info"))
     )
@@ -92,12 +87,13 @@ mod_coach_select_server <- function(id, app_data) {
     # Initialize coach selection state
     selected_coach <- reactiveVal(NULL)
     
-    # Update coach choices when data loads
-    observe({
+    # Render the coach selector dynamically so it populates from Phase 1 data
+    # the moment the view appears (avoids updateSelectInput timing issue where
+    # the update fires before the input exists in the DOM).
+    output$coach_name_ui <- renderUI({
       req(app_data())
 
-      # Get unique coaches from resident data (primary coaches + second reviewers)
-      tryCatch({
+      choices <- tryCatch({
         primary   <- app_data()$residents %>%
           filter(!is.na(coach) & coach != "") %>%
           pull(coach)
@@ -105,20 +101,18 @@ mod_coach_select_server <- function(id, app_data) {
           filter(!is.na(second_rev) & second_rev != "") %>%
           pull(second_rev)
         coaches <- unique(sort(c(primary, secondary)))
-
-        # Add "Select coach..." placeholder
-        coach_choices <- c("Select coach..." = "", setNames(coaches, coaches))
-
-        # Update dropdown
-        updateSelectInput(
-          session,
-          "coach_name",
-          choices = coach_choices,
-          selected = selected_coach()
-        )
+        c("Select coach..." = "", setNames(coaches, coaches))
       }, error = function(e) {
-        # Silently handle errors
+        c("Select coach..." = "")
       })
+
+      selectInput(
+        ns("coach_name"),
+        label    = NULL,
+        choices  = choices,
+        selected = isolate(selected_coach()),  # isolate breaks circular dep
+        width    = "100%"
+      )
     })
     
     # Update selected coach when dropdown changes

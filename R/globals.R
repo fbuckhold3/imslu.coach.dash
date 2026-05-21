@@ -1004,7 +1004,7 @@ get_coach_residents <- function(residents_df, coach_name) {
 #' @return Character: "primary", "secondary", or "none"
 #' @export
 get_review_role <- function(resident_row, coach_name) {
-  if (resident_row$coach == coach_name) {
+  if (!is.na(resident_row$coach) && resident_row$coach == coach_name) {
     return("primary")
   } else if (!is.na(resident_row$second_rev) && resident_row$second_rev == coach_name) {
     return("secondary")
