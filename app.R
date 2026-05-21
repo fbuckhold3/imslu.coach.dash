@@ -40,6 +40,7 @@ local({
     httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
     load_coaching_data(redcap_url = rdm_url, rdm_token = rdm_token)
   }) %...>% (function(full_data) {
+    full_data$full_load_complete <- TRUE   # stops polling once session receives it
     server_state$full_data     <- full_data
     server_state$load_complete <- TRUE
     message("[Phase 2] Coach dash full data loaded at ",

@@ -844,7 +844,7 @@ load_coach_phase1 <- function(
   # Data dictionary (needed for resident processing)
   message("[Phase 1] Data dictionary...")
   data_dict <- tryCatch(
-    gmed::get_evaluation_dictionary(redcap_url = redcap_url, rdm_token = rdm_token),
+    gmed::get_evaluation_dictionary(token = rdm_token, url = redcap_url),
     error = function(e) { message("[Phase 1] Dict error: ", e$message); NULL }
   )
 
