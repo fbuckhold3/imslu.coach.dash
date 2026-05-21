@@ -274,22 +274,26 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
       }
       
       tryCatch({
+      # Show spinners instead of false ✗ until Phase 2 data (all_forms) is loaded
+      full_loaded <- isTRUE(app_data()$full_load_complete)
+      spinner_html <- '<span title="Loading..." style="color:#aaa;"><i class="fa fa-circle-notch fa-spin"></i></span>'
+
       df <- df %>%
         mutate(
-          `Self-Eval` = ifelse(
-            seval_complete,
-            '<span class="completion-icon completion-complete" title="Completed">&#x2713;</span>',
-            '<span class="completion-icon completion-incomplete" title="Not Completed">&#x25CF;</span>'
+          `Self-Eval` = case_when(
+            seval_complete  ~ '<span class="completion-icon completion-complete" title="Completed">&#x2713;</span>',
+            !full_loaded    ~ spinner_html,
+            TRUE            ~ '<span class="completion-icon completion-incomplete" title="Not Completed">&#x25CF;</span>'
           ),
-          `Coach Review` = ifelse(
-            coach_complete,
-            '<span class="completion-icon completion-complete" title="Completed">&#x2713;</span>',
-            '<span class="completion-icon completion-incomplete" title="Not Completed">&#x25CF;</span>'
+          `Coach Review` = case_when(
+            coach_complete  ~ '<span class="completion-icon completion-complete" title="Completed">&#x2713;</span>',
+            !full_loaded    ~ spinner_html,
+            TRUE            ~ '<span class="completion-icon completion-incomplete" title="Not Completed">&#x25CF;</span>'
           ),
-          `Second Review` = ifelse(
-            second_complete,
-            '<span class="completion-icon completion-complete" title="Completed">&#x2713;</span>',
-            '<span class="completion-icon completion-incomplete" title="Not Completed">&#x25CF;</span>'
+          `Second Review` = case_when(
+            second_complete ~ '<span class="completion-icon completion-complete" title="Completed">&#x2713;</span>',
+            !full_loaded    ~ spinner_html,
+            TRUE            ~ '<span class="completion-icon completion-incomplete" title="Not Completed">&#x25CF;</span>'
           ),
           Role = case_when(
             review_role == "primary" ~ '<span class="badge badge-primary">Primary</span>',

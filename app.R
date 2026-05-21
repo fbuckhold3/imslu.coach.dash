@@ -63,6 +63,13 @@ ui <- dashboardPage(
     title = "IMSLU Coaching Dashboard",
     titleWidth = 300,
     
+    # Loading indicator (disappears once Phase 2 data arrives)
+    tags$li(
+      class = "dropdown",
+      style = "padding: 12px 10px;",
+      uiOutput("header_loading_status")
+    ),
+
     # Add coach info to header (right side)
     tags$li(
       class = "dropdown",
@@ -442,7 +449,19 @@ server <- function(input, output, session) {
   # ==========================================================================
   # HEADER INFO
   # ==========================================================================
-  
+
+  # Loading spinner — visible until Phase 2 data arrives
+  output$header_loading_status <- renderUI({
+    if (app_state$authenticated && !isTRUE(app_data$data$full_load_complete)) {
+      tags$span(
+        style = "color: rgba(255,255,255,0.75); font-size: 13px;",
+        tags$i(class = "fa fa-circle-notch fa-spin",
+               style = "margin-right: 5px;"),
+        "Loading completion data…"
+      )
+    }
+  })
+
   output$header_coach_info <- renderUI({
     # Safely access coach_data with error handling
     data <- tryCatch({
