@@ -293,8 +293,8 @@ load_coaching_data <- function(
     if (nzchar(PIN_CONFIG$server) && nzchar(PIN_CONFIG$api_key)) {
       message("  -> Reading from Posit Connect pin '", PIN_CONFIG$pin_name, "'...")
       board <- pins::board_connect(
-        server  = PIN_CONFIG$server,
-        api_key = PIN_CONFIG$api_key
+        server = PIN_CONFIG$server,
+        key    = PIN_CONFIG$api_key
       )
       data <- pins::pin_read(board, PIN_CONFIG$pin_name)
       message("  -> Pin loaded successfully")
