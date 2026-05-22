@@ -369,82 +369,71 @@ server <- function(input, output, session) {
   })
   
   # ==========================================================================
-  # NAVIGATION HANDLERS - UPDATED FOR NEW BUTTONS
+  # NAVIGATION HANDLERS
   # ==========================================================================
-  
-  # Handle "Back to Residents" button from primary review interface
-  observe({
-    tryCatch({
-      if (!is.null(review_interface$back_to_table_clicked) && is.function(review_interface$back_to_table_clicked)) {
-        clicked_count <- review_interface$back_to_table_clicked()
-        if (!is.null(clicked_count) && clicked_count > 0) {
-          resident_selection$clear_selection()
-          app_state$current_view <- "resident_table"
-        }
-      }
-    }, error = function(e) {
-      # Silently handle errors
-    })
-  })
 
-  # Handle "Back to Residents" button from second review interface
-  observe({
-    tryCatch({
-      if (!is.null(second_review_interface$back_to_table_clicked) && is.function(second_review_interface$back_to_table_clicked)) {
-        clicked_count <- second_review_interface$back_to_table_clicked()
-        if (!is.null(clicked_count) && clicked_count > 0) {
-          resident_selection$clear_selection()
-          app_state$current_view <- "resident_table"
-        }
-      }
-    }, error = function(e) {
-      # Silently handle errors
-    })
-  })
+  # Helper: re-launch the Phase 2 background load so fresh data (including
+  # newly submitted coach reviews) is picked up by the polling observer.
+  # Safe to call from inside any observer — the future callback only writes
+  # to server_state (a plain env), not to reactive values.
+  trigger_data_refresh <- function() {
+    rdm_url   <- REDCAP_CONFIG$url
+    rdm_token <- REDCAP_CONFIG$rdm_token
 
-  # Handle "Change Coach" button from review interface
-  observe({
-    tryCatch({
-      if (!is.null(review_interface$change_coach_clicked) && is.function(review_interface$change_coach_clicked)) {
-        clicked_count <- review_interface$change_coach_clicked()
-        if (!is.null(clicked_count) && clicked_count > 0) {
-          resident_selection$clear_selection()
-          app_state$current_view <- "coach_select"
-        }
-      }
-    }, error = function(e) {
-      # Silently handle errors
-    })
-  })
-  
-  # LEGACY: Keep old back_clicked handler for compatibility
-  observe({
-    tryCatch({
-      if (!is.null(review_interface$back_clicked) && is.function(review_interface$back_clicked)) {
-        clicked_count <- review_interface$back_clicked()
-        if (!is.null(clicked_count) && clicked_count > 0) {
-          app_state$current_view <- "resident_table"
-          resident_selection$clear_selection()
-        }
-      }
-    }, error = function(e) {
-      # Silently ignore - this is legacy code
-    })
-  })
+    # Mark session data as stale so the polling observer will swap when done.
+    server_state$load_complete <- FALSE
+    stale <- app_data$data
+    stale$full_load_complete <- FALSE
+    app_data$data <- stale
 
-  # Handle "Back to Coach Selection" button from resident table
-  observe({
-    tryCatch({
-      if (!is.null(resident_selection$back_to_coach_clicked) && is.function(resident_selection$back_to_coach_clicked)) {
-        clicked_count <- resident_selection$back_to_coach_clicked()
-        if (!is.null(clicked_count) && clicked_count > 0) {
-          app_state$current_view <- "coach_select"
-        }
-      }
-    }, error = function(e) {
-      # Silently handle errors
+    promises::future_promise({
+      source("R/globals.R")
+      library(gmed); library(dplyr); library(purrr); library(REDCapR); library(lubridate)
+      httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
+      load_coaching_data(redcap_url = rdm_url, rdm_token = rdm_token)
+    }) %...>% (function(full_data) {
+      full_data$full_load_complete <- TRUE
+      server_state$full_data     <- full_data
+      server_state$load_complete <- TRUE
+      message("[Refresh] Data refreshed after submission at ",
+              format(Sys.time(), "%H:%M:%S"))
+    }) %...!% (function(err) {
+      message("[Refresh] Data refresh failed: ", err$message)
+      # Restore flags so the app doesn't stay in a loading state.
+      server_state$load_complete <- TRUE
     })
-  })
+  }
+
+  # "Back to Residents" — primary review interface
+  observeEvent(review_interface$back_to_table_clicked(), {
+    resident_selection$clear_selection()
+    app_state$current_view <- "resident_table"
+  }, ignoreInit = TRUE, ignoreNULL = TRUE)
+
+  # "Return to Resident Table" — fired from the post-submission success modal.
+  # Also triggers a background data refresh so completion indicators update.
+  observeEvent(review_interface$post_submit_return(), {
+    resident_selection$clear_selection()
+    app_state$current_view <- "resident_table"
+    trigger_data_refresh()
+  }, ignoreInit = TRUE, ignoreNULL = TRUE)
+
+  # "Back to Residents" — second review interface
+  observeEvent(second_review_interface$back_to_table_clicked(), {
+    resident_selection$clear_selection()
+    app_state$current_view <- "resident_table"
+  }, ignoreInit = TRUE, ignoreNULL = TRUE)
+
+  # "Change Coach" — primary review interface
+  observeEvent(review_interface$change_coach_clicked(), {
+    resident_selection$clear_selection()
+    app_state$current_view <- "coach_select"
+  }, ignoreInit = TRUE, ignoreNULL = TRUE)
+
+  # "Back to Coach Selection" — resident table
+  observeEvent(resident_selection$back_to_coach_clicked(), {
+    app_state$current_view <- "coach_select"
+  }, ignoreInit = TRUE, ignoreNULL = TRUE)
   
   # ==========================================================================
   # HEADER INFO

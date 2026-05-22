@@ -218,22 +218,26 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
         
         # Use the PRE-DETECTED period for this resident
         period_num = current_period_num,
-        
-        # Check completion status for THIS resident's period
+
+        # Check completion status for THIS resident's period.
+        # Pass the period NAME (e.g. "Mid PGY2"), not the numeric code,
+        # so the checkers can filter by the translated period label field
+        # rather than redcap_repeat_instance (which differs from the period
+        # code when gmed assigns multi-level instance numbers).
         seval_complete = check_seval_complete(
           app_data()$all_forms,
           record_id,
-          period_num
+          current_period
         ),
         coach_complete = check_coach_review_complete(
           app_data()$all_forms,
           record_id,
-          period_num
+          current_period
         ),
         second_complete = check_second_review_complete(
           app_data()$all_forms,
           record_id,
-          period_num
+          current_period
         ),
         
         # Format for display

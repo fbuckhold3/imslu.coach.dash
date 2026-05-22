@@ -1018,95 +1018,113 @@ get_review_role <- function(resident_row, coach_name) {
 # ==============================================================================
 
 #' Check S_Eval Completion Status
-#' 
-#' Checks if resident has completed self-evaluation for a period
-#' 
+#'
+#' Checks if resident has completed self-evaluation for a period.
+#' Filters by the s_e_period label field (translated from raw codes on load),
+#' which matches how the self-assessment app stores period identity.
+#'
 #' @param all_forms List of all form data
 #' @param record_id Resident record ID
-#' @param period_number Period number (0-6) or instance number
+#' @param period_name Period name string (e.g. "Mid Intern", "Mid PGY2")
 #' @return Logical TRUE if complete
 #' @export
-check_seval_complete <- function(all_forms, record_id, period_number) {
+check_seval_complete <- function(all_forms, record_id, period_name) {
   if (is.null(all_forms$s_eval)) return(FALSE)
-  
+
   s_eval_data <- all_forms$s_eval %>%
-    filter(
-      record_id == !!record_id,
-      redcap_repeat_instance == !!period_number
-    )
-  
+    filter(record_id == !!record_id)
+
   if (nrow(s_eval_data) == 0) return(FALSE)
-  
-  # Check completion status field or presence of key data
+
+  if ("s_e_period" %in% names(s_eval_data)) {
+    s_eval_data <- s_eval_data %>%
+      filter(!is.na(s_e_period), s_e_period == !!period_name)
+  }
+
+  if (nrow(s_eval_data) == 0) return(FALSE)
+
   if ("s_eval_complete" %in% names(s_eval_data)) {
     return(s_eval_data$s_eval_complete[1] == "2")
   }
-  
-  # Fallback: check if key fields have data
-  key_fields <- c("s_e_well", "s_e_plus", "s_e_delta")
-  has_data <- any(!is.na(s_eval_data[key_fields]) & s_eval_data[key_fields] != "")
-  
-  return(has_data)
+
+  key_fields <- intersect(c("s_e_well", "s_e_plus", "s_e_delta"), names(s_eval_data))
+  if (length(key_fields) == 0) return(FALSE)
+  any(!is.na(s_eval_data[key_fields]) & s_eval_data[key_fields] != "")
 }
 
 #' Check Coach Review Completion Status
-#' 
-#' Checks if coach review has been completed for a period
-#' 
+#'
+#' Checks if a coaching review has been completed for a period.
+#' Filters by the coach_period label field rather than redcap_repeat_instance
+#' because gmed::get_redcap_instance() assigns instance numbers that differ
+#' from the raw period code (e.g. PGY2 Mid PGY2 -> instance 11, not 3).
+#'
 #' @param all_forms List of all form data
 #' @param record_id Resident record ID
-#' @param period_number Period number (0-6) or instance number
+#' @param period_name Period name string (e.g. "Mid Intern", "Mid PGY2")
 #' @return Logical TRUE if complete
 #' @export
-check_coach_review_complete <- function(all_forms, record_id, period_number) {
+check_coach_review_complete <- function(all_forms, record_id, period_name) {
   if (is.null(all_forms$coach_rev)) return(FALSE)
-  
+
   coach_data <- all_forms$coach_rev %>%
-    filter(
-      record_id == !!record_id,
-      redcap_repeat_instance == !!period_number
-    )
-  
+    filter(record_id == !!record_id)
+
   if (nrow(coach_data) == 0) return(FALSE)
-  
-  # Check completion field
+
+  if ("coach_period" %in% names(coach_data)) {
+    coach_data <- coach_data %>%
+      filter(!is.na(coach_period), coach_period == !!period_name)
+  }
+
+  if (nrow(coach_data) == 0) return(FALSE)
+
   if ("coach_rev_complete" %in% names(coach_data)) {
     return(coach_data$coach_rev_complete[1] == "2")
   }
-  
-  # Fallback: check if ILP final is filled (last required field)
-  return(!is.na(coach_data$coach_ilp_final[1]) && 
-         nzchar(coach_data$coach_ilp_final[1]))
+
+  if ("coach_ilp_final" %in% names(coach_data)) {
+    return(!is.na(coach_data$coach_ilp_final[1]) && nzchar(coach_data$coach_ilp_final[1]))
+  }
+
+  FALSE
 }
 
 #' Check Second Review Completion Status
-#' 
-#' Checks if second review has been completed for a period
-#' 
+#'
+#' Checks if a second review has been completed for a period.
+#' Filters by the second_period label field for the same reason as
+#' check_coach_review_complete (instance numbers differ from period codes).
+#'
 #' @param all_forms List of all form data
 #' @param record_id Resident record ID
-#' @param period_number Period number (0-6) or instance number
+#' @param period_name Period name string (e.g. "Mid Intern", "Mid PGY2")
 #' @return Logical TRUE if complete
 #' @export
-check_second_review_complete <- function(all_forms, record_id, period_number) {
+check_second_review_complete <- function(all_forms, record_id, period_name) {
   if (is.null(all_forms$second_review)) return(FALSE)
-  
+
   second_data <- all_forms$second_review %>%
-    filter(
-      record_id == !!record_id,
-      redcap_repeat_instance == !!period_number
-    )
-  
+    filter(record_id == !!record_id)
+
   if (nrow(second_data) == 0) return(FALSE)
-  
-  # Check completion field
+
+  if ("second_period" %in% names(second_data)) {
+    second_data <- second_data %>%
+      filter(!is.na(second_period), second_period == !!period_name)
+  }
+
+  if (nrow(second_data) == 0) return(FALSE)
+
   if ("second_review_complete" %in% names(second_data)) {
     return(second_data$second_review_complete[1] == "2")
   }
-  
-  # Fallback: check if comments are present
-  return(!is.na(second_data$second_comments[1]) && 
-         nzchar(second_data$second_comments[1]))
+
+  if ("second_comments" %in% names(second_data)) {
+    return(!is.na(second_data$second_comments[1]) && nzchar(second_data$second_comments[1]))
+  }
+
+  FALSE
 }
 
 #' Get Next Available Instance for Interim (Ad Hoc) Review

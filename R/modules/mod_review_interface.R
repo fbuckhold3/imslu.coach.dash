@@ -512,16 +512,21 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     back_to_table_clicked <- reactive({
       input$back_to_table
     })
-    
+
     # Change coach button - returns reactive that triggers navigation to coach select
     change_coach_clicked <- reactive({
       input$change_coach
     })
-    
+
     # Submit button
     submit_clicked <- reactive({
       input$submit_review
     })
+
+    # Signal fired when user clicks "Return to Resident Table" inside the
+    # post-submission success modal.  The parent app observes this and
+    # handles navigation + data refresh.
+    post_submit_return_rv <- reactiveVal(0)
     
     # Handle back to table
     observeEvent(input$back_to_table, {
@@ -995,11 +1000,12 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
             )
           ))
 
-          # Handle return to table button in modal
+          # Handle return to table button in modal.
+          # Removes the modal and increments post_submit_return_rv so the
+          # parent app's observeEvent fires and handles navigation + refresh.
           observeEvent(input$return_to_table, {
             removeModal()
-            # Trigger back to table navigation
-            # The parent app should handle this
+            post_submit_return_rv(post_submit_return_rv() + 1)
           })
 
         } else {
@@ -1035,9 +1041,10 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     # Return reactive values
     return(
       list(
-        back_to_table_clicked = back_to_table_clicked,
-        change_coach_clicked = change_coach_clicked,
-        submit_clicked = submit_clicked
+        back_to_table_clicked  = back_to_table_clicked,
+        change_coach_clicked   = change_coach_clicked,
+        submit_clicked         = submit_clicked,
+        post_submit_return     = post_submit_return_rv
       )
     )
   })
