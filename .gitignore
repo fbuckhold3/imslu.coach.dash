@@ -9,3 +9,4 @@ config.yml
 renv/
 renv.lock
 .Rprofile
+.DS_Store
