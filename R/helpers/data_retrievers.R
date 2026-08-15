@@ -158,55 +158,6 @@ get_scholarship_data <- function(resident_name, resident_data) {
   })
 }
 
-#' Create Manual Plus/Delta Display
-#' 
-#' Fallback function for displaying plus/delta feedback
-#' @param plus_text Positive feedback text
-#' @param delta_text Areas for improvement text
-#' @return UI element
-create_manual_plus_delta_display <- function(plus_text, delta_text) {
-  div(
-    class = "row",
-    div(
-      class = "col-md-6",
-      div(
-        class = "card border-success",
-        div(
-          class = "card-header bg-success text-white",
-          icon("plus-circle", class = "me-2"),
-          "Positive Feedback (Plus)"
-        ),
-        div(
-          class = "card-body",
-          if (plus_text != "") {
-            p(plus_text)
-          } else {
-            p(class = "text-muted", "No positive feedback recorded yet.")
-          }
-        )
-      )
-    ),
-    div(
-      class = "col-md-6",
-      div(
-        class = "card border-warning",
-        div(
-          class = "card-header bg-warning text-dark",
-          icon("triangle-exclamation", class = "me-2"),
-          "Areas for Growth (Delta)"
-        ),
-        div(
-          class = "card-body",
-          if (delta_text != "") {
-            p(delta_text)
-          } else {
-            p(class = "text-muted", "No growth areas recorded yet.")
-          }
-        )
-      )
-    )
-  )
-}
 
 #' Check if Intern Intro Review Enhanced
 #' 
