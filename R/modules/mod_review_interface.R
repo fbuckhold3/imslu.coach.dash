@@ -123,6 +123,29 @@ create_review_preview <- function(review_data, resident_data, current_period, se
             div(strong("Graduation Summary: "),
                 p(class = "text-muted small", review_data$grad_plan$coach_ilp_final))
           )
+        },
+
+        if (!is.null(review_data$intro)) {
+          div(
+            class = "mb-3 p-2 border-start border-primary border-3",
+            h6(icon("user-graduate"), " Entering Residency"),
+            div(class = "mb-2",
+                strong("Background: "),
+                p(class = "text-muted small", review_data$intro$coach_intro_back)),
+            div(class = "mb-2",
+                strong("Coping & Adjustment: "),
+                p(class = "text-muted small", review_data$intro$coach_coping)),
+            div(strong("Skills, Topics & Learning Styles: "),
+                p(class = "text-muted small", review_data$intro$coach_ls_and_topic))
+          )
+        },
+
+        if (!is.null(review_data$summary) && !is.null(review_data$summary$coach_summary)) {
+          div(
+            class = "mb-3 p-2 border-start border-primary border-3",
+            h6(icon("clipboard-check"), " Overall Summary"),
+            p(class = "text-muted small", review_data$summary$coach_summary)
+          )
         }
       )
     ),
@@ -244,14 +267,27 @@ mod_review_interface_ui <- function(id) {
     return(sec)
   }
 
-  if (pn == 7L) {
-    # Intern Intro: Skills Review + Concerns + initial Goals; no
-    # Evaluations / Scholarship / Career.
-    sec <- std[c("wellness", "learning", "goals", "milestones", "summary")]
+  if (pn == 0L) {
+    # Intern Intro / "Entering Residency". NOTE: this app's local period
+    # numbering (PERIOD_NAMES/get_period_number() in globals.R) is 0-based
+    # with Entering Residency = 0 — DIFFERENT from gmed's / REDCap's own
+    # 7-based scheme (s_e_period, coach_period: "7, Entering Residency").
+    # `current_period()` here always carries the LOCAL 0-based number, so
+    # this branch (and is_p7 below) must check pn==0L, not 7L. Periods 1-6
+    # happen to agree between both schemes, which is why only P7 drifted.
+    # When writing coach_period/prog_mile_period back to REDCap, 0 must be
+    # translated to the REDCap raw code 7 — see is_p7 handling below.
+    #
+    # Intern Intro: Background/Concerns/Skills-Topics-Styles (intro_stub) +
+    # Career + Goals (s_e_ume_goal1-3, no ILP) + Milestones (self-assessment
+    # only, no coach entry) + Summary (adds the overall coach_summary box).
+    # No Wellness, Evaluations, or Scholarship. Learning is NOT its own
+    # section for P7 — its topics/learning-styles content and comment field
+    # are folded into intro_stub instead (see mod_intern_intro.R).
+    sec <- std[c("career", "goals", "milestones", "summary")]
     sec$intro_stub <- list(label = "Skills Review & Concerns",
                             icon  = "person-arms-up")
-    sec <- sec[c("intro_stub", "wellness", "learning", "goals",
-                 "milestones", "summary")]
+    sec <- sec[c("intro_stub", "career", "goals", "milestones", "summary")]
     return(sec)
   }
 
@@ -342,15 +378,21 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     grad_plan_data <- mod_grad_plan_server("grad_plan", resident_data, current_period,
                                            rdm_data, app_data_rv)
 
+    # P7 Entering Residency — preparedness ratings, first-6-months goals,
+    # concerns; writes coach_intro_back + coach_coping.
+    intro_data <- mod_intern_intro_server("intro_stub", resident_data, current_period,
+                                          rdm_data, app_data_rv)
+
     # Call Section 7 module (Milestones - moved after ILP)
     milestones_data <- mod_milestones_server("milestones", resident_data, current_period, rdm_data, app_data_rv)
 
     # Section 8: Summary checklist + review preview (was orphaned; now wired)
     summary_data <- mod_summary_server(
       "summary",
+      resident_data,
       wellness_data, evaluations_data, learning_data,
       scholarship_data, career_data, milestones_data, goals_data,
-      grad_plan_data,
+      grad_plan_data, intro_data,
       current_period = current_period
     )
 
@@ -383,7 +425,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         milestones  = milestones_data,
         grad_plan   = grad_plan_data,
         summary     = NULL,        # validation-only; complete iff all others
-        intro_stub  = NULL         # placeholder, soft-skip (P7)
+        intro_stub  = intro_data   # P7 Entering Residency (mod_intern_intro)
       )
     })
 
@@ -418,11 +460,11 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           learning    = mod_learning_ui(ns("learning")),
           scholarship = mod_scholarship_ui(ns("scholarship")),
           career      = mod_career_ui(ns("career")),
-          goals       = mod_goals_ui(ns("goals")),
-          milestones  = mod_milestones_ui(ns("milestones")),
+          goals       = mod_goals_ui(ns("goals"), period_num = current_period()),
+          milestones  = mod_milestones_ui(ns("milestones"), period_num = current_period()),
           grad_plan   = mod_grad_plan_ui(ns("grad_plan")),
-          summary     = mod_summary_ui(ns("summary")),
-          intro_stub  = .coach_period_stub_body(current_period(), "intro_stub"),
+          summary     = mod_summary_ui(ns("summary"), period_num = current_period()),
+          intro_stub  = mod_intern_intro_ui(ns("intro_stub")),
           tags$em("Unknown section")
         )
 
@@ -563,7 +605,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
 
       pn <- as.integer(current_period())
       is_p6 <- identical(pn, 6L)
-      is_p7 <- identical(pn, 7L)
+      is_p7 <- identical(pn, 0L)  # local scheme: 0 = Entering Residency (see .coach_sections_for_period)
 
       # Required sections vary by period; only req() what we'll actually
       # consume so P6/P7 don't get stuck waiting on dropped sections.
@@ -576,7 +618,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         req(milestones_data()); req(grad_plan_data())
       } else {
         req(wellness_data()); req(learning_data()); req(milestones_data())
-        req(goals_data())
+        req(goals_data()); req(intro_data())
       }
 
       # Collect data from all sections (NULL-safe for dropped sections)
@@ -588,7 +630,9 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         career      = if (!is.null(career_data()))      career_data()      else NULL,
         goals       = if (!is.null(goals_data()))       goals_data()       else NULL,
         milestones  = if (!is.null(milestones_data()))  milestones_data()  else NULL,
-        grad_plan   = if (!is.null(grad_plan_data()))   grad_plan_data()   else NULL
+        grad_plan   = if (!is.null(grad_plan_data()))   grad_plan_data()   else NULL,
+        intro       = if (!is.null(intro_data()))       intro_data()       else NULL,
+        summary     = if (!is.null(summary_data()))     summary_data()     else NULL
       )
 
       # Validate per-period required sections
@@ -598,9 +642,10 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         if (!isTRUE(review_data$milestones$is_complete))  incomplete_sections <- c(incomplete_sections, "Milestones")
         if (!isTRUE(review_data$grad_plan$is_complete))   incomplete_sections <- c(incomplete_sections, "Graduation Plan")
       } else if (is_p7) {
-        if (!isTRUE(review_data$wellness$is_complete))   incomplete_sections <- c(incomplete_sections, "Wellness")
-        if (!isTRUE(review_data$learning$is_complete))   incomplete_sections <- c(incomplete_sections, "Learning")
-        if (!isTRUE(review_data$milestones$is_complete)) incomplete_sections <- c(incomplete_sections, "Milestones")
+        # No Wellness/Learning for P7 (neither section is shown — Learning's
+        # topics/styles moved into intro_stub). Milestones has no coach
+        # entry for P7 (always is_complete=TRUE — see mod_milestones.R).
+        if (!isTRUE(review_data$intro$is_complete)) incomplete_sections <- c(incomplete_sections, "Entering Residency")
       } else {
         if (!isTRUE(review_data$wellness$is_complete))    incomplete_sections <- c(incomplete_sections, "Wellness")
         if (!isTRUE(review_data$evaluations$is_complete)) incomplete_sections <- c(incomplete_sections, "Evaluations")
@@ -763,6 +808,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
 
       pn <- as.integer(current_period())
       is_p6 <- identical(pn, 6L)
+      is_p7 <- identical(pn, 0L)  # local scheme: 0 = Entering Residency (see .coach_sections_for_period)
 
       # Close preview modal
       removeModal()
@@ -776,7 +822,9 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         career      = if (!is.null(career_data()))      career_data()      else NULL,
         goals       = if (!is.null(goals_data()))       goals_data()       else NULL,
         milestones  = if (!is.null(milestones_data()))  milestones_data()  else NULL,
-        grad_plan   = if (!is.null(grad_plan_data()))   grad_plan_data()   else NULL
+        grad_plan   = if (!is.null(grad_plan_data()))   grad_plan_data()   else NULL,
+        intro       = if (!is.null(intro_data()))       intro_data()       else NULL,
+        summary     = if (!is.null(summary_data()))     summary_data()     else NULL
       )
 
       # Show processing notification
@@ -790,6 +838,14 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         res_info <- resident_data()$resident_info
         period_num <- current_period()
         period_name <- get_period_name(period_num)
+
+        # REDCap's own period dropdowns (coach_period, prog_mile_period,
+        # s_e_period) use "7" for Entering Residency; this app's local
+        # period_num is 0-based ("Entering Residency" = 0). Translate ONLY
+        # at the REDCap-write boundary — don't change period_num itself,
+        # since get_period_name()/PERIOD_NAMES indexing depend on the local
+        # 0-based value.
+        period_redcap_code <- if (identical(suppressWarnings(as.integer(period_num)), 0L)) 7L else period_num
 
         # gmed::get_redcap_instance keys on string level ("Intern"/"PGY2"/"PGY3")
         # — pass res_info$Level directly so the direct mapping resolves
@@ -809,17 +865,33 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           redcap_repeat_instrument = "coach_rev",
           redcap_repeat_instance = instance,
           coach_date = format(Sys.Date(), "%Y-%m-%d"),  # REDCap date format
-          coach_period = as.character(period_num),       # Raw format (numeric as string)
+          coach_period = as.character(period_redcap_code), # REDCap raw code (7=Entering Residency)
           coach_wellness = as.character(review_data$wellness$coach_wellness %||% ""),
           coach_evaluations = as.character(review_data$evaluations$coach_evaluations %||% ""),
           coach_p_d_comments = as.character(review_data$evaluations$coach_p_d_comments %||% ""),
-          coach_ls_and_topic = as.character(review_data$learning$coach_ls_and_topic %||% ""),
+          # P7 folds Topics/Learning Styles comments into intro_stub instead
+          # of the (unshown) Learning section.
+          coach_ls_and_topic = as.character(
+            if (is_p7) (review_data$intro$coach_ls_and_topic %||% "")
+            else (review_data$learning$coach_ls_and_topic %||% "")
+          ),
           coach_step_board = as.character(review_data$learning$coach_step_board %||% ""),
           coach_career = as.character(review_data$career$coach_career %||% ""),
           coach_mile_goal = as.character(review_data$goals$coach_mile_goal %||% ""),
           coach_ilp_final = as.character(
             if (is_p6) (review_data$grad_plan$coach_ilp_final %||% "")
             else (review_data$goals$coach_ilp_final %||% "")
+          ),
+          coach_intro_back = as.character(
+            if (is_p7) (review_data$intro$coach_intro_back %||% "") else ""
+          ),
+          coach_coping = as.character(
+            if (is_p7) (review_data$intro$coach_coping %||% "") else ""
+          ),
+          # Overall summary lives on mod_summary.R's P7-only box now (the
+          # last step in the flow), not intro_stub.
+          coach_summary = as.character(
+            if (is_p7) (review_data$summary$coach_summary %||% "") else ""
           ),
           coach_rev_complete = "2",  # Raw format (string)
           stringsAsFactors = FALSE
@@ -841,7 +913,13 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           list(success = FALSE, message = e$message)
         })
 
-        # Build milestone_entry submission record (raw format)
+        # Build milestone_entry submission record (raw format) — skipped
+        # entirely for P7: coaches don't rate baseline milestones for
+        # incoming interns (mod_milestones.R shows self-assessment only, no
+        # entry UI), so there's nothing to submit.
+        if (is_p7) {
+          milestone_result <- list(success = TRUE, message = "No coach milestone entry for Entering Residency")
+        } else {
         milestone_ratings <- review_data$milestones$milestone_ratings
 
         # Helper function to convert gmed field names to REDCap field names
@@ -863,7 +941,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           redcap_repeat_instrument = "milestone_entry",
           redcap_repeat_instance = instance,
           prog_mile_date = format(Sys.Date(), "%Y-%m-%d"),  # REDCap date format
-          prog_mile_period = as.character(period_num),       # Raw format
+          prog_mile_period = as.character(period_redcap_code), # REDCap raw code — NOTE: dictionary labels choice 7 "Error", flagged separately
           stringsAsFactors = FALSE
         )
 
@@ -902,6 +980,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         }, error = function(e) {
           list(success = FALSE, message = e$message)
         })
+        }
 
         # Remove processing notification
         removeNotification(notification_id)

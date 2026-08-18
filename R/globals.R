@@ -1440,6 +1440,7 @@ source("R/modules/mod_milestones.R")
 source("R/modules/mod_milestone_entry.R")
 source("R/modules/mod_goals.R")
 source("R/modules/mod_grad_plan.R")
+source("R/modules/mod_intern_intro.R")
 source("R/modules/mod_summary.R")
 
 # ==============================================================================

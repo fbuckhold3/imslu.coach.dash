@@ -91,6 +91,20 @@ mod_resident_table_ui <- function(id) {
         div(
           style = "display: flex; gap: 10px; align-items: center;",
           uiOutput(ns("last_loaded_display")),
+          div(
+            style = "display: flex; align-items: center; gap: 6px;",
+            tags$label(
+              "Review period:",
+              style = "font-size: 13px; color: #495057; margin: 0; white-space: nowrap;",
+              `for` = ns("override_period")
+            ),
+            selectInput(
+              ns("override_period"),
+              label = NULL,
+              choices = c("Auto-detect (recommended)" = ""),  # server-populated
+              width = "220px"
+            )
+          ),
           actionButton(
             ns("refresh_data_btn"),
             "Refresh Data",
@@ -105,6 +119,7 @@ mod_resident_table_ui <- function(id) {
           )
         )
       ),
+      uiOutput(ns("override_period_notice")),
       
       # Main resident table
       DT::DTOutput(ns("resident_table")),
@@ -172,6 +187,32 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
     # submitted after the last data load \u2014 without this a second interim
     # review for the same resident would calculate the same instance number.
     session_interim_tracker <- reactiveVal(list())
+
+    # Populate the manual period-override dropdown once (PERIOD_NAMES is a
+    # fixed constant from globals.R \u2014 "Auto-detect" plus every period name,
+    # in the app's local numbering order).
+    observe({
+      updateSelectInput(
+        session, "override_period",
+        choices = c("Auto-detect (recommended)" = "", setNames(PERIOD_NAMES, PERIOD_NAMES))
+      )
+    }, priority = 100)
+
+    # Visible reminder when a manual override is active, so it's obvious
+    # why a resident's review doesn't match their auto-detected period.
+    output$override_period_notice <- renderUI({
+      if (is.null(input$override_period) || !nzchar(input$override_period)) return(NULL)
+      div(
+        class = "alert alert-warning py-2 px-3 mb-3",
+        style = "font-size: 13px;",
+        icon("triangle-exclamation"),
+        strong(" Period override active: "),
+        sprintf(
+          "Selecting a resident below will open a \"%s\" review regardless of their auto-detected period.",
+          input$override_period
+        )
+      )
+    })
 
     # Display last loaded time
     output$last_loaded_display <- renderUI({
@@ -370,12 +411,14 @@ observeEvent(input$resident_table_rows_selected, {
       filter(record_id == selected_resident_id) %>%
       slice(1)
     
-    # Use PRE-DETECTED period from resident_info
-    resident_period <- resident_info$current_period[1]
-    
+    # Use the coach's manual override when set, otherwise the pre-detected
+    # period from resident_info.
+    has_override <- !is.null(input$override_period) && nzchar(input$override_period)
+    resident_period <- if (has_override) input$override_period else resident_info$current_period[1]
+
     # Update selected period
     selected_period(resident_period)
-    
+
     # Set selected resident
     selected_resident(list(
       record_id = selected_resident_id,
@@ -386,21 +429,23 @@ observeEvent(input$resident_table_rows_selected, {
       period_number = get_period_number(resident_period),
       resident_info = resident_info
     ))
-    
+
     message(sprintf(
-      "[%s] Resident selected: %s (ID: %s, Period: %s [auto-detected])",
+      "[%s] Resident selected: %s (ID: %s, Period: %s [%s])",
       format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
       df$display_name[selected_row],
       selected_resident_id,
-      resident_period
+      resident_period,
+      if (has_override) "manual override" else "auto-detected"
     ))
-    
+
     # Show confirmation
     showNotification(
       sprintf(
-        "Opening review for %s - %s (auto-detected)",
+        "Opening review for %s - %s (%s)",
         df$display_name[selected_row],
-        resident_period
+        resident_period,
+        if (has_override) "manual override" else "auto-detected"
       ),
       type = "message",
       duration = 3

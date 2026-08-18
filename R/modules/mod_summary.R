@@ -1,10 +1,43 @@
 # Section 8: Summary & Submission Module
 # Displays completion checklist and submission buttons
+#
+# P7 (Entering Residency) adds one more thing: an overall "Summary" coach
+# textarea (coach_summary) as the LAST step in the whole P7 flow — the
+# earlier per-topic notes (background, coping, skills/topics/styles) live in
+# mod_intern_intro.R; this is the closing, whole-review summary.
+#
+# NOTE: this module previously checked `current_period() == 7L` for P6/P7
+# detection — WRONG. This app's local period numbering (PERIOD_NAMES /
+# get_period_number() in globals.R) is 0-based, with Entering Residency = 0
+# (gmed's/REDCap's own scheme uses 7 — see mod_review_interface.R's
+# .coach_sections_for_period() for the full explanation). Fixed to check 0L.
 
-mod_summary_ui <- function(id) {
+mod_summary_ui <- function(id, period_num = NULL) {
   ns <- NS(id)
+  is_p7 <- identical(suppressWarnings(as.integer(period_num)), 0L)
 
   tagList(
+    # P7: Overall Summary comes FIRST — the closing note right after
+    # Milestones, before the completion checklist/preview clutter below.
+    if (is_p7) tagList(
+      h4("Overall Summary", style = "color: #34495e; margin-top: 10px;"),
+      wellPanel(
+        style = "background-color: #ffffff; border-left: 4px solid #3498db;",
+        tags$label("Summary:", style = "font-weight: bold; color: #2c3e50;"),
+        tags$p("Overall summary of this entering-residency review.",
+               style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"),
+        textAreaInput(
+          ns("coach_summary"), label = NULL, value = "", width = "100%", height = "150px",
+          placeholder = "Summarize this entering-residency review..."
+        ),
+        div(
+          style = "text-align: right; font-size: 12px; color: #95a5a6;",
+          textOutput(ns("char_count_summary"))
+        )
+      ),
+      hr()
+    ),
+
     h4("Review Completion Checklist", style = "color: #34495e; margin-top: 10px;"),
     p(style = "color: #7f8c8d;", "Verify all sections are complete before submitting the review."),
 
@@ -30,16 +63,17 @@ mod_summary_ui <- function(id) {
   )
 }
 
-mod_summary_server <- function(id, wellness_data, evaluations_data, learning_data,
+mod_summary_server <- function(id, resident_data, wellness_data, evaluations_data, learning_data,
                                scholarship_data, career_data, milestones_data, goals_data,
-                               grad_plan_data = reactive(NULL),
+                               grad_plan_data = reactive(NULL), intro_data = reactive(NULL),
                                current_period = reactive(NULL)) {
   moduleServer(id, function(input, output, session) {
 
     # P6 (graduation) drops Wellness/Learning/Career/Goals and adds grad_plan;
-    # P7 (intern intro) drops Evaluations/Scholarship/Career.
-    is_p6 <- reactive(identical(as.integer(current_period()), 6L))
-    is_p7 <- reactive(identical(as.integer(current_period()), 7L))
+    # P7 (intern intro) drops Wellness/Evaluations/Scholarship/Learning
+    # (Learning's topics/styles moved into mod_intern_intro.R for P7).
+    is_p6 <- reactive(identical(as.integer(current_period() %||% NA_integer_), 6L))
+    is_p7 <- reactive(identical(as.integer(current_period() %||% NA_integer_), 0L))
 
     # Calculate overall completion status
     completion_status <- reactive({
@@ -58,7 +92,11 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
         base$grad_plan <- if (!is.null(grad_plan_data())) grad_plan_data()$is_complete else FALSE
         base
       } else if (is_p7()) {
-        base[setdiff(names(base), c("evaluations", "scholarship", "career"))]
+        base <- base[setdiff(names(base), c("wellness", "evaluations", "scholarship", "learning"))]
+        base$intro <- if (!is.null(intro_data())) intro_data()$is_complete else FALSE
+        base$coach_summary <- !is.null(input$coach_summary) &&
+                               nchar(trimws(input$coach_summary %||% "")) > 0
+        base
       } else base
     })
 
@@ -90,14 +128,16 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
       }
 
       labels <- c(
-        wellness    = "Wellness & Progress",
-        evaluations = "Evaluations & Feedback",
-        learning    = "Learning & Board Preparation",
-        scholarship = "Scholarship",
-        career      = "Career Planning",
-        milestones  = "Milestones",
-        goals       = "Goals & ILP (including ILP Final Summary)",
-        grad_plan   = "Graduation Plan & Alumni"
+        wellness      = "Wellness & Progress",
+        evaluations   = "Evaluations & Feedback",
+        learning      = "Learning & Board Preparation",
+        scholarship   = "Scholarship",
+        career        = "Career Planning",
+        milestones    = "Milestones",
+        goals         = "Goals & ILP (including ILP Final Summary)",
+        grad_plan     = "Graduation Plan & Alumni",
+        intro         = "Background, Coping, Skills/Topics/Learning Styles",
+        coach_summary = "Overall Summary"
       )
 
       items <- lapply(names(status), function(nm) {
@@ -146,14 +186,16 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
       }
 
       section_labels <- c(
-        wellness = "Wellness & Progress",
-        evaluations = "Evaluations & Feedback",
-        learning = "Learning & Board Preparation",
-        scholarship = "Scholarship",
-        career = "Career Planning",
-        milestones = "Milestones",
-        goals = "Goals & ILP",
-        grad_plan = "Graduation Plan & Alumni"
+        wellness      = "Wellness & Progress",
+        evaluations   = "Evaluations & Feedback",
+        learning      = "Learning & Board Preparation",
+        scholarship   = "Scholarship",
+        career        = "Career Planning",
+        milestones    = "Milestones",
+        goals         = "Goals & ILP",
+        grad_plan     = "Graduation Plan & Alumni",
+        intro         = "Background, Coping, Skills/Topics/Learning Styles",
+        coach_summary = "Overall Summary"
       )
 
       incomplete_labels <- sapply(incomplete_sections, function(x) section_labels[x])
@@ -202,14 +244,14 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
       }
 
       tagList(
-        if (!is.null(wellness_data())) {
+        if (!is.null(wellness_data()) && !is_p7()) {
           create_summary_section(
             "Wellness & Progress",
             wellness_data()$coach_wellness
           )
         },
 
-        if (!is.null(evaluations_data())) {
+        if (!is.null(evaluations_data()) && !is_p7()) {
           tagList(
             create_summary_section(
               "Evaluations",
@@ -222,14 +264,14 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
           )
         },
 
-        if (!is.null(learning_data())) {
+        if (!is.null(learning_data()) && !is_p7()) {
           create_summary_section(
             "Learning & Board Preparation",
             learning_data()$coach_step_board
           )
         },
 
-        if (!is.null(scholarship_data())) {
+        if (!is.null(scholarship_data()) && !is_p7()) {
           create_summary_section(
             "Scholarship",
             scholarship_data()$coach_scholarship
@@ -243,13 +285,30 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
           )
         },
 
+        if (is_p7() && !is.null(career_data())) {
+          create_summary_section(
+            "Career Planning",
+            career_data()$coach_career
+          )
+        },
+
+        if (is_p7() && !is.null(intro_data())) {
+          tagList(
+            create_summary_section("Background Information", intro_data()$coach_intro_back),
+            create_summary_section("Coping and Adjustment", intro_data()$coach_coping),
+            create_summary_section("Skills, Topics & Learning Styles", intro_data()$coach_ls_and_topic)
+          )
+        },
+
         if (!is.null(milestones_data())) {
           div(
             style = "margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 4px; border-left: 3px solid #e74c3c;",
             h5("Milestones", style = "color: #c0392b; margin-top: 0;"),
             p(
               style = "color: #34495e;",
-              if (milestones_data()$is_complete) {
+              if (is_p7()) {
+                "Self-assessment reviewed (no coach ratings for Entering Residency)"
+              } else if (milestones_data()$is_complete) {
                 "Milestone ratings have been entered"
               } else {
                 tags$em(style = "color: #e74c3c;", "Milestone ratings incomplete")
@@ -258,7 +317,7 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
           )
         },
 
-        if (!is.null(goals_data()) && !is_p6()) {
+        if (!is.null(goals_data()) && !is_p6() && !is_p7()) {
           tagList(
             create_summary_section(
               "Goals Assessment",
@@ -271,6 +330,13 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
           )
         },
 
+        if (!is.null(goals_data()) && is_p7()) {
+          create_summary_section(
+            "Goals Assessment",
+            goals_data()$coach_mile_goal
+          )
+        },
+
         if (is_p6() && !is.null(grad_plan_data())) {
           create_summary_section(
             "Graduation Summary & Transition Notes",
@@ -280,13 +346,42 @@ mod_summary_server <- function(id, wellness_data, evaluations_data, learning_dat
       )
     })
 
-    # Return completion status for parent module
+    # ----- Overall Summary (P7 only): character count -----
+    output$char_count_summary <- renderText({
+      sprintf("%d characters", nchar(input$coach_summary %||% ""))
+    })
+
+    # ----- Load existing coach_summary when resident changes (P7 only) -----
+    current_resident_id <- reactiveVal(NULL)
+
+    observe({
+      req(resident_data())
+      new_resident_id <- resident_data()$resident_info$record_id[1]
+
+      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
+        current_resident_id(new_resident_id)
+
+        if (isTRUE(is_p7())) {
+          curr_data <- resident_data()$current_period$coach_rev
+          existing <- if (!is.null(curr_data) && nrow(curr_data) > 0 && "coach_summary" %in% names(curr_data)) {
+            curr_data$coach_summary[1]
+          } else NA
+          updateTextAreaInput(
+            session, "coach_summary",
+            value = if (!is.na(existing) && nzchar(existing)) existing else ""
+          )
+        }
+      }
+    })
+
+    # Return completion status + entered data for parent module
     return(
       reactive({
         status <- completion_status()
         list(
           all_complete = all(unlist(status)),
-          completion_status = status
+          completion_status = status,
+          coach_summary = input$coach_summary
         )
       })
     )
