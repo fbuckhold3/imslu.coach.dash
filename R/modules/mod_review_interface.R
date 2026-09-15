@@ -347,12 +347,35 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       res_data <- resident_data()$resident_info
       period_num <- current_period()
 
-      HTML(sprintf(
-        "<span style='color: #2c3e50;'>%s</span> | <span style='color: #7f8c8d;'>%s | Period: %s</span>",
-        res_data$full_name,
-        res_data$Level,
-        PERIOD_NAMES[period_num + 1]
-      ))
+      # Deep link to the resident's own imslu.ind.dash, pre-authed via their
+      # access_code — same ?code= pattern imslu.ccc.dashboard uses.
+      ac_val <- if ("access_code" %in% names(res_data) &&
+                    !is.na(res_data$access_code[1]) &&
+                    nzchar(trimws(res_data$access_code[1]))) {
+        trimws(res_data$access_code[1])
+      } else ""
+      ind_dash_url <- paste0(
+        "https://fbuckhold3-imsluresidentdashboard.share.connect.posit.cloud",
+        if (nzchar(ac_val)) paste0("?code=", ac_val) else ""
+      )
+
+      tagList(
+        HTML(sprintf(
+          "<span style='color: #2c3e50;'>%s</span> | <span style='color: #7f8c8d;'>%s | Period: %s</span>",
+          res_data$full_name,
+          res_data$Level,
+          PERIOD_NAMES[period_num + 1]
+        )),
+        tags$a(
+          href = ind_dash_url,
+          target = "_blank",
+          style = paste0(
+            "margin-left: 14px; font-size: 13px; font-weight: 600; ",
+            "color: #0d6efd; text-decoration: none; white-space: nowrap;"
+          ),
+          icon("arrow-up-right-from-square"), " Individual Dashboard"
+        )
+      )
     })
 
     # Call Section 1 module
