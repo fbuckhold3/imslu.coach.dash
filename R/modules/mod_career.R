@@ -5,9 +5,6 @@ mod_career_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
-    # Previous Period Section
-    uiOutput(ns("previous_coach_comments")),
-
     # Current Period Career Data
     h4("Current Period - Career Planning", style = "color: #34495e; margin-top: 20px;"),
 
@@ -41,7 +38,10 @@ mod_career_ui <- function(id) {
     hr(),
 
     # Coach Entry for Current Period
-    h4("Coach Review - Current Period", style = "color: #34495e; margin-top: 20px;"),
+    h4("Coach Review - Current Period", style = "margin-top: 20px;"),
+
+    # Previous coach notes, directly above the entry box
+    uiOutput(ns("previous_coach_comments")),
 
     wellPanel(
       style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
@@ -261,36 +261,12 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
     })
 
     # Display previous period coach comments
+    # Previous coach notes (all earlier periods, newest first)
     output$previous_coach_comments <- renderUI({
-      req(resident_data())
-
-      prev_data <- resident_data()$previous_period$coach_rev
-
-      if (is.null(prev_data) || nrow(prev_data) == 0) {
-        return(NULL)
-      }
-
-      prev_career <- prev_data$coach_career[1]
-
-      if (is.na(prev_career) || trimws(prev_career) == "") {
-        return(NULL)
-      }
-
-      tagList(
-        h4("Previous Period Coach Comments", style = "color: #34495e; margin-top: 20px;"),
-
-        wellPanel(
-          style = "background-color: #e8f4f8; border-left: 4px solid #3498db;",
-
-          h5("Career Planning:", style = "color: #2980b9;"),
-          div(
-            style = "padding: 10px; background-color: white; border-radius: 4px;",
-            HTML(gsub("\n", "<br>", prev_career))
-          )
-        ),
-
-        hr()
-      )
+      rd <- resident_data(); req(rd)
+      prev_notes_block(
+        ctx_previous_notes(rd$coach_rev_history, "coach_career", get_period_name(current_period())),
+        "Career planning")
     })
 
     # Load or clear data when resident changes

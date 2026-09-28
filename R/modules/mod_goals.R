@@ -24,17 +24,23 @@ mod_goals_ui <- function(id, period_num = NULL) {
         uiOutput(ns("p7_goals_display"))
       )
     } else {
-      # Read-only ILP display (gmed):
-      #   1. previous coach ILP summary (coach_mile_goal + coach_ilp_final)
-      #   2. previous-period goals + resident achievement reflection
-      #   3. current-period goals
-      gmed::mod_ilp_display_ui(ns("ilp"))
+      tagList(
+        # Last period's goals vs what the ratings did (coach_context.R)
+        h4("Last Period's Goals: Did They Move?", style = "margin-top: 10px;"),
+        uiOutput(ns("followthrough")),
+        hr(),
+        # Read-only ILP display (gmed):
+        #   1. previous coach ILP summary (coach_mile_goal + coach_ilp_final)
+        #   2. previous-period goals + resident achievement reflection
+        #   3. current-period goals
+        gmed::mod_ilp_display_ui(ns("ilp"))
+      )
     },
 
     hr(),
 
     # Coach entry: per-goal / milestone comments
-    h4("Coach Assessment of Goals", style = "color: #34495e; margin-top: 20px;"),
+    h4("Coach Assessment of Goals", style = "margin-top: 20px;"),
 
     wellPanel(
       style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
@@ -114,7 +120,8 @@ mod_goals_ui <- function(id, period_num = NULL) {
   )
 }
 
-mod_goals_server <- function(id, resident_data, current_period, app_data, app_data_rv) {
+mod_goals_server <- function(id, resident_data, current_period, app_data, app_data_rv,
+                             live_coach_row = NULL) {
   moduleServer(id, function(input, output, session) {
 
     is_p7 <- reactive({ identical(as.integer(current_period() %||% NA_integer_), 0L) })
@@ -151,6 +158,31 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, app_da
       }),
       data_dict = data_dict_r
     )
+
+    # ----- Last period's goals: target vs ratings (periods 1-6) -----
+    # "Now" prefers ACGME, then the coach's milestone ratings: the live
+    # entries from the Milestones section when the coach has started them
+    # (live_coach_row), otherwise whatever is already saved for this period.
+    output$followthrough <- renderUI({
+      rd <- resident_data(); req(rd)
+      goal_period <- unname(get_previous_period(get_period_name(current_period())))
+      if (is.na(goal_period)) {
+        return(roundsui::roundsui_empty_state("No previous period to follow up.", compact = TRUE))
+      }
+      live <- if (is.function(live_coach_row)) tryCatch(live_coach_row(), error = function(e) NULL)
+      curr_coach <- if (!is.null(live) && nrow(live) > 0) live else rd$current_period$milestone_entry
+      rows <- ctx_goal_followthrough(
+        prev_ilp   = rd$previous_period$ilp,
+        curr_ilp   = rd$current_period$ilp,
+        prev_acgme = rd$previous_period$acgme_miles,
+        prev_coach = rd$previous_period$milestone_entry,
+        curr_acgme = rd$current_period$acgme_miles,
+        curr_coach = curr_coach,
+        curr_self  = rd$current_period$milestone_selfevaluation,
+        goal_period_name = goal_period
+      )
+      goal_followthrough_ui(rows, goal_period)
+    })
 
     # ----- P7 goals display: s_e_ume_goal1/2/3 (read-only) -----
     output$p7_goals_display <- renderUI({

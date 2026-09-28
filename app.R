@@ -54,153 +54,27 @@ local({
 # UI
 # ==============================================================================
 
-ui <- dashboardPage(
-  
-  # ============================================================================
-  # HEADER
-  # ============================================================================
-  dashboardHeader(
-    title = "IMSLU Coaching Dashboard",
-    titleWidth = 300,
-    
-    # Loading indicator (disappears once Phase 2 data arrives)
-    tags$li(
-      class = "dropdown",
-      style = "padding: 12px 10px;",
-      uiOutput("header_loading_status")
-    ),
+# roundsui page shell ("Ward Notes"): a slim top bar over a server-driven
+# main view. gmed styles stay loaded for the gmed display modules used inside
+# the review sections; roundsui tokens are prefixed --roundsui-* so the two
+# don't collide during the migration.
+ui <- roundsui::roundsui_page(
+  title = "IMSLU Coaching Dashboard",
 
-    # Add coach info to header (right side)
-    tags$li(
-      class = "dropdown",
-      style = "padding: 15px; color: #fff;",
-      uiOutput("header_coach_info")
+  gmed::load_gmed_styles(theme = "slucare"),
+  tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")),
+
+  div(
+    class = "coach-topbar",
+    div(class = "coach-topbar__title", icon("user-doctor"), " IMSLU Coaching Dashboard"),
+    div(
+      class = "coach-topbar__meta",
+      uiOutput("header_loading_status", inline = TRUE),
+      uiOutput("header_coach_info", inline = TRUE)
     )
   ),
-  
-  # ============================================================================
-  # SIDEBAR - DISABLED
-  # ============================================================================
-  dashboardSidebar(
-    disable = TRUE
-  ),
-  
-  # ============================================================================
-  # BODY
-  # ============================================================================
-  dashboardBody(
 
-    # Load gmed styles for modern look
-    gmed::load_gmed_styles(theme = "slucare"),
-
-    # Custom CSS - Modern design matching self-assessment app
-    tags$head(
-      tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
-      tags$style(HTML("
-        /* Modern color scheme */
-        :root {
-          --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          --ssm-blue-gradient: linear-gradient(135deg, #003d5c, #0066a1);
-          --success-color: #10b981;
-          --gray-light: #e5e7eb;
-          --gray-medium: #9ca3af;
-          --gray-dark: #6b7280;
-        }
-
-        /* Override shinydashboard colors with modern palette */
-        .content-wrapper {
-          background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
-        }
-
-        .main-header .navbar {
-          background: linear-gradient(135deg, #003d5c, #0066a1) !important;
-          border: none;
-          box-shadow: 0 2px 8px rgba(0, 61, 92, 0.15);
-        }
-
-        .main-header .logo {
-          background: #003d5c !important;
-          font-weight: 600;
-          letter-spacing: 0.5px;
-        }
-
-        /* Modern card styling */
-        .box {
-          border: none;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0, 61, 92, 0.08);
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          overflow: hidden;
-        }
-
-        .box:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(0, 61, 92, 0.12);
-        }
-
-        .box-header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          border: none;
-          padding: 15px 20px;
-          font-weight: 600;
-        }
-
-        /* Modern buttons */
-        .btn-primary {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          border: none;
-          border-radius: 8px;
-          padding: 10px 24px;
-          font-weight: 600;
-          letter-spacing: 0.5px;
-          transition: all 0.3s ease;
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-primary:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-success {
-          background: linear-gradient(135deg, #10b981, #059669);
-          border: none;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-
-        .btn-info {
-          background: linear-gradient(135deg, #003d5c, #0066a1);
-          border: none;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0, 61, 92, 0.3);
-        }
-
-        /* Card animations */
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .box {
-          animation: fadeIn 0.3s ease-in;
-        }
-      "))
-    ),
-
-    # Enable shinyjs
-    useShinyjs(),
-
-    # Main content area
-    uiOutput("main_content")
-  )
+  uiOutput("main_content")
 )
 
 # ==============================================================================
@@ -443,10 +317,8 @@ server <- function(input, output, session) {
   output$header_loading_status <- renderUI({
     if (app_state$authenticated && !isTRUE(app_data$data$full_load_complete)) {
       tags$span(
-        style = "color: rgba(255,255,255,0.75); font-size: 13px;",
-        tags$i(class = "fa fa-circle-notch fa-spin",
-               style = "margin-right: 5px;"),
-        "Loading completion data…"
+        icon("circle-notch", class = "fa-spin"),
+        " Loading completion data\u2026"
       )
     }
   })
@@ -514,12 +386,11 @@ server <- function(input, output, session) {
             div(
               style = "max-width: 800px; margin: 20px auto;",
               h3(
-                style = "color: #0072B2; margin-bottom: 20px;",
-                icon("user-tie"),
-                " Welcome to the Coaching Dashboard"
+                style = "margin-bottom: 8px;",
+                "Welcome to the Coaching Dashboard"
               ),
               p(
-                style = "font-size: 16px; color: #666; margin-bottom: 30px;",
+                style = "color: var(--roundsui-ink-muted); margin-bottom: 24px;",
                 "Select your name below to view your assigned residents."
               ),
               mod_coach_select_ui("coach_select")

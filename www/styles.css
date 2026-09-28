@@ -1,460 +1,130 @@
 /* ============================================================================
-   IMSLU COACHING DASHBOARD - MODERN STYLING
-   Matching imslu-resident-self-assessment design
+   IMSLU COACHING DASHBOARD — app-level styles on top of roundsui ("Ward Notes")
+
+   roundsui supplies the tokens (--roundsui-*), page shell, cards, badges and
+   states. This file only adapts the coach app's own markup (Bootstrap cards,
+   wells, buttons and tables used across the section modules) to those tokens.
+   The previous purple-gradient theme was removed in the roundsui migration.
    ============================================================================ */
 
-/* ============================================================================
-   COLOR VARIABLES - Modern Palette
-   ============================================================================ */
-:root {
-  /* Primary Colors - Purple Gradient */
-  --primary-start: #667eea;
-  --primary-end: #764ba2;
-
-  /* SSM SLUCare Blues */
-  --ssm-primary-blue: #003d5c;
-  --ssm-secondary-blue: #0066a1;
-  --ssm-light-blue: #4a90a4;
-  --ssm-accent-blue: #2196f3;
-
-  /* Success/Status Colors */
-  --success-green: #10b981;
-  --success-dark: #059669;
-  --warning-orange: #ff8c00;
-  --danger-red: #dc3545;
-
-  /* Modern Grays */
-  --gray-50: #f9fafb;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
-  --gray-400: #9ca3af;
-  --gray-500: #6b7280;
-  --gray-600: #4b5563;
-  --gray-700: #374151;
-  --gray-800: #1f2937;
-  --gray-900: #111827;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
-
-  /* Border Radius */
-  --radius-sm: 6px;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-full: 9999px;
-}
-
-/* ============================================================================
-   GLOBAL RESETS AND BASE STYLES
-   ============================================================================ */
-* {
-  box-sizing: border-box;
-}
-
-/* Raise the root font-size so every rem unit in every CSS file scales up.
-   125% → 1rem = 20px everywhere (gmed's 0.85rem becomes 17px, etc.) */
+/* Larger base text: every rem in every stylesheet scales with this
+   (1rem = 20px). Kept from the previous theme on purpose. */
 html {
   font-size: 125%;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: var(--gray-800);
-  line-height: 1.6;
+  background: var(--roundsui-ground, #F6F7FA);
+  color: var(--roundsui-ink, #13161F);
+  line-height: 1.55;
 }
 
-/* ============================================================================
-   MODERN CARD STYLING
-   ============================================================================ */
-.card,
-.gmed-card,
-.well,
-.panel,
-.box {
-  background: white;
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
-  margin-bottom: 1.5rem;
-}
-
-.card:hover,
-.gmed-card:hover,
-.box:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-xl);
-}
-
-.card-header,
-.panel-heading,
-.box-header {
-  background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
-  color: white;
-  padding: 1rem 1.5rem;
-  border: none;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  border-bottom: none;
-}
-
-.card-header.bg-primary {
-  background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
-}
-
-.card-header.bg-info {
-  background: linear-gradient(135deg, var(--ssm-primary-blue), var(--ssm-secondary-blue));
-}
-
-.card-header.bg-success {
-  background: linear-gradient(135deg, var(--success-green), var(--success-dark));
-}
-
-.card-header.bg-warning {
-  background: linear-gradient(135deg, #ff8c00, #ffa500);
-}
-
-.card-body,
-.panel-body,
-.box-body {
-  padding: 1.5rem;
-  background: white;
-}
-
-/* Card animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.card,
-.gmed-card,
-.box {
-  animation: fadeIn 0.3s ease-in;
-}
-
-/* ============================================================================
-   MODERN BUTTON STYLING
-   ============================================================================ */
-.btn {
-  border-radius: var(--radius);
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  transition: all 0.2s ease;
-  border: none;
-  padding: 0.625rem 1.5rem;
-  font-size: 0.9375rem;
-  box-shadow: var(--shadow);
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
-  color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-}
-
-.btn-success {
-  background: linear-gradient(135deg, var(--success-green), var(--success-dark));
-  color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.btn-success:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-}
-
-.btn-info {
-  background: linear-gradient(135deg, var(--ssm-primary-blue), var(--ssm-secondary-blue));
-  color: white;
-  box-shadow: 0 4px 12px rgba(0, 61, 92, 0.3);
-}
-
-.btn-info:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 61, 92, 0.4);
-}
-
-.btn-secondary {
-  background: var(--gray-200);
-  color: var(--gray-700);
-}
-
-.btn-secondary:hover {
-  background: var(--gray-300);
-  transform: translateY(-1px);
-}
-
-.btn-lg {
-  padding: 0.875rem 2rem;
-  font-size: 1.0625rem;
-  border-radius: var(--radius-lg);
-}
-
-.btn-sm {
-  padding: 0.375rem 1rem;
-  font-size: 0.875rem;
-}
-
-/* ============================================================================
-   ACCORDION/COLLAPSIBLE SECTIONS
-   ============================================================================ */
-.accordion .card {
-  margin-bottom: 0.5rem;
-  border-left: 4px solid transparent;
-  transition: all 0.3s ease;
-}
-
-.accordion .card:hover {
-  border-left-color: var(--primary-start);
-}
-
-.accordion .card-header {
-  cursor: pointer;
-  background: linear-gradient(135deg, var(--gray-50), white);
-  color: var(--gray-800);
+/* ── Top bar ───────────────────────────────────────────────────────────── */
+.coach-topbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  transition: all 0.2s ease;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 20px;
+  margin: 0 -12px 16px;
+  background: var(--roundsui-surface, #FFFFFF);
+  border-bottom: 1px solid var(--roundsui-border, #E2E5EC);
+}
+.coach-topbar__title {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+.coach-topbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.8rem;
+  color: var(--roundsui-ink-muted, #5B6472);
 }
 
-.accordion .card-header:hover {
-  background: linear-gradient(135deg, var(--gray-100), var(--gray-50));
+/* ── Cards, wells and panels used by section modules ───────────────────── */
+.card,
+.well {
+  background: var(--roundsui-surface, #FFFFFF);
+  border: 1px solid var(--roundsui-border, #E2E5EC);
+  border-radius: var(--roundsui-radius-md, 10px);
+  box-shadow: var(--roundsui-shadow);
 }
-
-.accordion .card-header.active {
-  background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
-  color: white;
+.well {
+  padding: 16px 18px;
 }
-
-.collapse.show {
-  animation: slideDown 0.3s ease;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    max-height: 0;
-  }
-  to {
-    opacity: 1;
-    max-height: 1000px;
-  }
-}
-
-/* ============================================================================
-   BADGES AND LABELS
-   ============================================================================ */
-.badge,
-.label {
-  border-radius: var(--radius);
-  padding: 0.375rem 0.75rem;
+.card-header {
+  background: var(--roundsui-surface-2, #FBFBFD);
+  color: var(--roundsui-ink, #13161F);
+  border-bottom: 1px solid var(--roundsui-border, #E2E5EC);
   font-weight: 600;
-  letter-spacing: 0.3px;
-  font-size: 0.8125rem;
+}
+/* Coloured Bootstrap headers (bg-primary etc.) read as neutral headers. */
+.card-header.bg-primary,
+.card-header.bg-info,
+.card-header.bg-success,
+.card-header.bg-warning {
+  background: var(--roundsui-surface-2, #FBFBFD) !important;
+  color: var(--roundsui-ink, #13161F) !important;
 }
 
-.badge-primary,
-.label-primary {
-  background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
-  color: white;
+/* ── Review section cards (helpers/section_shell.R) ────────────────────── */
+.coach-sec-card .card-header {
+  background: var(--roundsui-surface, #FFFFFF);
+  padding: 14px 20px;
+}
+.coach-sec-card__icon {
+  color: var(--roundsui-accent, #3355D8);
+}
+.coach-progress-wrap {
+  background: var(--roundsui-surface, #FFFFFF) !important;
+  border-bottom: 1px solid var(--roundsui-border, #E2E5EC) !important;
 }
 
-.badge-success,
-.label-success {
-  background: linear-gradient(135deg, var(--success-green), var(--success-dark));
-  color: white;
-}
-
-.badge-info,
-.label-info {
-  background: linear-gradient(135deg, var(--ssm-primary-blue), var(--ssm-secondary-blue));
-  color: white;
-}
-
-.badge-warning,
-.label-warning {
-  background: linear-gradient(135deg, #ff8c00, #ffa500);
-  color: white;
-}
-
-.badge-danger,
-.label-danger {
-  background: var(--danger-red);
-  color: white;
-}
-
-/* ============================================================================
-   TABLES
-   ============================================================================ */
-.table {
-  background: white;
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.table thead th {
-  background: linear-gradient(135deg, var(--gray-100), var(--gray-50));
-  color: var(--gray-700);
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.btn {
+  border-radius: var(--roundsui-radius-sm, 6px);
   font-weight: 600;
-  text-transform: uppercase;
-  font-size: 0.9rem;
-  letter-spacing: 0.5px;
-  border: none;
-  padding: 1rem;
+}
+.btn-primary {
+  background: var(--roundsui-accent, #3355D8);
+  border-color: var(--roundsui-accent, #3355D8);
+  color: var(--roundsui-accent-ink, #FFFFFF);
+}
+.btn-secondary,
+.btn-outline-secondary {
+  background: var(--roundsui-surface, #FFFFFF);
+  border: 1px solid var(--roundsui-border-strong, #CBD0DB);
+  color: var(--roundsui-ink, #13161F);
 }
 
-.table tbody tr {
-  transition: all 0.2s ease;
-  border-bottom: 1px solid var(--gray-200);
-}
-
-.table tbody tr:hover {
-  background: var(--gray-50);
-  transform: scale(1.005);
-  box-shadow: var(--shadow-sm);
-}
-
-.table tbody td {
-  padding: 1rem;
-  vertical-align: middle;
-}
-
-.table-striped tbody tr:nth-of-type(odd) {
-  background: var(--gray-50);
-}
-
-/* DataTables styling */
-.dataTables_wrapper {
-  padding: 1rem;
-}
-
-.dataTables_filter input {
-  border: 2px solid var(--gray-200);
-  border-radius: var(--radius);
-  padding: 0.5rem 1rem;
-  transition: all 0.2s ease;
-}
-
-.dataTables_filter input:focus {
-  border-color: var(--primary-start);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-/* ============================================================================
-   FORM INPUTS
-   ============================================================================ */
-.form-control,
-input[type="text"],
-input[type="email"],
-input[type="password"],
-textarea,
-select {
-  border: 2px solid var(--gray-200);
-  border-radius: var(--radius);
-  padding: 0.625rem 1rem;
-  transition: all 0.2s ease;
-  font-size: 0.9375rem;
-}
-
-.form-control:focus,
-input:focus,
-textarea:focus,
-select:focus {
-  border-color: var(--primary-start);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-/* ============================================================================
-   ALERTS AND NOTIFICATIONS
-   ============================================================================ */
-.alert {
-  border-radius: var(--radius);
-  border: none;
-  padding: 1rem 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.alert-info {
-  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(74, 144, 164, 0.1));
-  color: var(--ssm-primary-blue);
-  border-left: 4px solid var(--ssm-accent-blue);
-}
-
-.alert-success {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
-  color: var(--success-dark);
-  border-left: 4px solid var(--success-green);
-}
-
-.alert-warning {
-  background: linear-gradient(135deg, rgba(255, 140, 0, 0.1), rgba(255, 165, 0, 0.1));
-  color: #cc7000;
-  border-left: 4px solid var(--warning-orange);
-}
-
-.alert-danger {
-  background: linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(200, 30, 40, 0.1));
-  color: #a02622;
-  border-left: 4px solid var(--danger-red);
-}
-
-/* ============================================================================
-   RESPONSIVE DESIGN
-   ============================================================================ */
-@media (max-width: 768px) {
-  .card,
-  .box {
-    margin-bottom: 1rem;
-  }
-
-  .card-body,
-  .box-body {
-    padding: 1rem;
-  }
-
-  .btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-  }
-
-  .btn-lg {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-  }
-}
-
-/* Keep badges and navigation pills compact so they don't balloon */
-.badge, .gmed-nav-block-soon {
+/* Keep badges compact */
+.badge {
   font-size: 0.7rem !important;
 }
 
+/* ── Tables ────────────────────────────────────────────────────────────── */
+.table thead th {
+  background: var(--roundsui-surface-2, #FBFBFD);
+  color: var(--roundsui-ink-muted, #5B6472);
+  font-weight: 600;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--roundsui-border, #E2E5EC);
+}
+
+/* ── Inputs ────────────────────────────────────────────────────────────── */
+textarea.form-control:focus,
+.form-control:focus {
+  border-color: var(--roundsui-focus, #3355D8);
+  box-shadow: 0 0 0 3px var(--roundsui-accent-tint, #EAEFFC);
+}
+
 /* ============================================================================
-   MILESTONE SUBMIT BUTTON HIDING (from previous fix)
+   MILESTONE SUBMIT BUTTON HIDING
+   gmed's milestone rating widget ships its own submit button; the coach app
+   submits milestones with the whole review, so that button stays hidden.
    ============================================================================ */
 #milestones-milestone_entry-rating-submit_button,
 #milestones-milestone_entry-rating button.btn-success,
@@ -473,24 +143,6 @@ div[id*="rating"] button[id*="submit"] {
   left: -9999px !important;
 }
 
-/* ============================================================================
-   UTILITY CLASSES
-   ============================================================================ */
-.text-gradient-primary {
-  background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 700;
+@media (max-width: 768px) {
+  .coach-topbar { padding: 8px 12px; }
 }
-
-.shadow-sm { box-shadow: var(--shadow-sm); }
-.shadow { box-shadow: var(--shadow); }
-.shadow-md { box-shadow: var(--shadow-md); }
-.shadow-lg { box-shadow: var(--shadow-lg); }
-.shadow-xl { box-shadow: var(--shadow-xl); }
-
-.rounded { border-radius: var(--radius); }
-.rounded-lg { border-radius: var(--radius-lg); }
-.rounded-xl { border-radius: var(--radius-xl); }
-.rounded-full { border-radius: var(--radius-full); }

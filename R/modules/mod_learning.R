@@ -63,11 +63,11 @@ mod_learning_ui <- function(id) {
 
     hr(),
 
-    # Previous Period Coach Comments
-    uiOutput(ns("previous_coach_comments")),
-
     # Current Period Coach Entry
-    h4("Coach Review - Current Period", style = "color: #34495e; margin-top: 20px;"),
+    h4("Coach Review - Current Period", style = "margin-top: 20px;"),
+
+    # Previous coach notes, directly above the entry boxes
+    uiOutput(ns("previous_coach_comments")),
 
     wellPanel(
       style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
@@ -328,53 +328,15 @@ mod_learning_server <- function(id, resident_data, current_period, app_data, app
 
 
     # Display previous period coach comments
+    # Previous coach notes (all earlier periods, newest first)
     output$previous_coach_comments <- renderUI({
-      req(resident_data())
-
-      prev_data <- resident_data()$previous_period$coach_rev
-
-      if (is.null(prev_data) || nrow(prev_data) == 0) {
-        return(NULL)
-      }
-
-      prev_topics <- prev_data$coach_ls_and_topic[1]
-      prev_board <- prev_data$coach_step_board[1]
-
-      has_prev_data <- (!is.na(prev_topics) && prev_topics != "") ||
-                       (!is.na(prev_board) && prev_board != "")
-
-      if (!has_prev_data) {
-        return(NULL)
-      }
-
+      rd <- resident_data(); req(rd)
+      period_name <- get_period_name(current_period())
       tagList(
-        h4("Previous Period Coach Comments", style = "color: #34495e; margin-top: 20px;"),
-
-        wellPanel(
-          style = "background-color: #e8f4f8; border-left: 4px solid #3498db;",
-
-          if (!is.na(prev_topics) && prev_topics != "") {
-            tagList(
-              h5("Topics and Learning Styles:", style = "color: #2980b9;"),
-              div(
-                style = "padding: 10px; background-color: white; border-radius: 4px; margin-bottom: 15px;",
-                HTML(gsub("\n", "<br>", prev_topics))
-              )
-            )
-          },
-
-          if (!is.na(prev_board) && prev_board != "") {
-            tagList(
-              h5("Board Preparation:", style = "color: #2980b9;"),
-              div(
-                style = "padding: 10px; background-color: white; border-radius: 4px;",
-                HTML(gsub("\n", "<br>", prev_board))
-              )
-            )
-          }
-        ),
-
-        hr()
+        prev_notes_block(ctx_previous_notes(rd$coach_rev_history, "coach_ls_and_topic", period_name),
+                         "Topics & learning styles"),
+        prev_notes_block(ctx_previous_notes(rd$coach_rev_history, "coach_step_board", period_name),
+                         "Boards & Step 3")
       )
     })
 

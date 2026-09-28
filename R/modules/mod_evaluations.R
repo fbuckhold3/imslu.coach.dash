@@ -129,7 +129,10 @@ mod_evaluations_ui <- function(id) {
     # Coach Entry for Current Period
     div(
       class = "mb-3",
-      h5(icon("edit"), " Your Coach Review - Current Period", style = "color: #27ae60;"),
+      h5(icon("edit"), " Your Coach Review - Current Period"),
+
+      # Previous coach notes, directly above the entry boxes
+      mod_prev_notes_ui(ns("prev_notes")),
 
       wellPanel(
         style = "background-color: #ffffff;",
@@ -182,6 +185,11 @@ mod_evaluations_ui <- function(id) {
 
 mod_evaluations_server <- function(id, resident_data, current_period, app_data, app_data_rv) {
   moduleServer(id, function(input, output, session) {
+
+    # Previous coach notes for both evaluation fields
+    mod_prev_notes_server("prev_notes", resident_data, current_period,
+                          fields = c(coach_p_d_comments = "Plus/delta reflections",
+                                     coach_evaluations  = "Assessments"))
 
     # Create reactive for data_dict from reactiveValues - will update when data loads
     data_dict <- reactive({

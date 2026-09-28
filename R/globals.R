@@ -23,7 +23,6 @@ options(spinner.color = "#0072B2")  # SLU blue
 # LOAD REQUIRED PACKAGES
 # ==============================================================================
 library(shiny)
-library(shinydashboard)
 library(bslib)  # For accordion and modern components
 library(shinyjs)
 library(DT)
@@ -41,6 +40,15 @@ library(memoise)
 if (!require(gmed)) {
   stop("gmed package not installed. Run dev_setup.R once to install all local dependencies.")
 }
+
+# Load roundsui (from GitHub: fbuckhold3/roundsui) — page shell, cards,
+# badges and chart theming ("Ward Notes" design system).
+if (!require(roundsui)) {
+  stop("roundsui package not installed. Run dev_setup.R once to install all local dependencies.")
+}
+
+# amiontools (fbuckhold3/amiontools) is optional: only the duty-hour panel
+# in the Wellness section uses it, behind requireNamespace().
 
 
 # ==============================================================================
@@ -1336,8 +1344,12 @@ get_resident_period_data <- function(rdm_data, record_id, current_period, includ
       ilp = get_form_data_for_period(data$all_forms, "ilp", rid, period_name),
       milestone_entry = get_form_data_for_period(data$all_forms, "milestone_entry", rid, period_name),
       milestone_selfevaluation = get_form_data_for_period(data$all_forms, "milestone_selfevaluation_c33c", rid, period_name),
+      acgme_miles = get_form_data_for_period(data$all_forms, "acgme_miles", rid, period_name),
       second_review = get_form_data_for_period(data$all_forms, "second_review", rid, period_name)
-    )
+    ),
+    # Every coach review for this resident, oldest period first — feeds the
+    # previous-notes blocks and the workload window (coach_context.R).
+    coach_rev_history = ctx_coach_rev_history(data$all_forms, rid)
   )
   
   # Add previous period if requested
@@ -1350,6 +1362,7 @@ get_resident_period_data <- function(rdm_data, record_id, current_period, includ
         coach_rev = get_form_data_for_period(data$all_forms, "coach_rev", rid, prev_period_name),
         ilp = get_form_data_for_period(data$all_forms, "ilp", rid, prev_period_name),
         acgme_miles = get_form_data_for_period(data$all_forms, "acgme_miles", rid, prev_period_name),
+        milestone_entry = get_form_data_for_period(data$all_forms, "milestone_entry", rid, prev_period_name),
         ccc_review = get_form_data_for_period(data$all_forms, "ccc_review", rid, prev_period_name)
       )
     }
@@ -1420,6 +1433,8 @@ get_review_instance <- function(level, period_name, review_type = "scheduled") {
 # ==============================================================================
 
 source("R/helpers/section_shell.R")
+source("R/helpers/coach_context.R")
+source("R/helpers/coach_context_ui.R")
 
 # ==============================================================================
 # SOURCE MODULE FILES

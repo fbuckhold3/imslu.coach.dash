@@ -43,9 +43,11 @@ render_coach_progress <- function(sections, status, active = NULL) {
     label <- sections[[nm]]
     done  <- isTRUE(status[[nm]])
     is_active <- !is.null(active) && identical(nm, active)
-    bg <- if (done) "#198754" else if (is_active) "#003d5c" else "#e5e7eb"
-    fg <- if (done || is_active) "#fff" else "#475569"
-    icon <- if (done) "bi-check-circle-fill" else if (is_active) "bi-pencil-fill" else "bi-circle"
+    bg <- if (done) "var(--roundsui-success, #16A34A)"
+          else if (is_active) "var(--roundsui-accent, #3355D8)"
+          else "var(--roundsui-border, #E2E5EC)"
+    fg <- if (done || is_active) "#fff" else "var(--roundsui-ink-muted, #5B6472)"
+    icon <- if (done) "circle-check" else if (is_active) "pen" else "circle"
     shiny::tags$a(
       href = paste0("#sec_", nm),
       class = "coach-progress-pill",
@@ -57,7 +59,7 @@ render_coach_progress <- function(sections, status, active = NULL) {
           "background:%s; color:%s;",
           "text-decoration:none; margin-right:6px;"),
         bg, fg),
-      shiny::tags$i(class = paste("bi", icon)),
+      shiny::icon(icon, class = if (identical(icon, "circle")) "fa-regular" else NULL),
       label
     )
   })
@@ -66,7 +68,7 @@ render_coach_progress <- function(sections, status, active = NULL) {
     shiny::div(
       class = "d-flex align-items-center justify-content-between mb-1",
       shiny::tags$strong(
-        style = "color:#003d5c; font-size:0.88rem;",
+        style = "font-size:0.88rem;",
         sprintf("Review progress: %d of %d sections", n_done, n_total)),
       shiny::tags$span(
         style = "color:#64748b; font-size:0.8rem;",
@@ -78,7 +80,7 @@ render_coach_progress <- function(sections, status, active = NULL) {
       shiny::div(
         class = "progress-bar",
         role  = "progressbar",
-        style = sprintf("width:%d%%; background:#198754;", pct),
+        style = sprintf("width:%d%%; background:var(--roundsui-success, #16A34A);", pct),
         `aria-valuenow` = pct, `aria-valuemin` = 0, `aria-valuemax` = 100
       )
     ),
@@ -90,7 +92,8 @@ render_coach_progress <- function(sections, status, active = NULL) {
 #'
 #' @param name        Internal name (used for anchor + DOM id).
 #' @param title       Display title.
-#' @param icon        Bootstrap icon name (without "bi-" prefix).
+#' @param icon        Icon name; legacy Bootstrap Icons names are mapped to
+#'                    Font Awesome by coach_fa_icon().
 #' @param status      "incomplete" | "complete" | "skipped". Used only when
 #'                    `badge_slot` is NULL.
 #' @param badge_slot  Optional Shiny tag (typically `uiOutput(...)`) that
@@ -102,38 +105,22 @@ coach_sec_card <- function(name, title, icon = "card-text",
                            badge_slot = NULL, ...) {
   badge <- if (!is.null(badge_slot)) badge_slot else switch(
     status,
-    complete   = shiny::tags$span(
-      class = "badge",
-      style = "background:#198754; color:#fff; font-weight:600;",
-      shiny::tags$i(class = "bi bi-check-circle-fill me-1"),
-      "Complete"),
-    skipped    = shiny::tags$span(
-      class = "badge",
-      style = "background:#f59e0b; color:#fff; font-weight:600;",
-      shiny::tags$i(class = "bi bi-skip-end-fill me-1"),
-      "Skipped"),
-    shiny::tags$span(
-      class = "badge",
-      style = "background:#e5e7eb; color:#475569; font-weight:600;",
-      "In progress")
+    complete = roundsui::roundsui_status_badge("Complete", status = "complete"),
+    skipped  = roundsui::roundsui_status_badge("Skipped", status = "warning"),
+    roundsui::roundsui_status_badge("In progress", status = "pending")
   )
 
   shiny::div(
-    class = "card border-0 shadow-sm mb-4",
+    class = "card coach-sec-card mb-4",
     id    = paste0("sec_", name),
-    style = "border-radius: 8px; scroll-margin-top: 110px;",
+    style = "scroll-margin-top: 110px;",
     shiny::div(
-      class = "card-header border-0 d-flex align-items-center justify-content-between",
-      style = paste(
-        "background:#f8fafc; border-radius:8px 8px 0 0;",
-        "padding:14px 20px;"),
+      class = "card-header d-flex align-items-center justify-content-between",
       shiny::div(
         class = "d-flex align-items-center gap-2",
-        shiny::tags$i(
-          class = paste0("bi bi-", icon),
-          style = "color:#003d5c; font-size:1.1rem;"),
+        shiny::span(class = "coach-sec-card__icon", shiny::icon(coach_fa_icon(icon))),
         shiny::tags$span(
-          style = "font-weight:700; color:#003d5c; font-size:1rem;",
+          style = "font-weight:700; font-size:1rem;",
           title)),
       badge
     ),
@@ -165,18 +152,16 @@ coach_continue_btn <- function(ns, id, label = "Save & Continue",
     shiny::tags$span(
       class = "text-warning ms-2",
       style = "font-size:0.78rem;",
-      shiny::tags$i(class = "bi bi-exclamation-triangle-fill me-1"),
-      "Section incomplete \u2014 you can continue, but please return later")
+      shiny::icon("triangle-exclamation"),
+      " Section incomplete \u2014 you can continue, but please return later")
   } else NULL
 
   shiny::div(
     class = "d-flex align-items-center gap-2 mt-3 pt-3 border-top",
     shiny::actionButton(
       ns(id), label,
-      class = "btn btn-sm",
-      style = paste(
-        "background:#003d5c; color:#fff; border:none;",
-        "padding:7px 22px; font-weight:600;")),
+      class = "btn btn-sm btn-primary",
+      style = "padding:7px 22px;"),
     shiny::uiOutput(ns(paste0(id, "_status"))),
     warn_text
   )
@@ -212,6 +197,19 @@ coach_shell_state <- function(section_names) {
   rv
 }
 
+
+# Section icons were written as Bootstrap Icons names, but the app loads
+# Font Awesome (bundled with Shiny/bslib, and what roundsui standardizes on).
+coach_fa_icon <- function(name) {
+  map <- c(
+    "heart" = "heart", "clipboard" = "clipboard", "book" = "book",
+    "mortarboard" = "graduation-cap", "mortarboard-fill" = "graduation-cap",
+    "briefcase" = "briefcase", "bullseye" = "bullseye", "graph-up" = "chart-line",
+    "list-check" = "list-check", "person-arms-up" = "user-graduate",
+    "card-text" = "file-lines"
+  )
+  if (!is.null(name) && name %in% names(map)) map[[name]] else name
+}
 
 # \u2500\u2500 Internal utils \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 

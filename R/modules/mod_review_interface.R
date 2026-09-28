@@ -172,10 +172,10 @@ mod_review_interface_ui <- function(id) {
       column(
         width = 12,
         div(
-          style = "margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;",
+          style = "margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;",
 
           div(
-            style = "display: flex; gap: 10px;",
+            style = "display: flex; flex-wrap: wrap; gap: 10px;",
             actionButton(
               ns("back_to_table"),
               "\u2190 Back to Residents",
@@ -191,12 +191,15 @@ mod_review_interface_ui <- function(id) {
           ),
 
           div(
-            style = "font-size: 16px; font-weight: bold;",
             uiOutput(ns("resident_header"))
           )
         )
       )
     ),
+
+    # CCC monitoring banner — only renders when the latest flagged CCC
+    # review is still open (or a quiet note once it's resolved).
+    uiOutput(ns("ccc_banner")),
 
     # Sticky progress bar \u2014 sections-as-pills + percentage + bar
     coach_progress_bar_ui(ns("progress_bar")),
@@ -359,22 +362,29 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         if (nzchar(ac_val)) paste0("?code=", ac_val) else ""
       )
 
-      tagList(
-        HTML(sprintf(
-          "<span style='color: #2c3e50;'>%s</span> | <span style='color: #7f8c8d;'>%s | Period: %s</span>",
-          res_data$full_name,
-          res_data$Level,
-          PERIOD_NAMES[period_num + 1]
-        )),
+      div(
+        style = "display: flex; align-items: center; gap: 12px; flex-wrap: wrap;",
+        roundsui::roundsui_resident_panel(
+          resident_name = res_data$full_name,
+          level         = res_data$Level,
+          period        = PERIOD_NAMES[period_num + 1]
+        ),
         tags$a(
           href = ind_dash_url,
           target = "_blank",
-          style = paste0(
-            "margin-left: 14px; font-size: 13px; font-weight: 600; ",
-            "color: #0d6efd; text-decoration: none; white-space: nowrap;"
-          ),
+          style = "font-size: 0.8rem; font-weight: 600; white-space: nowrap;",
           icon("arrow-up-right-from-square"), " Individual Dashboard"
         )
+      )
+    })
+
+    # CCC monitoring banner (coach_context.R / coach_context_ui.R). Reads all
+    # of the resident's ccc_review records, not just the previous period's.
+    output$ccc_banner <- renderUI({
+      req(selected_resident(), rdm_data())
+      dd <- if (shiny::is.reactivevalues(app_data_rv)) app_data_rv$data_dict else NULL
+      ccc_monitoring_banner(
+        ctx_ccc_status(rdm_data()$all_forms, selected_resident()$record_id, dd)
       )
     })
 
@@ -394,7 +404,23 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     career_data <- mod_career_server("career", resident_data, current_period, rdm_data)
 
     # Call Section 6 module (Goals & ILP - moved before Milestones)
-    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data, app_data_rv)
+    # live_coach_row: the coach's in-progress milestone ratings as a one-row
+    # milestone_entry-shaped data frame, so the goal follow-through can use
+    # them before submission. milestones_data is created further down; the
+    # reactive only looks it up when evaluated, after it exists.
+    live_coach_milestones <- reactive({
+      md <- tryCatch(milestones_data(), error = function(e) NULL)
+      sc <- md$milestone_ratings$scores
+      if (is.null(sc) || length(sc) == 0) return(NULL)
+      field_map <- unlist(gmed::get_milestone_field_mapping_rdm2("milestone_entry"))
+      vals <- unlist(sc)
+      keep <- names(vals) %in% names(field_map)
+      if (!any(keep)) return(NULL)
+      as.data.frame(as.list(stats::setNames(as.character(vals[keep]), field_map[names(vals)[keep]])),
+                    stringsAsFactors = FALSE)
+    })
+    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data, app_data_rv,
+                                   live_coach_row = live_coach_milestones)
 
     # P6 Graduation Plan & Alumni — uses gmed grad_plan + boards displays;
     # writes coach_ilp_final (which surfaces in CCC dashboard).
@@ -523,13 +549,9 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         output[[paste0("badge_", sec_name)]] <- renderUI({
           done <- isTRUE(shell_state()$complete[[sec_name]])
           if (done) {
-            tags$span(class = "badge",
-              style = "background:#198754; color:#fff; font-weight:600;",
-              tags$i(class = "bi bi-check-circle-fill me-1"), "Complete")
+            roundsui::roundsui_status_badge("Complete", status = "complete")
           } else {
-            tags$span(class = "badge",
-              style = "background:#e5e7eb; color:#475569; font-weight:600;",
-              "In progress")
+            roundsui::roundsui_status_badge("In progress", status = "pending")
           }
         })
 
@@ -538,8 +560,8 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           if (done) return(NULL)
           tags$span(class = "text-warning ms-2",
             style = "font-size:0.78rem;",
-            tags$i(class = "bi bi-exclamation-triangle-fill me-1"),
-            "Section incomplete \u2014 you can continue, but please return later")
+            icon("triangle-exclamation"),
+            " Section incomplete \u2014 you can continue, but please return later")
         })
       })
     })
