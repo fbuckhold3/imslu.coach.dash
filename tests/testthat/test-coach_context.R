@@ -156,3 +156,76 @@ test_that("duty window summarises hours, flags, days off and verification", {
   expect_null(ctx_duty_window(duty, "99", as.Date("2026-08-02")))
   expect_null(ctx_duty_window(NULL, "10", as.Date("2026-08-02")))
 })
+
+# ── Regressions found in the real-data walkthrough (2026-09-30) ──────────────
+
+test_that("coach_period's 'Intern Intro' label counts as Entering Residency", {
+  # coach_period's dictionary labels period 7 "Intern Intro", not
+  # "Entering Residency" as s_e_period does.
+  cr <- data.frame(
+    record_id = "10", redcap_repeat_instrument = "coach_rev",
+    coach_period = c("Mid Intern", "Intern Intro"),
+    coach_date = c("2026-12-10", "2026-09-24"),
+    coach_career = c("Current draft", "Interested in cards"),
+    stringsAsFactors = FALSE
+  )
+  hist <- ctx_coach_rev_history(list(coach_rev = cr), "10")
+  expect_equal(hist$coach_period, c("Intern Intro", "Mid Intern"))
+  notes <- ctx_previous_notes(hist, "coach_career", "Mid Intern")
+  expect_equal(notes$period, "Entering Residency")
+  expect_equal(notes$text, "Interested in cards")
+  expect_equal(nrow(ctx_previous_notes(hist, "coach_career", "Entering Residency")), 0)
+  expect_equal(ctx_last_review_date(hist, "Mid Intern"), as.Date("2026-09-24"))
+  expect_equal(ctx_period_index(c("Graduation", "Graduating", "Interim", NA)), c(7L, 7L, NA, NA))
+  expect_equal(ctx_expected_rating("Graduation"), 7)
+})
+
+test_that("CCC resolution is read from status codes, not label text", {
+  cc <- data.frame(
+    record_id = "10", redcap_repeat_instrument = "ccc_review", redcap_repeat_instance = 1,
+    ccc_date = "2026-04-10", ccc_concern = "1",
+    ccc_action_status___1 = "0", ccc_action_status___2 = "0",
+    ccc_action_status___3 = "1", ccc_action_status___4 = "0",
+    stringsAsFactors = FALSE
+  )
+  reworded <- data.frame(field_name = "ccc_action_status",
+    select_choices_or_calculations = "1, Initation | 2, Ongoing | 3, Closed | 4, Recurring",
+    stringsAsFactors = FALSE)
+  s <- ctx_ccc_status(list(ccc_review = cc), "10", reworded)
+  expect_equal(s$state, "resolved")
+  expect_equal(s$status, "Closed")
+  cc$ccc_action_status___4 <- "1"
+  expect_equal(ctx_ccc_status(list(ccc_review = cc), "10", reworded)$state, "active")
+})
+
+test_that("duty window starts at the later of last review and 1 July of the review's year", {
+  today <- as.Date("2026-09-30")
+  # Current review, last review in the previous academic year -> 1 July.
+  w <- ctx_duty_window_dates(as.Date("2025-12-23"), "", today)
+  expect_equal(w$since, as.Date("2026-07-01")); expect_equal(w$until, today)
+  # Last review this academic year -> since that review.
+  w <- ctx_duty_window_dates(as.Date("2026-09-24"), NA, today)
+  expect_equal(w$since, as.Date("2026-09-24"))
+  # Reopened past review: the academic year follows the review date, so the
+  # window no longer ends before it starts.
+  w <- ctx_duty_window_dates(as.Date("2025-12-23"), "2026-06-17", today)
+  expect_equal(w$since, as.Date("2025-12-23")); expect_equal(w$until, as.Date("2026-06-17"))
+  w <- ctx_duty_window_dates(NA, "2026-06-17", today)
+  expect_equal(w$since, as.Date("2025-07-01"))
+})
+
+test_that("vacation/leave weeks are left out of the weekly average", {
+  weeks <- as.Date("2026-07-05") + 7 * 0:3
+  weekly <- data.frame(record_id = "10", name = "A", Level = "Intern", week_start = weeks,
+                       Total_Hours = c(0, 0, 60, 70), all_vacation = c(TRUE, TRUE, FALSE, FALSE),
+                       rolling_4wk_avg_hours = c(0, 0, 15, 32.5), flag_80h = FALSE,
+                       rolling_days_per_week = 6, flag_low_days = FALSE)
+  duty <- list(weekly = weekly, weekly_by_category = NULL, duty_blocks = NULL, rest_gap_flags = NULL)
+  s <- ctx_duty_window(duty, "10", since = as.Date("2026-07-05"), until = as.Date("2026-07-31"))
+  expect_equal(s$n_weeks, 4)
+  expect_equal(s$n_leave_weeks, 2)
+  expect_equal(s$avg_weekly, 65)
+  weekly$all_vacation <- TRUE; weekly$Total_Hours <- 0
+  s <- ctx_duty_window(list(weekly = weekly), "10", as.Date("2026-07-05"), as.Date("2026-07-31"))
+  expect_true(is.na(s$avg_weekly))
+})

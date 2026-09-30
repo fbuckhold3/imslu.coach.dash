@@ -38,8 +38,22 @@ ctx_num <- function(df, col, i = 1) {
   if (length(v) == 0) NA_real_ else v
 }
 
+# The period fields don't share one set of labels in the data dictionary:
+# coach_period / second_period / ccc_session call period 7 "Intern Intro"
+# (s_e_period and year_resident say "Entering Residency"), and second_period /
+# ccc_session call period 6 "Graduation". Map those onto the app's names.
+.CTX_PERIOD_ALIASES <- c("Intern Intro" = "Entering Residency",
+                         "Graduation"   = "Graduating")
+
+ctx_period_canonical <- function(period_name) {
+  p <- as.character(period_name)
+  hit <- !is.na(p) & p %in% names(.CTX_PERIOD_ALIASES)
+  p[hit] <- unname(.CTX_PERIOD_ALIASES[p[hit]])
+  p
+}
+
 ctx_period_index <- function(period_name) {
-  match(as.character(period_name), .CTX_PERIOD_ORDER)
+  match(ctx_period_canonical(period_name), .CTX_PERIOD_ORDER)
 }
 
 #' Parse a REDCap choices string ("1, Label | 2, Label") into a named vector
@@ -102,7 +116,7 @@ ctx_previous_notes <- function(history, field, current_period_name) {
                       text = character(0), stringsAsFactors = FALSE)
   if (is.null(history) || nrow(history) == 0 || !field %in% names(history)) return(empty)
   cur_idx <- ctx_period_index(current_period_name)
-  per <- if ("coach_period" %in% names(history)) as.character(history$coach_period) else rep(NA, nrow(history))
+  per <- if ("coach_period" %in% names(history)) ctx_period_canonical(history$coach_period) else rep(NA, nrow(history))
   idx <- ctx_period_index(per)
   keep <- !vapply(history[[field]], ctx_blank, logical(1)) &
     (is.na(cur_idx) | (!is.na(idx) & idx < cur_idx))
@@ -165,7 +179,14 @@ ctx_ccc_status <- function(all_forms, record_id, data_dict = NULL) {
   latest <- flagged[order(d, inst, decreasing = TRUE, na.last = TRUE)[1], , drop = FALSE]
 
   status <- ctx_checked_labels(latest, "ccc_action_status", data_dict, .CCC_STATUS_LABELS)
-  resolved <- length(status) > 0 && all(status == .CCC_STATUS_LABELS[["3"]])
+  # Resolved = only status 3 checked. Test the codes, not the labels: the
+  # labels come from the dictionary and can be reworded (code 1 is already
+  # spelled "Initation" there).
+  status_codes <- sub("^ccc_action_status___", "",
+                      grep("^ccc_action_status___", names(latest), value = TRUE))
+  checked_codes <- status_codes[vapply(status_codes, function(cd)
+    identical(ctx_val(latest, paste0("ccc_action_status___", cd)), "1"), logical(1))]
+  resolved <- length(checked_codes) > 0 && all(checked_codes == "3")
 
   list(
     state        = if (resolved) "resolved" else "active",
@@ -227,7 +248,7 @@ ctx_goal_level_to_rating <- function(level) {
 #' Program's expected rating for the stage a goal was set in:
 #' intern 3, late intern / early PGY2 5, late PGY2 / PGY3 7.
 ctx_expected_rating <- function(period_name) {
-  switch(as.character(period_name),
+  switch(ctx_period_canonical(period_name),
     "Entering Residency" = 3, "Mid Intern" = 3,
     "End Intern" = 5, "Mid PGY2" = 5,
     "End PGY2" = 7, "Mid PGY3" = 7, "Graduating" = 7,
@@ -323,10 +344,25 @@ ctx_goal_followthrough <- function(prev_ilp, curr_ilp,
 
 # ── Duty-hour workload window ────────────────────────────────────────────────
 
+#' Date window for the workload panel: from the last coach review (or 1 July
+#' of the academic year the window ends in, whichever is later — Amion data
+#' is per academic year) to this review's date, or today if not yet done.
+#' The academic year follows `until`, not today, so reopening a review from
+#' a past year doesn't produce a window that ends before it starts.
+ctx_duty_window_dates <- function(last_review, this_review, today = Sys.Date()) {
+  until <- suppressWarnings(as.Date(this_review))
+  if (length(until) == 0 || is.na(until)) until <- as.Date(today)
+  yr <- as.integer(format(until, "%Y")) - (format(until, "%m") < "07")
+  ay_start <- as.Date(paste0(yr, "-07-01"))
+  since <- suppressWarnings(as.Date(last_review))
+  if (length(since) == 0 || is.na(since) || since < ay_start) since <- ay_start
+  list(since = since, until = until)
+}
+
 #' Summarize one resident's duty hours between `since` and `until` from a
 #' build_duty_hour_summary() result (amiontools).
 #'
-#' @return list(n_weeks, avg_weekly, peak_4wk_avg, peak_week, peak_category,
+#' @return list(n_weeks, n_leave_weeks, avg_weekly, peak_4wk_avg, peak_week, peak_category,
 #'   weeks_over_80, days_per_week, low_days, gaps_hard, gaps_soft,
 #'   days_off, class_days_off, verified_pct, weekly) or NULL if no data.
 ctx_duty_window <- function(duty, record_id, since, until = Sys.Date()) {
@@ -381,13 +417,20 @@ ctx_duty_window <- function(duty, record_id, since, until = Sys.Date()) {
     if (nrow(v) > 0 && sum(v$Days) > 0) verified_pct <- 100 * sum(v$Days[v$verified]) / sum(v$Days)
   }
 
+  # Weeks spent entirely on vacation/leave count as 0 h in amiontools; leave
+  # them out of the average so a month of leave doesn't read as a light
+  # schedule.
+  leave <- if ("all_vacation" %in% names(wk)) wk$all_vacation %in% TRUE else rep(FALSE, nrow(wk))
+  worked <- wk$Total_Hours[!leave]
+
   last <- wk[nrow(wk), , drop = FALSE]
   list(
     level          = level,
     since          = since,
     until          = until,
     n_weeks        = nrow(wk),
-    avg_weekly     = mean(wk$Total_Hours, na.rm = TRUE),
+    n_leave_weeks  = sum(leave),
+    avg_weekly     = if (length(worked)) mean(worked, na.rm = TRUE) else NA_real_,
     peak_4wk_avg   = wk$rolling_4wk_avg_hours[peak_i],
     peak_week      = peak_week,
     peak_category  = peak_category,

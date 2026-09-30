@@ -6,27 +6,8 @@ mod_evaluations_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
-    # Previous Period Section
-    div(
-      class = "mb-4",
-      h5(icon("history"), " Previous Period Review", style = "color: #7f8c8d;"),
-      wellPanel(
-        style = "background-color: #f8f9fa;",
-        div(
-          class = "row",
-          div(
-            class = "col-md-6",
-            h6("Coach Comments on Plus/Delta", style = "color: #3498db;"),
-            uiOutput(ns("prev_pd_comments"))
-          ),
-          div(
-            class = "col-md-6",
-            h6("Coach Comments on Evaluations", style = "color: #3498db;"),
-            uiOutput(ns("prev_eval_comments"))
-          )
-        )
-      )
-    ),
+    # Previous coach notes for this section are shown above the entry boxes
+    # (mod_prev_notes, all earlier periods).
 
     # Resident reflection on feedback received (plus/delta only).
     # Wellness/discussion/prog_assist live in the Wellness section.
@@ -197,62 +178,6 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       message("DEBUG [mod_evaluations]: data_dict reactive, is.null = ", is.null(dd),
               ", nrow = ", if(!is.null(dd)) nrow(dd) else "NULL")
       dd
-    })
-
-    # ===== PREVIOUS PERIOD DISPLAY =====
-
-    output$prev_pd_comments <- renderUI({
-      req(resident_data())
-
-      prev_data <- resident_data()$previous_period$coach_rev
-
-      if (is.null(prev_data) || nrow(prev_data) == 0) {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "No previous period data available")
-        )
-      }
-
-      pd_comments <- prev_data$coach_p_d_comments[1]
-
-      if (is.na(pd_comments) || trimws(pd_comments) == "") {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "No previous comments on plus/delta")
-        )
-      }
-
-      div(
-        style = "padding: 10px; background-color: white; border-radius: 4px;",
-        HTML(gsub("\n", "<br>", pd_comments))
-      )
-    })
-
-    output$prev_eval_comments <- renderUI({
-      req(resident_data())
-
-      prev_data <- resident_data()$previous_period$coach_rev
-
-      if (is.null(prev_data) || nrow(prev_data) == 0) {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "No previous period data available")
-        )
-      }
-
-      eval_comments <- prev_data$coach_evaluations[1]
-
-      if (is.na(eval_comments) || trimws(eval_comments) == "") {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "No previous comments on evaluations")
-        )
-      }
-
-      div(
-        style = "padding: 10px; background-color: white; border-radius: 4px;",
-        HTML(gsub("\n", "<br>", eval_comments))
-      )
     })
 
     # ===== PREPARE DATA FOR GMED MODULES =====

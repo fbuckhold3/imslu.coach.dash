@@ -78,7 +78,7 @@ ccc_monitoring_banner <- function(status) {
 prev_notes_block <- function(notes, label) {
   if (is.null(notes) || nrow(notes) == 0) {
     return(div(style = paste("font-size: 0.85rem; margin-bottom: 10px;", .ctx_muted),
-               icon("clock-rotate-left"), " No earlier coach note for ", tolower(label), "."))
+               icon("clock-rotate-left"), paste0(" No earlier coach note for ", tolower(label), ".")))
   }
   older <- if (nrow(notes) > 1) notes[-1, , drop = FALSE] else NULL
   div(
@@ -260,15 +260,12 @@ mod_workload_server <- function(id, resident_data, current_period) {
 
     window_r <- reactive({
       rd <- resident_data(); req(rd)
-      # Window: last coach review (or 1 July, whichever is later — Amion
-      # data only covers the current academic year) to this review or today.
-      ay_start <- as.Date(paste0(
-        as.integer(format(Sys.Date(), "%Y")) - (format(Sys.Date(), "%m") < "07"), "-07-01"))
-      since <- ctx_last_review_date(rd$coach_rev_history, get_period_name(current_period()))
-      if (is.na(since) || since < ay_start) since <- ay_start
-      until <- suppressWarnings(as.Date(ctx_val(rd$current_period$coach_rev, "coach_date")))
-      if (is.na(until)) until <- Sys.Date()
-      list(since = since, until = until)
+      # Window: last coach review (or 1 July, whichever is later) to this
+      # review or today — see ctx_duty_window_dates().
+      ctx_duty_window_dates(
+        last_review = ctx_last_review_date(rd$coach_rev_history, get_period_name(current_period())),
+        this_review = ctx_val(rd$current_period$coach_rev, "coach_date")
+      )
     })
 
     output$body <- renderUI({
@@ -309,9 +306,10 @@ mod_workload_server <- function(id, resident_data, current_period) {
       tagList(
         div(style = paste("font-size: 0.8rem; margin-bottom: 8px;", .ctx_muted),
             format(s$since, "%b %d"), " – ", format(s$until, "%b %d, %Y"),
-            sprintf(" · %d weeks", s$n_weeks)),
+            sprintf(" · %d weeks", s$n_weeks),
+            if (s$n_leave_weeks > 0) sprintf(" (%d on vacation/leave, not averaged)", s$n_leave_weeks)),
         div(style = "display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;",
-            stat("Avg / week", sprintf("%.0f h", s$avg_weekly)),
+            stat("Avg / week", if (is.na(s$avg_weekly)) "—" else sprintf("%.0f h", s$avg_weekly)),
             stat("Weeks > 80h (4-wk avg)", s$weeks_over_80, s$weeks_over_80 > 0),
             stat("Short rest gaps", sprintf("%d hard · %d soft", s$gaps_hard, s$gaps_soft), s$gaps_hard > 0),
             stat("Days off", sprintf("%d (class %.1f)", s$days_off, s$class_days_off))),
