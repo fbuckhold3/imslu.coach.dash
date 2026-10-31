@@ -5,8 +5,7 @@
 .Renviron
 config.yml
 
-# renv - not used on Posit Connect Cloud
+# renv: renv.lock is committed (Connect Cloud deploys from manifest.json; keep both in step)
 renv/
-renv.lock
 .Rprofile
 .DS_Store
