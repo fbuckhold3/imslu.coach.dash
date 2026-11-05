@@ -251,9 +251,12 @@ coach_note_ui <- function(ns, input_id) {
   shiny::uiOutput(ns(paste0(input_id, "_slot")))
 }
 
-#' Saved value of a coach_rev field for the current period, "" when missing
-coach_note_saved_value <- function(rd, field) {
-  curr <- if (!is.null(rd)) rd$current_period$coach_rev else NULL
+#' Saved value of a current-period field, "" when missing
+#'
+#' @param form Current-period form holding the field (coach_rev by default;
+#'             second_review for mod_second_review)
+coach_note_saved_value <- function(rd, field, form = "coach_rev") {
+  curr <- if (!is.null(rd)) rd$current_period[[form]] else NULL
   if (is.null(curr) || !is.data.frame(curr) || nrow(curr) == 0 ||
       !field %in% names(curr)) return("")
   v <- curr[[field]][1]
@@ -269,13 +272,14 @@ coach_note_saved_value <- function(rd, field) {
 #' @param input_id       Textarea input id
 #' @param field          coach_rev field holding the saved text (defaults to
 #'                       input_id; differs in mod_learning)
+#' @param form           Form holding the saved value (default coach_rev)
 #' @param resident_data  Reactive returning get_resident_period_data() output
 #' @param ...            Passed to textAreaInput (placeholder, height, ...)
 coach_note_server <- function(output, session, input_id, resident_data,
-                              field = input_id, ...) {
+                              field = input_id, form = "coach_rev", ...) {
   args <- list(...)
   output[[paste0(input_id, "_slot")]] <- shiny::renderUI({
-    value <- coach_note_saved_value(resident_data(), field)
+    value <- coach_note_saved_value(resident_data(), field, form)
     do.call(shiny::textAreaInput,
             c(list(inputId = session$ns(input_id), label = NULL, value = value), args))
   })

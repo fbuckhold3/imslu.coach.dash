@@ -112,13 +112,8 @@ mod_second_review_ui <- function(id) {
             ),
             div(
               style = "margin-top: 10px;",
-              radioButtons(
-                ns("second_approve"),
-                label = NULL,
-                choices = c("Yes" = "1", "No" = "0"),
-                selected = character(0),
-                inline = TRUE
-              )
+              # Rendered server-side so a saved answer is pre-selected
+              uiOutput(ns("second_approve_slot"))
             )
           ),
 
@@ -134,12 +129,7 @@ mod_second_review_ui <- function(id) {
               class = "font-weight-bold",
               "Comments on ILP or anything else:"
             ),
-            textAreaInput(
-              ns("second_comments"),
-              label = NULL,
-              rows = 6,
-              placeholder = "Enter your comments on the ILP, goals, or any other aspects of the review..."
-            )
+            coach_note_ui(ns, "second_comments")
           )
         )
       )
@@ -323,6 +313,26 @@ mod_second_review_server <- function(id, selected_resident, rdm_data, current_pe
       )
     })
 
+    # Inputs pre-filled from a saved second_review for this period, so
+    # reopening a review shows what was entered
+    output$second_approve_slot <- renderUI({
+      saved <- coach_note_saved_value(resident_data(), "second_approve", "second_review")
+      radioButtons(
+        session$ns("second_approve"),
+        label = NULL,
+        choices = c("Yes" = "1", "No" = "0"),
+        selected = if (saved %in% c("1", "0")) saved else character(0),
+        inline = TRUE
+      )
+    })
+
+    coach_note_server(
+      output, session, "second_comments", resident_data,
+      form = "second_review",
+      rows = 6,
+      placeholder = "Enter your comments on the ILP, goals, or any other aspects of the review..."
+    )
+
     # Conditional milestone comments section
     output$milestone_comments_section <- renderUI({
       req(input$second_approve)
@@ -342,6 +352,9 @@ mod_second_review_server <- function(id, selected_resident, rdm_data, current_pe
           textAreaInput(
             session$ns("second_miles_comment"),
             label = NULL,
+            value = coach_note_saved_value(
+              resident_data(), "second_miles_comment", "second_review"
+            ),
             rows = 6,
             placeholder = "Explain which milestones you disagree with and why..."
           ),
