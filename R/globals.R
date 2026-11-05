@@ -313,10 +313,13 @@ load_coaching_data <- function(
   }, error = function(e) {
     message("  -> Pin unavailable (", conditionMessage(e), ")")
     message("  -> Falling back to direct REDCap pull...")
+    # per_form: one export per instrument, in parallel (~4 s vs ~25 s for
+    # the single flat export; identical all_forms/residents on prod).
     gmed::load_rdm_complete(
       redcap_url   = redcap_url,
       rdm_token    = rdm_token,
-      raw_or_label = "raw"
+      raw_or_label = "raw",
+      per_form     = TRUE
     )
   })
   

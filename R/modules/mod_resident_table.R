@@ -241,6 +241,12 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
   tryCatch({
     residents <- coach_info$residents
     coach_name <- coach_info$coach_name
+
+    # The period the dots refer to: the coach's manual override when set
+    # (so the table matches the review that opens), else each resident's
+    # auto-detected period.
+    override <- input$override_period
+    has_override <- !is.null(override) && nzchar(override)
     # REMOVED: period_num <- get_period_number(selected_period())
     
     # For each resident, check completion status using THEIR detected period
@@ -250,8 +256,9 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
         # Determine review role
         review_role = get_review_role(pick(everything()), coach_name),
         
-        # Use the PRE-DETECTED period for this resident
+        # Use the PRE-DETECTED period for this resident (or the override)
         period_num = current_period_num,
+        review_period = if (has_override) override else current_period,
 
         # Check completion status for THIS resident's period.
         # Pass the period NAME (e.g. "Mid PGY2"), not the numeric code,
@@ -261,23 +268,23 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
         seval_complete = check_seval_complete(
           app_data()$all_forms,
           record_id,
-          current_period
+          review_period
         ),
         coach_complete = check_coach_review_complete(
           app_data()$all_forms,
           record_id,
-          current_period
+          review_period
         ),
         second_complete = check_second_review_complete(
           app_data()$all_forms,
           record_id,
-          current_period
+          review_period
         ),
         
         # Format for display
         display_name = full_name,
         display_level = Level,
-        display_period = current_period  # Show detected period
+        display_period = review_period
       ) %>%
       ungroup() %>%
       select(
@@ -345,6 +352,7 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
         select(
           Name = display_name,
           Level = display_level,
+          `Review Period` = display_period,
           Role,
           `Self-Eval`,
           `Coach Review`,
@@ -369,7 +377,7 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
           ),
           columnDefs = list(
             list(
-              targets = c(2, 3, 4, 5),  # Role and completion columns
+              targets = c(3, 4, 5, 6),  # Role and completion columns
               className = 'dt-center'
             )
           ),

@@ -1299,7 +1299,7 @@
     },
     "gmed": {
       "Package": "gmed",
-      "Version": "0.0.2",
+      "Version": "0.0.3",
       "Source": "GitHub",
       "Title": "What the Package Does (One Line, Title Case)",
       "Authors@R": "person(\"First\", \"Last\", , \"first.last@example.com\", role = c(\"aut\", \"cre\"))",
@@ -1336,16 +1336,14 @@
         "roundsui",
         "iteviz"
       ],
-      "Config/roxygen2/version": "8.0.0",
-      "Author": "First Last [aut, cre]",
-      "Maintainer": "First Last <first.last@example.com>",
-      "RemoteType": "github",
       "Remotes": "fbuckhold3/roundsui, fbuckhold3/im-ite-analyzer/r/iteviz",
+      "Config/roxygen2/version": "8.0.0",
+      "RemoteType": "github",
       "RemoteHost": "api.github.com",
       "RemoteUsername": "fbuckhold3",
       "RemoteRepo": "gmed",
-      "RemoteRef": "main",
-      "RemoteSha": "b82727020422db50f31fa41f593cb83059fd20ab"
+      "RemoteRef": "f5ce7b4e3aa54e75351dc53a2e07a6807e3793c4",
+      "RemoteSha": "f5ce7b4e3aa54e75351dc53a2e07a6807e3793c4"
     },
     "gtable": {
       "Package": "gtable",

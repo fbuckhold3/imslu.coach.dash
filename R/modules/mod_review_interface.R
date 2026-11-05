@@ -362,12 +362,30 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         if (nzchar(ac_val)) paste0("?code=", ac_val) else ""
       )
 
+      # Name the period under review (and the one "previous" notes come from)
+      # up front -- the resident panel's period label alone was easy to miss.
+      period_name <- PERIOD_NAMES[period_num + 1]
+      prev_name <- unname(get_previous_period(period_name))
+
+      tagList(
+      div(
+        style = "margin-bottom: 8px;",
+        tags$h3(
+          style = "margin: 0; font-weight: 700;",
+          sprintf("%s review", period_name)
+        ),
+        tags$div(
+          style = "font-size: 0.9rem; color: var(--roundsui-ink-muted, #5B6472);",
+          if (is.na(prev_name)) "First review period (no previous period)"
+          else sprintf("Previous period shown for comparison: %s", prev_name)
+        )
+      ),
       div(
         style = "display: flex; align-items: center; gap: 12px; flex-wrap: wrap;",
         roundsui::roundsui_resident_panel(
           resident_name = res_data$full_name,
           level         = res_data$Level,
-          period        = PERIOD_NAMES[period_num + 1]
+          period        = period_name
         ),
         tags$a(
           href = ind_dash_url,
@@ -375,6 +393,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           style = "font-size: 0.8rem; font-weight: 600; white-space: nowrap;",
           icon("arrow-up-right-from-square"), " Individual Dashboard"
         )
+      )
       )
     })
 
