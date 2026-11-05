@@ -129,14 +129,7 @@ mod_evaluations_ui <- function(id) {
             "Review the resident's self-assessment and provide feedback on their insights.",
             style = "font-size: 12px; color: #7f8c8d; margin-bottom: 5px;"
           ),
-          textAreaInput(
-            ns("coach_p_d_comments"),
-            label = NULL,
-            value = "",
-            width = "100%",
-            height = "120px",
-            placeholder = "Enter your feedback on the resident's plus/delta reflections..."
-          )
+          coach_note_ui(ns, "coach_p_d_comments")
         ),
 
         # Coach Evaluations Comments
@@ -150,14 +143,7 @@ mod_evaluations_ui <- function(id) {
             "Comment on assessment completion status, faculty feedback quality, and any concerns.",
             style = "font-size: 12px; color: #7f8c8d; margin-bottom: 5px;"
           ),
-          textAreaInput(
-            ns("coach_evaluations"),
-            label = NULL,
-            value = "",
-            width = "100%",
-            height = "120px",
-            placeholder = "Enter your comments on evaluation status and quality..."
-          )
+          coach_note_ui(ns, "coach_evaluations")
         )
       )
     )
@@ -391,58 +377,12 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
 
     # ===== LOAD OR CLEAR DATA WHEN RESIDENT CHANGES =====
 
-    # Track current resident to detect changes
-    current_resident_id <- reactiveVal(NULL)
-
-    observe({
-      req(resident_data())
-
-      # Get the current resident's record_id
-      res_info <- resident_data()$resident_info
-      new_resident_id <- res_info$record_id[1]
-
-      # Check if resident has changed
-      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
-        # Update tracked resident ID
-        current_resident_id(new_resident_id)
-
-        # Try to load existing coach review data
-        curr_data <- resident_data()$current_period$coach_rev
-
-        if (!is.null(curr_data) && nrow(curr_data) > 0) {
-          # Pre-populate P/D comments if they exist
-          existing_pd <- curr_data$coach_p_d_comments[1]
-          if (!is.na(existing_pd) && existing_pd != "") {
-            updateTextAreaInput(
-              session,
-              "coach_p_d_comments",
-              value = existing_pd
-            )
-          } else {
-            updateTextAreaInput(session, "coach_p_d_comments", value = "")
-          }
-
-          # Pre-populate evaluation comments if they exist
-          existing_eval <- curr_data$coach_evaluations[1]
-          if (!is.na(existing_eval) && existing_eval != "") {
-            updateTextAreaInput(
-              session,
-              "coach_evaluations",
-              value = existing_eval
-            )
-          } else {
-            updateTextAreaInput(session, "coach_evaluations", value = "")
-          }
-
-          message(sprintf("Loaded existing evaluation data for resident %s", new_resident_id))
-        } else {
-          # Clear both forms if no coach_rev record exists
-          updateTextAreaInput(session, "coach_p_d_comments", value = "")
-          updateTextAreaInput(session, "coach_evaluations", value = "")
-          message(sprintf("Cleared evaluation forms for new resident %s (no coach_rev record)", new_resident_id))
-        }
-      }
-    })
+    # Coach note textareas, rendered pre-filled from the saved coach_rev
+    # value (see coach_note_server in R/helpers/section_shell.R).
+    coach_note_server(output, session, "coach_p_d_comments", resident_data,
+                      width = "100%", height = "120px", placeholder = "Enter your feedback on the resident's plus/delta reflections...")
+    coach_note_server(output, session, "coach_evaluations", resident_data,
+                      width = "100%", height = "120px", placeholder = "Enter your comments on evaluation status and quality...")
 
     # ===== RETURN ENTERED DATA =====
 

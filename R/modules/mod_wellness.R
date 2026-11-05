@@ -47,14 +47,7 @@ mod_wellness_ui <- function(id) {
         )
       ),
       
-      textAreaInput(
-        ns("coach_wellness"),
-        label = NULL,
-        value = "",
-        width = "100%",
-        height = "200px",
-        placeholder = "Enter your wellness assessment and recommendations here..."
-      ),
+      coach_note_ui(ns, "coach_wellness"),
       
       # Character count
       div(
@@ -67,9 +60,6 @@ mod_wellness_ui <- function(id) {
 
 mod_wellness_server <- function(id, resident_data, current_period, app_data) {
   moduleServer(id, function(input, output, session) {
-
-    # Track current resident to detect changes
-    current_resident_id <- reactiveVal(NULL)
 
     # Resident self-reflection (read-only) \u2014 gmed display module renders all
     # five s_eval reflection fields (plus, delta, well, discussion, prog_assist)
@@ -98,53 +88,10 @@ mod_wellness_server <- function(id, resident_data, current_period, app_data) {
       sprintf("%d characters", char_count)
     })
 
-    # Load or clear data when resident changes
-    observe({
-      req(resident_data())
-
-      # Get the current resident's record_id
-      res_info <- resident_data()$resident_info
-      new_resident_id <- res_info$record_id[1]
-
-      # Check if resident has changed
-      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
-        # Update tracked resident ID
-        current_resident_id(new_resident_id)
-
-        # Try to load existing coach review data
-        curr_data <- resident_data()$current_period$coach_rev
-
-        if (!is.null(curr_data) && nrow(curr_data) > 0) {
-          existing_wellness <- curr_data$coach_wellness[1]
-
-          # Populate with existing data if available
-          if (!is.na(existing_wellness) && existing_wellness != "") {
-            updateTextAreaInput(
-              session,
-              "coach_wellness",
-              value = existing_wellness
-            )
-            message(sprintf("Loaded existing wellness data for resident %s", new_resident_id))
-          } else {
-            # Clear form if no existing data
-            updateTextAreaInput(
-              session,
-              "coach_wellness",
-              value = ""
-            )
-            message(sprintf("Cleared wellness form for new resident %s (no existing data)", new_resident_id))
-          }
-        } else {
-          # Clear form if no coach_rev record exists
-          updateTextAreaInput(
-            session,
-            "coach_wellness",
-            value = ""
-          )
-          message(sprintf("Cleared wellness form for new resident %s (no coach_rev record)", new_resident_id))
-        }
-      }
-    })
+    # Coach note textarea, rendered pre-filled from the saved coach_rev
+    # value (see coach_note_server in R/helpers/section_shell.R).
+    coach_note_server(output, session, "coach_wellness", resident_data,
+                      width = "100%", height = "200px", placeholder = "Enter your wellness assessment and recommendations here...")
 
     # Return reactive with entered data
     return(

@@ -364,6 +364,25 @@ if (!is.null(rdm_data$data_dict)) {
       message(sprintf("    Translated %s field", field))
     }
   }
+
+  # The period fields don't share one set of labels: coach_period /
+  # second_period / ccc_session call code 7 "Intern Intro" and code 6
+  # "Graduation", while PERIOD_NAMES uses "Entering Residency" / "Graduating".
+  # Normalize so period_name string matches (check_coach_review_complete,
+  # get_form_data_for_period) find those reviews.
+  period_aliases <- c("Intern Intro" = "Entering Residency",
+                      "Graduation"   = "Graduating")
+  for (field in period_field_candidates) {
+    for (form_name in names(rdm_data$all_forms)) {
+      if (field %in% names(rdm_data$all_forms[[form_name]])) {
+        rdm_data$all_forms[[form_name]] <- rdm_data$all_forms[[form_name]] %>%
+          mutate(
+            !!field := if_else(!is.na(.data[[field]]) & .data[[field]] %in% names(period_aliases),
+                              unname(period_aliases[.data[[field]]]), .data[[field]])
+          )
+      }
+    }
+  }
   message("  Period field translation complete")
 }
   
@@ -1089,6 +1108,12 @@ check_coach_review_complete <- function(all_forms, record_id, period_name) {
 
   if ("coach_rev_complete" %in% names(coach_data)) {
     return(coach_data$coach_rev_complete[1] == "2")
+  }
+
+  # The Intern Intro review has no ILP step, so it never writes
+  # coach_ilp_final; its last required field is coach_summary.
+  if (identical(period_name, "Entering Residency") && "coach_summary" %in% names(coach_data)) {
+    return(!is.na(coach_data$coach_summary[1]) && nzchar(coach_data$coach_summary[1]))
   }
 
   if ("coach_ilp_final" %in% names(coach_data)) {

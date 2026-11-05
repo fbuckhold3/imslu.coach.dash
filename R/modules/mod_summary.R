@@ -26,10 +26,7 @@ mod_summary_ui <- function(id, period_num = NULL) {
         tags$label("Summary:", style = "font-weight: bold; color: #2c3e50;"),
         tags$p("Overall summary of this entering-residency review.",
                style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"),
-        textAreaInput(
-          ns("coach_summary"), label = NULL, value = "", width = "100%", height = "150px",
-          placeholder = "Summarize this entering-residency review..."
-        ),
+        coach_note_ui(ns, "coach_summary"),
         div(
           style = "text-align: right; font-size: 12px; color: #95a5a6;",
           textOutput(ns("char_count_summary"))
@@ -351,28 +348,10 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
       sprintf("%d characters", nchar(input$coach_summary %||% ""))
     })
 
-    # ----- Load existing coach_summary when resident changes (P7 only) -----
-    current_resident_id <- reactiveVal(NULL)
-
-    observe({
-      req(resident_data())
-      new_resident_id <- resident_data()$resident_info$record_id[1]
-
-      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
-        current_resident_id(new_resident_id)
-
-        if (isTRUE(is_p7())) {
-          curr_data <- resident_data()$current_period$coach_rev
-          existing <- if (!is.null(curr_data) && nrow(curr_data) > 0 && "coach_summary" %in% names(curr_data)) {
-            curr_data$coach_summary[1]
-          } else NA
-          updateTextAreaInput(
-            session, "coach_summary",
-            value = if (!is.na(existing) && nzchar(existing)) existing else ""
-          )
-        }
-      }
-    })
+    # Coach note textareas, rendered pre-filled from the saved coach_rev
+    # value (see coach_note_server in R/helpers/section_shell.R).
+    coach_note_server(output, session, "coach_summary", resident_data,
+                      width = "100%", height = "150px", placeholder = "Summarize this entering-residency review...")
 
     # Return completion status + entered data for parent module
     return(

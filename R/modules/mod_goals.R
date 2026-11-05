@@ -57,14 +57,7 @@ mod_goals_ui <- function(id, period_num = NULL) {
         )
       ),
 
-      textAreaInput(
-        ns("coach_mile_goal"),
-        label = NULL,
-        value = "",
-        width = "100%",
-        height = "200px",
-        placeholder = "Enter your assessment of the resident's goals and progress here..."
-      ),
+      coach_note_ui(ns, "coach_mile_goal"),
 
       div(
         style = "text-align: right; font-size: 12px; color: #95a5a6;",
@@ -102,14 +95,7 @@ mod_goals_ui <- function(id, period_num = NULL) {
           )
         ),
 
-        textAreaInput(
-          ns("coach_ilp_final"),
-          label = NULL,
-          value = "",
-          width = "100%",
-          height = "350px",
-          placeholder = "Enter your comprehensive ILP summary here, addressing career plans, scholarly work, areas of improvement, exam preparation, and milestone goals..."
-        ),
+        coach_note_ui(ns, "coach_ilp_final"),
 
         div(
           style = "text-align: right; font-size: 12px; color: #95a5a6;",
@@ -212,41 +198,12 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, app_da
       sprintf("%d characters", nchar(input$coach_ilp_final %||% ""))
     })
 
-    # ----- Load existing coach entries when resident changes -----
-    current_resident_id <- reactiveVal(NULL)
-
-    observe({
-      req(resident_data())
-      res_info <- resident_data()$resident_info
-      new_resident_id <- res_info$record_id[1]
-
-      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
-        current_resident_id(new_resident_id)
-
-        curr_data <- resident_data()$current_period$coach_rev
-
-        if (!is.null(curr_data) && nrow(curr_data) > 0) {
-          existing_goals <- curr_data$coach_mile_goal[1]
-
-          updateTextAreaInput(session, "coach_mile_goal",
-                              value = if (!is.na(existing_goals) && existing_goals != "")
-                                        existing_goals else "")
-
-          if (!isTRUE(is_p7())) {
-            existing_ilp <- curr_data$coach_ilp_final[1]
-            updateTextAreaInput(session, "coach_ilp_final",
-                                value = if (!is.na(existing_ilp) && existing_ilp != "")
-                                          existing_ilp else "")
-          }
-          message(sprintf("Loaded existing goals data for resident %s", new_resident_id))
-        } else {
-          updateTextAreaInput(session, "coach_mile_goal", value = "")
-          if (!isTRUE(is_p7())) updateTextAreaInput(session, "coach_ilp_final", value = "")
-          message(sprintf("Cleared goals forms for new resident %s (no coach_rev record)",
-                          new_resident_id))
-        }
-      }
-    })
+    # Coach note textareas, rendered pre-filled from the saved coach_rev
+    # value (see coach_note_server in R/helpers/section_shell.R).
+    coach_note_server(output, session, "coach_mile_goal", resident_data,
+                      width = "100%", height = "200px", placeholder = "Enter your assessment of the resident's goals and progress here...")
+    coach_note_server(output, session, "coach_ilp_final", resident_data,
+                      width = "100%", height = "350px", placeholder = "Enter your comprehensive ILP summary here, addressing career plans, scholarly work, areas of improvement, exam preparation, and milestone goals...")
 
     # ----- Return entered data for submission -----
     reactive({

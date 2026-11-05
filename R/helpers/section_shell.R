@@ -232,3 +232,51 @@ coach_scroll_js <- function() {
     });
   "))
 }
+
+
+# -- Coach note text areas ----------------------------------------------------
+#
+# The review screen is rebuilt every time it is opened (app.R view router and
+# sections_ui renderUI), so an updateTextAreaInput() sent from a prefill
+# observer can arrive before the textarea exists and be dropped -- reopened
+# reviews then showed blank coach notes. Rendering the textarea server-side
+# with the saved value means it always appears pre-filled, the same way
+# mod_milestone_entry draws its sliders from initial_scores.
+
+#' Placeholder slot for a coach note textarea (module UI side)
+#'
+#' @param ns       Module namespace function
+#' @param input_id Input id of the textarea (unchanged from before)
+coach_note_ui <- function(ns, input_id) {
+  shiny::uiOutput(ns(paste0(input_id, "_slot")))
+}
+
+#' Saved value of a coach_rev field for the current period, "" when missing
+coach_note_saved_value <- function(rd, field) {
+  curr <- if (!is.null(rd)) rd$current_period$coach_rev else NULL
+  if (is.null(curr) || !is.data.frame(curr) || nrow(curr) == 0 ||
+      !field %in% names(curr)) return("")
+  v <- curr[[field]][1]
+  if (is.null(v) || is.na(v)) "" else as.character(v)
+}
+
+#' Render a coach note textarea pre-filled from the saved coach_rev value
+#'
+#' Re-renders when resident_data() changes (new resident, period, or a data
+#' reload after save) but not on typing.
+#'
+#' @param output,session Module output / session
+#' @param input_id       Textarea input id
+#' @param field          coach_rev field holding the saved text (defaults to
+#'                       input_id; differs in mod_learning)
+#' @param resident_data  Reactive returning get_resident_period_data() output
+#' @param ...            Passed to textAreaInput (placeholder, height, ...)
+coach_note_server <- function(output, session, input_id, resident_data,
+                              field = input_id, ...) {
+  args <- list(...)
+  output[[paste0(input_id, "_slot")]] <- shiny::renderUI({
+    value <- coach_note_saved_value(resident_data(), field)
+    do.call(shiny::textAreaInput,
+            c(list(inputId = session$ns(input_id), label = NULL, value = value), args))
+  })
+}

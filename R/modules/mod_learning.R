@@ -84,14 +84,7 @@ mod_learning_ui <- function(id) {
         )
       ),
 
-      textAreaInput(
-        ns("coach_topics"),
-        label = NULL,
-        value = "",
-        width = "100%",
-        height = "150px",
-        placeholder = "Enter your comments about learning topics and styles..."
-      ),
+      coach_note_ui(ns, "coach_topics"),
 
       hr(),
 
@@ -107,14 +100,7 @@ mod_learning_ui <- function(id) {
         )
       ),
 
-      textAreaInput(
-        ns("coach_board_prep"),
-        label = NULL,
-        value = "",
-        width = "100%",
-        height = "150px",
-        placeholder = "Enter your comments about board preparation and exam performance..."
-      )
+      coach_note_ui(ns, "coach_board_prep")
     )
   )
 }
@@ -340,52 +326,12 @@ mod_learning_server <- function(id, resident_data, current_period, app_data, app
       )
     })
 
-    # Load or clear data when resident changes
-    # Track current resident to detect changes
-    current_resident_id <- reactiveVal(NULL)
-
-    observe({
-      req(resident_data())
-
-      # Get the current resident's record_id
-      res_info <- resident_data()$resident_info
-      new_resident_id <- res_info$record_id[1]
-
-      # Check if resident has changed
-      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
-        # Update tracked resident ID
-        current_resident_id(new_resident_id)
-
-        # Try to load existing coach review data
-        curr_data <- resident_data()$current_period$coach_rev
-
-        if (!is.null(curr_data) && nrow(curr_data) > 0) {
-          existing_topics <- curr_data$coach_ls_and_topic[1]
-          existing_board <- curr_data$coach_step_board[1]
-
-          # Populate or clear topics field
-          if (!is.na(existing_topics) && existing_topics != "") {
-            updateTextAreaInput(session, "coach_topics", value = existing_topics)
-          } else {
-            updateTextAreaInput(session, "coach_topics", value = "")
-          }
-
-          # Populate or clear board prep field
-          if (!is.na(existing_board) && existing_board != "") {
-            updateTextAreaInput(session, "coach_board_prep", value = existing_board)
-          } else {
-            updateTextAreaInput(session, "coach_board_prep", value = "")
-          }
-
-          message(sprintf("Loaded existing learning data for resident %s", new_resident_id))
-        } else {
-          # Clear both fields if no coach_rev record exists
-          updateTextAreaInput(session, "coach_topics", value = "")
-          updateTextAreaInput(session, "coach_board_prep", value = "")
-          message(sprintf("Cleared learning forms for new resident %s (no coach_rev record)", new_resident_id))
-        }
-      }
-    })
+    # Coach note textareas, rendered pre-filled from the saved coach_rev
+    # value (see coach_note_server in R/helpers/section_shell.R).
+    coach_note_server(output, session, "coach_topics", resident_data, field = "coach_ls_and_topic",
+                      width = "100%", height = "150px", placeholder = "Enter your comments about learning topics and styles...")
+    coach_note_server(output, session, "coach_board_prep", resident_data, field = "coach_step_board",
+                      width = "100%", height = "150px", placeholder = "Enter your comments about board preparation and exam performance...")
 
     # Return reactive with entered data
     return(

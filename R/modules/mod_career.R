@@ -56,14 +56,7 @@ mod_career_ui <- function(id) {
           "Provide feedback on the resident's career interests, mentorship connections, and development plans.",
           style = "font-size: 12px; color: #7f8c8d; margin-bottom: 5px;"
         ),
-        textAreaInput(
-          ns("coach_career"),
-          label = NULL,
-          value = "",
-          width = "100%",
-          height = "150px",
-          placeholder = "Enter your comments on career planning and development..."
-        )
+        coach_note_ui(ns, "coach_career")
       )
     )
   )
@@ -269,43 +262,10 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
         "Career planning")
     })
 
-    # Load or clear data when resident changes
-    # Track current resident to detect changes
-    current_resident_id <- reactiveVal(NULL)
-
-    observe({
-      req(resident_data())
-
-      # Get the current resident's record_id
-      res_info <- resident_data()$resident_info
-      new_resident_id <- res_info$record_id[1]
-
-      # Check if resident has changed
-      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
-        # Update tracked resident ID
-        current_resident_id(new_resident_id)
-
-        # Try to load existing coach review data
-        curr_data <- resident_data()$current_period$coach_rev
-
-        if (!is.null(curr_data) && nrow(curr_data) > 0) {
-          existing_career <- curr_data$coach_career[1]
-
-          # Populate or clear career field
-          if (!is.na(existing_career) && existing_career != "") {
-            updateTextAreaInput(session, "coach_career", value = existing_career)
-            message(sprintf("Loaded existing career data for resident %s", new_resident_id))
-          } else {
-            updateTextAreaInput(session, "coach_career", value = "")
-            message(sprintf("Cleared career form for new resident %s (no existing data)", new_resident_id))
-          }
-        } else {
-          # Clear field if no coach_rev record exists
-          updateTextAreaInput(session, "coach_career", value = "")
-          message(sprintf("Cleared career form for new resident %s (no coach_rev record)", new_resident_id))
-        }
-      }
-    })
+    # Coach note textareas, rendered pre-filled from the saved coach_rev
+    # value (see coach_note_server in R/helpers/section_shell.R).
+    coach_note_server(output, session, "coach_career", resident_data,
+                      width = "100%", height = "150px", placeholder = "Enter your comments on career planning and development...")
 
     # Return reactive with entered data
     return(
