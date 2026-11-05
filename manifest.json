@@ -188,6 +188,41 @@
         "Archs": "S7.so.dSYM"
       }
     },
+    "amiontools": {
+      "Source": "github",
+      "Repository": null,
+      "description": {
+        "Package": "amiontools",
+        "Title": "Shared Amion Schedule Fetch, Classification, and Crosswalk Tools",
+        "Version": "0.1.0",
+        "Authors@R": "\n    person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
+        "Description": "Shared functions for pulling resident schedule data from\n    Amion, classifying assignments into top-level rotation categories, and\n    crosswalking Amion identities against RDM resident_id records. Used by\n    amion-va-report and downstream rotation-analysis, attendance-\n    reconciliation, and duty-hour tools across the IMSLU / GME Tools\n    ecosystem.",
+        "License": "MIT + file LICENSE",
+        "Encoding": "UTF-8",
+        "Roxygen": "list(markdown = TRUE)",
+        "Imports": "dplyr, DT, gmed, httr, jsonlite, lubridate, plotly, REDCapR,\nshiny, shinycssloaders, tidyr",
+        "Suggests": "testthat (>= 3.0.0)",
+        "Config/testthat/edition": "3",
+        "Config/roxygen2/version": "8.0.0",
+        "RemoteType": "github",
+        "RemoteHost": "api.github.com",
+        "RemoteRepo": "amiontools",
+        "RemoteUsername": "fbuckhold3",
+        "RemotePkgRef": "fbuckhold3/amiontools@873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
+        "RemoteRef": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
+        "RemoteSha": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
+        "GithubRepo": "amiontools",
+        "GithubUsername": "fbuckhold3",
+        "GithubRef": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
+        "GithubSHA1": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-11-05 18:41:34 UTC; home_base",
+        "Author": "Fred Buckhold [aut, cre]",
+        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
+        "Depends": "R (>= 4.1.0)",
+        "Built": "R 4.6.0; ; 2026-11-05 18:41:35 UTC; unix"
+      }
+    },
     "askpass": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -2371,6 +2406,39 @@
         "Built": "R 4.6.0; ; 2026-06-21 15:41:33 UTC; unix"
       }
     },
+    "shinycssloaders": {
+      "Source": "CRAN",
+      "Repository": "https://cloud.r-project.org",
+      "description": {
+        "Package": "shinycssloaders",
+        "Title": "Add Loading Animations to a 'shiny' Output While It's\nRecalculating",
+        "Version": "1.1.0",
+        "Authors@R": "c(\n    person(\"Dean\",\"Attali\",email=\"daattali@gmail.com\",role=c(\"aut\",\"cre\"),\n        comment = c(\"Maintainer/developer of shinycssloaders since 2019\", ORCID=\"0000-0002-5645-3493\")),\n    person(\"Andras\",\"Sali\",email=\"andras.sali@alphacruncher.hu\",role=c(\"aut\"),comment=\"Original creator of shinycssloaders package\"),\n    person(\"Luke\",\"Hass\",role=c(\"ctb\",\"cph\"),comment=\"Author of included CSS loader code\")\n    )",
+        "Description": "When a 'Shiny' output (such as a plot, table, map, etc.) is recalculating, it remains \n    visible but gets greyed out. Using 'shinycssloaders', you can add a loading animation (\"spinner\")\n    to outputs instead. By wrapping a 'Shiny' output in 'withSpinner()', a spinner will automatically\n    appear while the output is recalculating. You can also manually show and hide the spinner, or add\n    a full-page spinner to cover the entire page.\n    See the demo online at <https://daattali.com/shiny/shinycssloaders-demo/>.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://github.com/daattali/shinycssloaders,\nhttps://daattali.com/shiny/shinycssloaders-demo/",
+        "BugReports": "https://github.com/daattali/shinycssloaders/issues",
+        "Depends": "R (>= 3.1)",
+        "Imports": "digest, glue, grDevices, htmltools (>= 0.3.5), shiny",
+        "Suggests": "knitr, shinydisconnect, shinyjs",
+        "RoxygenNote": "7.2.3",
+        "Encoding": "UTF-8",
+        "NeedsCompilation": "no",
+        "Packaged": "2024-07-30 18:52:48 UTC; Dean",
+        "Author": "Dean Attali [aut, cre] (Maintainer/developer of shinycssloaders since\n    2019, <https://orcid.org/0000-0002-5645-3493>),\n  Andras Sali [aut] (Original creator of shinycssloaders package),\n  Luke Hass [ctb, cph] (Author of included CSS loader code)",
+        "Maintainer": "Dean Attali <daattali@gmail.com>",
+        "Repository": "CRAN",
+        "Date/Publication": "2024-07-30 22:30:02 UTC",
+        "Built": "R 4.6.0; ; 2026-04-26 11:10:57 UTC; unix",
+        "RemoteType": "standard",
+        "RemoteRef": "shinycssloaders",
+        "RemotePkgRef": "shinycssloaders",
+        "RemoteRepos": "https://cloud.r-project.org",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "aarch64-apple-darwin23",
+        "RemoteSha": "1.1.0"
+      }
+    },
     "shinydashboard": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -2991,7 +3059,7 @@
   },
   "files": {
     "app.R": {
-      "checksum": "73aac2daffb99c7178e43d99ae6e9280"
+      "checksum": "aeed95d76fa2eac42e26a1e10fff8530"
     },
     "CLAUDE.md": {
       "checksum": "30a1ae79bc550e46993b1a80aaeeffae"
@@ -3000,7 +3068,7 @@
       "checksum": "3ae0f05b13529a99b224067392552a18"
     },
     "dev_setup.R": {
-      "checksum": "48fa2ae427a43167c06b03fe9dc63e9d"
+      "checksum": "f6af228117f281e4173548590e4309c3"
     },
     "docs/redcap_reference_guide.md": {
       "checksum": "fcd28144a40e732671f97b69a684fd48"
@@ -3018,7 +3086,7 @@
       "checksum": "f67b34aa09986ee52b5e77edaf1f3b72"
     },
     "R/globals.R": {
-      "checksum": "b6aaafed0c8c2d8a88efe77833db144e"
+      "checksum": "bc91396f95fa22d08fde32b38f79cd31"
     },
     "R/helpers/data_retrievers.R": {
       "checksum": "3159904ba79b9b696e5b7ae9818fc211"
@@ -3027,7 +3095,7 @@
       "checksum": "916ed5e29ca8dcd1f5f3fd9b2d9730e9"
     },
     "R/helpers/section_shell.R": {
-      "checksum": "87100327f616487a6b511485e094a7a5"
+      "checksum": "b4625d83d1a03a30466bbc4a777c9bf9"
     },
     "R/helpers/step_creators.R": {
       "checksum": "6bb262ab22134fd8143dd8d7191146e3"
@@ -3036,25 +3104,25 @@
       "checksum": "6711c8e02ad209d1894cb791e6889110"
     },
     "R/modules/mod_career.R": {
-      "checksum": "786c1c9924bea4f421a46da466d3c9f1"
+      "checksum": "608029a6169b570a6f22e9904c058f7d"
     },
     "R/modules/mod_coach_select.R": {
       "checksum": "cdec4b5ccbd23e7cb41e7a3a3fd2eb45"
     },
     "R/modules/mod_evaluations.R": {
-      "checksum": "78daa6794d44465a14ae90c8c06bbc82"
+      "checksum": "0750001bda52c743dabbaa85d6575949"
     },
     "R/modules/mod_goals.R": {
-      "checksum": "9e5fc99a4b397770682d7acb2c411dd4"
+      "checksum": "1e5cf223df3ee37c0be97c8163c88c19"
     },
     "R/modules/mod_grad_plan.R": {
-      "checksum": "86c7a155b19db0dac6c05aea02375916"
+      "checksum": "699ff69b132b4e9fb72a92004b44a60b"
     },
     "R/modules/mod_intern_intro.R": {
-      "checksum": "6563ac1a261e2ac06c566b6a12775c64"
+      "checksum": "e221904be205732c3ed52c8ee85d7dd0"
     },
     "R/modules/mod_learning.R": {
-      "checksum": "12f77533e8a4aac48b141bbc3441dcb0"
+      "checksum": "90725a224eabfdcb574bef9b82bbfc73"
     },
     "R/modules/mod_login.R": {
       "checksum": "9a7fb0b6c452c61f2962b4c77f4db8f3"
@@ -3066,10 +3134,10 @@
       "checksum": "8d81c733a762f5d56039b1e72352fcbe"
     },
     "R/modules/mod_resident_table.R": {
-      "checksum": "3a0a3e6f8df4b3184df6258dffa47d19"
+      "checksum": "124edd600c9f2b8fa4c161e62416215e"
     },
     "R/modules/mod_review_interface.R": {
-      "checksum": "edb95a6c962a49b0e23fd4c0141e4e11"
+      "checksum": "4ea9c5c6bec12b6d85fe6d649fcc54e5"
     },
     "R/modules/mod_scholarship.R": {
       "checksum": "e878e3b92914a00b106cd5f7d4aab238"
@@ -3078,10 +3146,10 @@
       "checksum": "e04107c52cc829606e857739c4b397af"
     },
     "R/modules/mod_summary.R": {
-      "checksum": "b6f8b2d4f1898d172ccafb3b234e202b"
+      "checksum": "7947a19739d4c47104ca24f9935b99c4"
     },
     "R/modules/mod_wellness.R": {
-      "checksum": "f1f6424f77519eb4ed17e273d39882a2"
+      "checksum": "e8e31199dfb37dd21352407f46ea2b93"
     },
     "R/server_components/authentication.R": {
       "checksum": "3065c0aa8f9069eaead4a48c69ea6239"
@@ -3105,7 +3173,7 @@
       "checksum": "2addde7c05ff2b12259117364ff53971"
     },
     "renv.lock": {
-      "checksum": "b6635789911bfc0f6f3955a999f3646e"
+      "checksum": "5acd56f3d1ac672bc46916344b470ff8"
     },
     "www/app.js": {
       "checksum": "c54972e9b5f2878bec6e46b389009899"
@@ -3174,7 +3242,7 @@
       "checksum": "39a2b5f47f9d809f83daf6f216cefb66"
     },
     "www/styles.css": {
-      "checksum": "4ee8f38c361240dd653dc36532fac965"
+      "checksum": "2ed9bc96453762a11dacd81ccd39b54c"
     }
   },
   "users": null
