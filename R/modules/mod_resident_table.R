@@ -341,8 +341,8 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
             TRUE            ~ '<span class="completion-icon completion-incomplete" title="Not Completed">&#x25CF;</span>'
           ),
           Role = case_when(
-            review_role == "primary" ~ '<span class="badge badge-primary">Primary</span>',
-            review_role == "secondary" ~ '<span class="badge badge-secondary">Secondary</span>',
+            review_role == "primary" ~ '<span class="badge text-bg-primary">Primary</span>',
+            review_role == "secondary" ~ '<span class="badge text-bg-secondary">Secondary</span>',
             TRUE ~ ''
           )
         )
