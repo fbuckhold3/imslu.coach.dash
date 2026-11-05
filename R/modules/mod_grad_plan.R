@@ -65,18 +65,7 @@ mod_grad_plan_ui <- function(id) {
           tags$li("Any concerns or follow-up items")
         )
       ),
-      textAreaInput(
-        ns("coach_ilp_final"),
-        label = NULL,
-        value = "",
-        width = "100%",
-        height = "300px",
-        placeholder = paste(
-          "Enter your graduation summary covering transition plans, board",
-          "readiness, strengths, ongoing development areas, and alumni",
-          "follow-up..."
-        )
-      ),
+      coach_note_ui(ns, "coach_ilp_final"),
       div(
         style = "text-align: right; font-size: 12px; color: #95a5a6;",
         textOutput(ns("char_count"))
@@ -151,7 +140,7 @@ mod_grad_plan_server <- function(id, resident_data, current_period,
       sprintf("%d characters", nchar(input$coach_ilp_final %||% ""))
     })
 
-    # ----- Resident-change handling: clear verify radio + load coach_ilp_final
+    # ----- Resident-change handling: clear verify radio + overrides
     current_resident_id <- reactiveVal(NULL)
 
     observe({
@@ -162,16 +151,18 @@ mod_grad_plan_server <- function(id, resident_data, current_period,
         current_resident_id(new_id)
         overrides(list())
         updateRadioButtons(session, "verify_grad", selected = character(0))
-
-        curr <- resident_data()$current_period$coach_rev
-        existing <- if (!is.null(curr) && nrow(curr) > 0) curr$coach_ilp_final[1] else NA
-
-        updateTextAreaInput(
-          session, "coach_ilp_final",
-          value = if (!is.na(existing) && nzchar(existing)) existing else ""
-        )
       }
     })
+
+    # coach_ilp_final textarea, rendered pre-filled from the saved coach_rev
+    # value (see coach_note_server in R/helpers/section_shell.R).
+    coach_note_server(output, session, "coach_ilp_final", resident_data,
+                      width = "100%", height = "300px",
+                      placeholder = paste(
+                        "Enter your graduation summary covering transition plans, board",
+                        "readiness, strengths, ongoing development areas, and alumni",
+                        "follow-up..."
+                      ))
 
     # ----- Edit panel: shown only when coach answers "No" -----
     output$edit_panel <- renderUI({

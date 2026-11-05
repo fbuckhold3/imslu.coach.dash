@@ -6,27 +6,8 @@ mod_evaluations_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
-    # Previous Period Section
-    div(
-      class = "mb-4",
-      h5(icon("history"), " Previous Period Review", style = "color: #7f8c8d;"),
-      wellPanel(
-        style = "background-color: #f8f9fa;",
-        div(
-          class = "row",
-          div(
-            class = "col-md-6",
-            h6("Coach Comments on Plus/Delta", style = "color: #3498db;"),
-            uiOutput(ns("prev_pd_comments"))
-          ),
-          div(
-            class = "col-md-6",
-            h6("Coach Comments on Evaluations", style = "color: #3498db;"),
-            uiOutput(ns("prev_eval_comments"))
-          )
-        )
-      )
-    ),
+    # Previous coach notes for this section are shown above the entry boxes
+    # (mod_prev_notes, all earlier periods).
 
     # Resident reflection on feedback received (plus/delta only).
     # Wellness/discussion/prog_assist live in the Wellness section.
@@ -129,7 +110,10 @@ mod_evaluations_ui <- function(id) {
     # Coach Entry for Current Period
     div(
       class = "mb-3",
-      h5(icon("edit"), " Your Coach Review - Current Period", style = "color: #27ae60;"),
+      h5(icon("edit"), " Your Coach Review - Current Period"),
+
+      # Previous coach notes, directly above the entry boxes
+      mod_prev_notes_ui(ns("prev_notes")),
 
       wellPanel(
         style = "background-color: #ffffff;",
@@ -145,14 +129,7 @@ mod_evaluations_ui <- function(id) {
             "Review the resident's self-assessment and provide feedback on their insights.",
             style = "font-size: 12px; color: #7f8c8d; margin-bottom: 5px;"
           ),
-          textAreaInput(
-            ns("coach_p_d_comments"),
-            label = NULL,
-            value = "",
-            width = "100%",
-            height = "120px",
-            placeholder = "Enter your feedback on the resident's plus/delta reflections..."
-          )
+          coach_note_ui(ns, "coach_p_d_comments")
         ),
 
         # Coach Evaluations Comments
@@ -166,14 +143,7 @@ mod_evaluations_ui <- function(id) {
             "Comment on assessment completion status, faculty feedback quality, and any concerns.",
             style = "font-size: 12px; color: #7f8c8d; margin-bottom: 5px;"
           ),
-          textAreaInput(
-            ns("coach_evaluations"),
-            label = NULL,
-            value = "",
-            width = "100%",
-            height = "120px",
-            placeholder = "Enter your comments on evaluation status and quality..."
-          )
+          coach_note_ui(ns, "coach_evaluations")
         )
       )
     )
@@ -183,68 +153,17 @@ mod_evaluations_ui <- function(id) {
 mod_evaluations_server <- function(id, resident_data, current_period, app_data, app_data_rv) {
   moduleServer(id, function(input, output, session) {
 
+    # Previous coach notes for both evaluation fields
+    mod_prev_notes_server("prev_notes", resident_data, current_period,
+                          fields = c(coach_p_d_comments = "Plus/delta reflections",
+                                     coach_evaluations  = "Assessments"))
+
     # Create reactive for data_dict from reactiveValues - will update when data loads
     data_dict <- reactive({
       dd <- app_data_rv$data_dict
       message("DEBUG [mod_evaluations]: data_dict reactive, is.null = ", is.null(dd),
               ", nrow = ", if(!is.null(dd)) nrow(dd) else "NULL")
       dd
-    })
-
-    # ===== PREVIOUS PERIOD DISPLAY =====
-
-    output$prev_pd_comments <- renderUI({
-      req(resident_data())
-
-      prev_data <- resident_data()$previous_period$coach_rev
-
-      if (is.null(prev_data) || nrow(prev_data) == 0) {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "No previous period data available")
-        )
-      }
-
-      pd_comments <- prev_data$coach_p_d_comments[1]
-
-      if (is.na(pd_comments) || trimws(pd_comments) == "") {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "No previous comments on plus/delta")
-        )
-      }
-
-      div(
-        style = "padding: 10px; background-color: white; border-radius: 4px;",
-        HTML(gsub("\n", "<br>", pd_comments))
-      )
-    })
-
-    output$prev_eval_comments <- renderUI({
-      req(resident_data())
-
-      prev_data <- resident_data()$previous_period$coach_rev
-
-      if (is.null(prev_data) || nrow(prev_data) == 0) {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "No previous period data available")
-        )
-      }
-
-      eval_comments <- prev_data$coach_evaluations[1]
-
-      if (is.na(eval_comments) || trimws(eval_comments) == "") {
-        return(
-          p(style = "font-style: italic; color: #95a5a6;",
-            "No previous comments on evaluations")
-        )
-      }
-
-      div(
-        style = "padding: 10px; background-color: white; border-radius: 4px;",
-        HTML(gsub("\n", "<br>", eval_comments))
-      )
     })
 
     # ===== PREPARE DATA FOR GMED MODULES =====
@@ -458,58 +377,12 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
 
     # ===== LOAD OR CLEAR DATA WHEN RESIDENT CHANGES =====
 
-    # Track current resident to detect changes
-    current_resident_id <- reactiveVal(NULL)
-
-    observe({
-      req(resident_data())
-
-      # Get the current resident's record_id
-      res_info <- resident_data()$resident_info
-      new_resident_id <- res_info$record_id[1]
-
-      # Check if resident has changed
-      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
-        # Update tracked resident ID
-        current_resident_id(new_resident_id)
-
-        # Try to load existing coach review data
-        curr_data <- resident_data()$current_period$coach_rev
-
-        if (!is.null(curr_data) && nrow(curr_data) > 0) {
-          # Pre-populate P/D comments if they exist
-          existing_pd <- curr_data$coach_p_d_comments[1]
-          if (!is.na(existing_pd) && existing_pd != "") {
-            updateTextAreaInput(
-              session,
-              "coach_p_d_comments",
-              value = existing_pd
-            )
-          } else {
-            updateTextAreaInput(session, "coach_p_d_comments", value = "")
-          }
-
-          # Pre-populate evaluation comments if they exist
-          existing_eval <- curr_data$coach_evaluations[1]
-          if (!is.na(existing_eval) && existing_eval != "") {
-            updateTextAreaInput(
-              session,
-              "coach_evaluations",
-              value = existing_eval
-            )
-          } else {
-            updateTextAreaInput(session, "coach_evaluations", value = "")
-          }
-
-          message(sprintf("Loaded existing evaluation data for resident %s", new_resident_id))
-        } else {
-          # Clear both forms if no coach_rev record exists
-          updateTextAreaInput(session, "coach_p_d_comments", value = "")
-          updateTextAreaInput(session, "coach_evaluations", value = "")
-          message(sprintf("Cleared evaluation forms for new resident %s (no coach_rev record)", new_resident_id))
-        }
-      }
-    })
+    # Coach note textareas, rendered pre-filled from the saved coach_rev
+    # value (see coach_note_server in R/helpers/section_shell.R).
+    coach_note_server(output, session, "coach_p_d_comments", resident_data,
+                      width = "100%", height = "120px", placeholder = "Enter your feedback on the resident's plus/delta reflections...")
+    coach_note_server(output, session, "coach_evaluations", resident_data,
+                      width = "100%", height = "120px", placeholder = "Enter your comments on evaluation status and quality...")
 
     # ===== RETURN ENTERED DATA =====
 

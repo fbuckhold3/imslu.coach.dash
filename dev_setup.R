@@ -3,7 +3,7 @@
 
 # Step 1: CRAN packages (includes gmed's dependencies)
 pkgs <- c(
-  "shiny", "shinydashboard", "bslib", "shinyjs",
+  "shiny", "bslib", "shinyjs", "future", "promises", "shinycssloaders",
   "DT", "reactable",
   "dplyr", "tidyr", "purrr", "lubridate", "rlang", "data.table", "tibble",
   "plotly", "ggplot2", "htmltools",
@@ -21,7 +21,15 @@ if (length(missing) > 0) {
   message("All CRAN packages already installed.")
 }
 
-# Step 2: Install gmed from local source (picks up your local edits)
-message("Installing gmed from local source...")
-install.packages("../gmed", repos = NULL, type = "source")
+# Step 2: GitHub packages. Installed from GitHub (not a local source build)
+# so rsconnect::writeManifest() records a GitHub source it can deploy from —
+# a local build of gmed once broke writeManifest for every app sharing the
+# system library (see imslu.ind.dash/CLAUDE.md).
+if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv")
+message("Installing roundsui, gmed and amiontools from GitHub...")
+renv::install(c("fbuckhold3/roundsui", "fbuckhold3/gmed", "fbuckhold3/amiontools"))
+
+# Step 3: refresh the Posit Connect manifest after package changes.
+# rsconnect::writeManifest()
+
 message("\nSetup complete. Run shiny::runApp() or open app.R and click Run.")

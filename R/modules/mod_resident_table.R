@@ -101,7 +101,10 @@ mod_resident_table_ui <- function(id) {
             selectInput(
               ns("override_period"),
               label = NULL,
-              choices = c("Auto-detect (recommended)" = ""),  # server-populated
+              # PERIOD_NAMES is a fixed constant from globals.R, so build the
+              # choices here; a server-side updateSelectInput ran before this
+              # UI existed and was dropped, leaving the dropdown empty.
+              choices = c("Auto-detect (recommended)" = "", setNames(PERIOD_NAMES, PERIOD_NAMES)),
               width = "220px"
             )
           ),
@@ -187,16 +190,6 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
     # submitted after the last data load \u2014 without this a second interim
     # review for the same resident would calculate the same instance number.
     session_interim_tracker <- reactiveVal(list())
-
-    # Populate the manual period-override dropdown once (PERIOD_NAMES is a
-    # fixed constant from globals.R \u2014 "Auto-detect" plus every period name,
-    # in the app's local numbering order).
-    observe({
-      updateSelectInput(
-        session, "override_period",
-        choices = c("Auto-detect (recommended)" = "", setNames(PERIOD_NAMES, PERIOD_NAMES))
-      )
-    }, priority = 100)
 
     # Visible reminder when a manual override is active, so it's obvious
     # why a resident's review doesn't match their auto-detected period.

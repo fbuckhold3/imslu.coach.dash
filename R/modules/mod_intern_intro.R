@@ -79,10 +79,7 @@ mod_intern_intro_ui <- function(id) {
       tags$label("Background Information:", style = "font-weight: bold; color: #2c3e50;"),
       tags$p("Where is this resident from, what are they excited about?",
              style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"),
-      textAreaInput(
-        ns("coach_intro_back"), label = NULL, value = "", width = "100%", height = "150px",
-        placeholder = "Document background information about the resident..."
-      )
+      coach_note_ui(ns, "coach_intro_back")
     ),
 
     hr(),
@@ -98,10 +95,7 @@ mod_intern_intro_ui <- function(id) {
       tags$label("Coping and Adjustment:", style = "font-weight: bold; color: #2c3e50;"),
       tags$p("How is the resident adjusting to residency?",
              style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"),
-      textAreaInput(
-        ns("coach_coping"), label = NULL, value = "", width = "100%", height = "150px",
-        placeholder = "Document how the resident is coping and adjusting..."
-      )
+      coach_note_ui(ns, "coach_coping")
     ),
 
     hr(),
@@ -132,10 +126,7 @@ mod_intern_intro_ui <- function(id) {
                  style = "font-weight: bold; color: #2c3e50;"),
       tags$p("Provide feedback on the resident's preparedness, identified learning needs, and preferred learning approaches.",
              style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"),
-      textAreaInput(
-        ns("coach_ls_and_topic"), label = NULL, value = "", width = "100%", height = "150px",
-        placeholder = "Enter your comments about skills, topics, and learning styles..."
-      ),
+      coach_note_ui(ns, "coach_ls_and_topic"),
       div(
         style = "text-align: right; font-size: 12px; color: #95a5a6;",
         textOutput(ns("char_count"))
@@ -330,28 +321,14 @@ mod_intern_intro_server <- function(id, resident_data, current_period,
       sprintf("%d characters", total)
     })
 
-    # ----- Load or clear coach entries on resident change -----
-    current_resident_id <- reactiveVal(NULL)
-
-    observe({
-      req(resident_data())
-      new_id <- resident_data()$resident_info$record_id[1]
-
-      if (is.null(current_resident_id()) || current_resident_id() != new_id) {
-        current_resident_id(new_id)
-
-        curr <- resident_data()$current_period$coach_rev
-        get_val <- function(fld) {
-          if (is.null(curr) || nrow(curr) == 0 || !fld %in% names(curr)) return("")
-          v <- curr[[fld]][1]
-          if (is.null(v) || is.na(v)) "" else as.character(v)
-        }
-
-        updateTextAreaInput(session, "coach_intro_back", value = get_val("coach_intro_back"))
-        updateTextAreaInput(session, "coach_coping", value = get_val("coach_coping"))
-        updateTextAreaInput(session, "coach_ls_and_topic", value = get_val("coach_ls_and_topic"))
-      }
-    })
+    # Coach note textareas, rendered pre-filled from the saved coach_rev
+    # value (see coach_note_server in R/helpers/section_shell.R).
+    coach_note_server(output, session, "coach_intro_back", resident_data,
+                      width = "100%", height = "150px", placeholder = "Document background information about the resident...")
+    coach_note_server(output, session, "coach_coping", resident_data,
+                      width = "100%", height = "150px", placeholder = "Document how the resident is coping and adjusting...")
+    coach_note_server(output, session, "coach_ls_and_topic", resident_data,
+                      width = "100%", height = "150px", placeholder = "Enter your comments about skills, topics, and learning styles...")
 
     # ----- Return data for submission -----
     reactive({

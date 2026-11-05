@@ -63,11 +63,11 @@ mod_learning_ui <- function(id) {
 
     hr(),
 
-    # Previous Period Coach Comments
-    uiOutput(ns("previous_coach_comments")),
-
     # Current Period Coach Entry
-    h4("Coach Review - Current Period", style = "color: #34495e; margin-top: 20px;"),
+    h4("Coach Review - Current Period", style = "margin-top: 20px;"),
+
+    # Previous coach notes, directly above the entry boxes
+    uiOutput(ns("previous_coach_comments")),
 
     wellPanel(
       style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
@@ -84,14 +84,7 @@ mod_learning_ui <- function(id) {
         )
       ),
 
-      textAreaInput(
-        ns("coach_topics"),
-        label = NULL,
-        value = "",
-        width = "100%",
-        height = "150px",
-        placeholder = "Enter your comments about learning topics and styles..."
-      ),
+      coach_note_ui(ns, "coach_topics"),
 
       hr(),
 
@@ -107,14 +100,7 @@ mod_learning_ui <- function(id) {
         )
       ),
 
-      textAreaInput(
-        ns("coach_board_prep"),
-        label = NULL,
-        value = "",
-        width = "100%",
-        height = "150px",
-        placeholder = "Enter your comments about board preparation and exam performance..."
-      )
+      coach_note_ui(ns, "coach_board_prep")
     )
   )
 }
@@ -328,102 +314,24 @@ mod_learning_server <- function(id, resident_data, current_period, app_data, app
 
 
     # Display previous period coach comments
+    # Previous coach notes (all earlier periods, newest first)
     output$previous_coach_comments <- renderUI({
-      req(resident_data())
-
-      prev_data <- resident_data()$previous_period$coach_rev
-
-      if (is.null(prev_data) || nrow(prev_data) == 0) {
-        return(NULL)
-      }
-
-      prev_topics <- prev_data$coach_ls_and_topic[1]
-      prev_board <- prev_data$coach_step_board[1]
-
-      has_prev_data <- (!is.na(prev_topics) && prev_topics != "") ||
-                       (!is.na(prev_board) && prev_board != "")
-
-      if (!has_prev_data) {
-        return(NULL)
-      }
-
+      rd <- resident_data(); req(rd)
+      period_name <- get_period_name(current_period())
       tagList(
-        h4("Previous Period Coach Comments", style = "color: #34495e; margin-top: 20px;"),
-
-        wellPanel(
-          style = "background-color: #e8f4f8; border-left: 4px solid #3498db;",
-
-          if (!is.na(prev_topics) && prev_topics != "") {
-            tagList(
-              h5("Topics and Learning Styles:", style = "color: #2980b9;"),
-              div(
-                style = "padding: 10px; background-color: white; border-radius: 4px; margin-bottom: 15px;",
-                HTML(gsub("\n", "<br>", prev_topics))
-              )
-            )
-          },
-
-          if (!is.na(prev_board) && prev_board != "") {
-            tagList(
-              h5("Board Preparation:", style = "color: #2980b9;"),
-              div(
-                style = "padding: 10px; background-color: white; border-radius: 4px;",
-                HTML(gsub("\n", "<br>", prev_board))
-              )
-            )
-          }
-        ),
-
-        hr()
+        prev_notes_block(ctx_previous_notes(rd$coach_rev_history, "coach_ls_and_topic", period_name),
+                         "Topics & learning styles"),
+        prev_notes_block(ctx_previous_notes(rd$coach_rev_history, "coach_step_board", period_name),
+                         "Boards & Step 3")
       )
     })
 
-    # Load or clear data when resident changes
-    # Track current resident to detect changes
-    current_resident_id <- reactiveVal(NULL)
-
-    observe({
-      req(resident_data())
-
-      # Get the current resident's record_id
-      res_info <- resident_data()$resident_info
-      new_resident_id <- res_info$record_id[1]
-
-      # Check if resident has changed
-      if (is.null(current_resident_id()) || current_resident_id() != new_resident_id) {
-        # Update tracked resident ID
-        current_resident_id(new_resident_id)
-
-        # Try to load existing coach review data
-        curr_data <- resident_data()$current_period$coach_rev
-
-        if (!is.null(curr_data) && nrow(curr_data) > 0) {
-          existing_topics <- curr_data$coach_ls_and_topic[1]
-          existing_board <- curr_data$coach_step_board[1]
-
-          # Populate or clear topics field
-          if (!is.na(existing_topics) && existing_topics != "") {
-            updateTextAreaInput(session, "coach_topics", value = existing_topics)
-          } else {
-            updateTextAreaInput(session, "coach_topics", value = "")
-          }
-
-          # Populate or clear board prep field
-          if (!is.na(existing_board) && existing_board != "") {
-            updateTextAreaInput(session, "coach_board_prep", value = existing_board)
-          } else {
-            updateTextAreaInput(session, "coach_board_prep", value = "")
-          }
-
-          message(sprintf("Loaded existing learning data for resident %s", new_resident_id))
-        } else {
-          # Clear both fields if no coach_rev record exists
-          updateTextAreaInput(session, "coach_topics", value = "")
-          updateTextAreaInput(session, "coach_board_prep", value = "")
-          message(sprintf("Cleared learning forms for new resident %s (no coach_rev record)", new_resident_id))
-        }
-      }
-    })
+    # Coach note textareas, rendered pre-filled from the saved coach_rev
+    # value (see coach_note_server in R/helpers/section_shell.R).
+    coach_note_server(output, session, "coach_topics", resident_data, field = "coach_ls_and_topic",
+                      width = "100%", height = "150px", placeholder = "Enter your comments about learning topics and styles...")
+    coach_note_server(output, session, "coach_board_prep", resident_data, field = "coach_step_board",
+                      width = "100%", height = "150px", placeholder = "Enter your comments about board preparation and exam performance...")
 
     # Return reactive with entered data
     return(
