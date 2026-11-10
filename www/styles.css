@@ -100,6 +100,28 @@ body {
   color: var(--roundsui-ink, #13161F);
 }
 
+/* Bootstrap alerts read as roundsui status tints (info = accent tint). */
+.alert {
+  border-radius: var(--roundsui-radius-sm, 6px);
+  color: var(--roundsui-ink, #13161F);
+}
+.alert-info {
+  background: var(--roundsui-accent-tint, #EAEFFC);
+  border-color: var(--roundsui-accent, #3355D8);
+}
+.alert-success {
+  background: var(--roundsui-success-tint, #E7F6EC);
+  border-color: var(--roundsui-success, #16A34A);
+}
+.alert-warning {
+  background: var(--roundsui-warning-tint, #FBF0DF);
+  border-color: var(--roundsui-warning, #C2760A);
+}
+.alert-danger {
+  background: var(--roundsui-danger-tint, #FBEAE8);
+  border-color: var(--roundsui-danger, #D33A2C);
+}
+
 /* Keep badges compact */
 .badge {
   font-size: 0.7rem !important;
@@ -112,6 +134,22 @@ body {
   font-weight: 600;
   font-size: 0.8rem;
   border-bottom: 1px solid var(--roundsui-border, #E2E5EC);
+}
+
+/* DataTables (DT) pagination: neutral pages, accent for the current one */
+.dataTables_wrapper .pagination .page-link {
+  background: var(--roundsui-surface, #FFFFFF);
+  border-color: var(--roundsui-border, #E2E5EC);
+  color: var(--roundsui-ink, #13161F);
+}
+.dataTables_wrapper .pagination .page-item.active .page-link {
+  background: var(--roundsui-accent, #3355D8);
+  border-color: var(--roundsui-accent, #3355D8);
+  color: var(--roundsui-accent-ink, #FFFFFF);
+}
+.dataTables_wrapper .pagination .page-item.disabled .page-link {
+  background: var(--roundsui-surface, #FFFFFF);
+  color: var(--roundsui-ink-faint, #8991A0);
 }
 
 /* ── Inputs ────────────────────────────────────────────────────────────── */

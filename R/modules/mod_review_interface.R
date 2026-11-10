@@ -19,7 +19,7 @@ create_review_preview <- function(review_data, resident_data, current_period, se
     div(
       class = "card mb-3",
       div(
-        class = "card-header bg-primary text-white",
+        class = "card-header",
         h4(class = "mb-0", "Review Summary")
       ),
       div(
@@ -37,7 +37,7 @@ create_review_preview <- function(review_data, resident_data, current_period, se
     div(
       class = "card mb-3",
       div(
-        class = "card-header bg-info text-white",
+        class = "card-header",
         h5(class = "mb-0", icon("chart-line"), " Milestone Ratings Visualization")
       ),
       div(
@@ -54,7 +54,7 @@ create_review_preview <- function(review_data, resident_data, current_period, se
     div(
       class = "card mb-3",
       div(
-        class = "card-header bg-success text-white",
+        class = "card-header",
         h5(class = "mb-0", icon("clipboard"), " Coach Review Entries")
       ),
       div(
@@ -231,7 +231,7 @@ mod_review_interface_ui <- function(id) {
           br(),
           br(),
           p(
-            style = "color: #666; font-size: 14px;",
+            style = "color: var(--roundsui-ink-muted); font-size: 14px;",
             "Complete all required sections, then review and submit"
           )
         )
@@ -308,7 +308,7 @@ mod_review_interface_ui <- function(id) {
   )
   div(
     class = "alert alert-info mb-0",
-    style = "border-left: 4px solid #0d6efd; font-size: 0.9rem;",
+    style = "font-size: 0.9rem;",
     icon("info-circle"), " ", msg
   )
 }
@@ -832,9 +832,9 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
               r = values,
               theta = categories,
               name = 'Your Ratings',
-              fillcolor = 'rgba(31, 119, 180, 0.3)',
-              line = list(color = 'rgb(31, 119, 180)', width = 2),
-              marker = list(size = 8, color = 'rgb(31, 119, 180)')
+              fillcolor = plotly::toRGB(roundsui::roundsui_colors()$accent, 0.25),
+              line = list(color = roundsui::roundsui_colors()$accent, width = 2),
+              marker = list(size = 8, color = roundsui::roundsui_colors()$accent)
             ) %>%
             plotly::layout(
               polar = list(
@@ -848,7 +848,8 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
               ),
               title = paste("Milestone Ratings -", period_name),
               showlegend = TRUE
-            )
+            ) %>%
+            roundsui::roundsui_plotly_layout()
 
           message("Spider plot created successfully")
           return(plot)
@@ -1084,7 +1085,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
                 .nl <- function(x) gsub("\n", "<br>", as.character(x %||% ""))
                 .well_div <- function(...) div(
                   class = "well",
-                  style = "background-color: #f8f9fa; padding: 10px; max-height: 150px; overflow-y: auto;",
+                  style = "background-color: var(--roundsui-surface-2); padding: 10px; max-height: 150px; overflow-y: auto;",
                   ...
                 )
                 tagList(

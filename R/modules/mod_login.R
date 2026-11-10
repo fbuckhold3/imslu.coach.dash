@@ -23,24 +23,25 @@ mod_login_ui <- function(id) {
           max-width: 400px;
           margin: 100px auto;
           padding: 40px;
-          background: white;
+          background: var(--roundsui-surface);
+          border: 1px solid var(--roundsui-border);
           border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          box-shadow: var(--roundsui-shadow);
         }
         .login-header {
           text-align: center;
           margin-bottom: 30px;
         }
         .login-header h2 {
-          color: #0072B2;
+          color: var(--roundsui-ink);
           margin-bottom: 10px;
         }
         .login-header p {
-          color: #666;
+          color: var(--roundsui-ink-muted);
           font-size: 14px;
         }
         .login-error {
-          color: #dc3545;
+          color: var(--roundsui-danger);
           font-size: 14px;
           margin-top: 10px;
           display: none;
@@ -50,14 +51,17 @@ mod_login_ui <- function(id) {
         }
         .login-button {
           width: 100%;
-          background-color: #0072B2;
+          background-color: var(--roundsui-accent);
+          color: var(--roundsui-accent-ink);
           border: none;
           padding: 12px;
           font-size: 16px;
           margin-top: 20px;
         }
         .login-button:hover {
-          background-color: #005a8f;
+          background-color: var(--roundsui-accent);
+          color: var(--roundsui-accent-ink);
+          filter: brightness(0.92);
         }
       "))
     ),

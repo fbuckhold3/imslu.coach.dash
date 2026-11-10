@@ -55,7 +55,7 @@ mod_second_review_ui <- function(id) {
       div(
         class = "card mb-4",
         div(
-          class = "card-header bg-info text-white",
+          class = "card-header",
           h4(class = "mb-0", icon("chart-line"), " Milestone Assessment Review")
         ),
         div(
@@ -84,7 +84,7 @@ mod_second_review_ui <- function(id) {
       div(
         class = "card mb-4",
         div(
-          class = "card-header bg-success text-white",
+          class = "card-header",
           h4(class = "mb-0", icon("clipboard"), " Coach ILP Final Comments")
         ),
         div(
@@ -97,7 +97,7 @@ mod_second_review_ui <- function(id) {
       div(
         class = "card mb-4",
         div(
-          class = "card-header bg-primary text-white",
+          class = "card-header",
           h4(class = "mb-0", icon("check-square"), " Second Reviewer Assessment")
         ),
         div(
@@ -105,9 +105,9 @@ mod_second_review_ui <- function(id) {
 
           # Approval question
           div(
-            class = "form-group",
+            class = "mb-3",
             tags$label(
-              class = "font-weight-bold",
+              class = "fw-bold",
               "Do you agree with the milestones as reported by the primary coach?"
             ),
             div(
@@ -124,9 +124,9 @@ mod_second_review_ui <- function(id) {
 
           # General comments
           div(
-            class = "form-group",
+            class = "mb-3",
             tags$label(
-              class = "font-weight-bold",
+              class = "fw-bold",
               "Comments on ILP or anything else:"
             ),
             coach_note_ui(ns, "second_comments")
@@ -154,7 +154,7 @@ mod_second_review_ui <- function(id) {
           br(),
           br(),
           p(
-            style = "color: #666; font-size: 14px;",
+            style = "color: var(--roundsui-ink-muted); font-size: 14px;",
             "Complete all required fields before submitting"
           )
         )
@@ -202,7 +202,7 @@ mod_second_review_server <- function(id, selected_resident, rdm_data, current_pe
       period_num <- current_period()
 
       HTML(sprintf(
-        "<span style='color: #2c3e50;'>Second Review: %s</span> | <span style='color: #7f8c8d;'>%s | Period: %s</span>",
+        "<span style='color: var(--roundsui-ink);'>Second Review: %s</span> | <span style='color: var(--roundsui-ink-muted);'>%s | Period: %s</span>",
         res_data$full_name,
         res_data$Level,
         PERIOD_NAMES[period_num + 1]
@@ -292,7 +292,7 @@ mod_second_review_server <- function(id, selected_resident, rdm_data, current_pe
 
       if (is.null(curr_data) || nrow(curr_data) == 0) {
         return(
-          p(style = "font-style: italic; color: #95a5a6;",
+          p(style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No coach review available for this period")
         )
       }
@@ -301,14 +301,14 @@ mod_second_review_server <- function(id, selected_resident, rdm_data, current_pe
 
       if (is.na(coach_ilp) || coach_ilp == "") {
         return(
-          p(style = "font-style: italic; color: #95a5a6;",
+          p(style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "Coach has not entered ILP final comments yet")
         )
       }
 
       div(
         class = "well",
-        style = "background-color: #f8f9fa; padding: 15px; border-left: 4px solid #28a745;",
+        style = "background-color: var(--roundsui-surface-2); padding: 15px; border: 1px solid var(--roundsui-border);",
         p(style = "white-space: pre-wrap;", coach_ilp)
       )
     })
@@ -339,14 +339,14 @@ mod_second_review_server <- function(id, selected_resident, rdm_data, current_pe
 
       if (input$second_approve == "0") {  # If "No" selected
         div(
-          class = "form-group",
+          class = "mb-3",
           div(
             class = "alert alert-warning",
             icon("exclamation-triangle"),
             " You indicated disagreement with the milestone ratings. Please explain your concerns below."
           ),
           tags$label(
-            class = "font-weight-bold",
+            class = "fw-bold",
             "Comments on changes to Milestones:"
           ),
           textAreaInput(

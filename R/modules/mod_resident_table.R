@@ -24,10 +24,10 @@ mod_resident_table_ui <- function(id) {
   tagList(
     tags$style(HTML("
       .resident-table-container {
-        background: white;
+        background: var(--roundsui-surface);
         padding: 20px;
         border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: var(--roundsui-shadow);
       }
       .resident-table-header {
         display: flex;
@@ -45,26 +45,26 @@ mod_resident_table_ui <- function(id) {
         cursor: help;
       }
       .completion-complete {
-        color: #28a745;
+        color: var(--roundsui-success);
       }
       .completion-incomplete {
-        color: #dc3545;
+        color: var(--roundsui-danger);
       }
       .resident-row {
         cursor: pointer;
       }
       .resident-row:hover {
-        background-color: #f8f9fa !important;
+        background-color: var(--roundsui-surface-2) !important;
       }
       .resident-row.selected {
-        background-color: #e3f2fd !important;
+        background-color: var(--roundsui-accent-tint) !important;
       }
       .table-legend {
         display: flex;
         gap: 20px;
         margin-top: 15px;
         padding: 10px;
-        background: #f8f9fa;
+        background: var(--roundsui-surface-2);
         border-radius: 4px;
         font-size: 14px;
       }
@@ -76,7 +76,7 @@ mod_resident_table_ui <- function(id) {
       .ad-hoc-section {
         margin-top: 20px;
         padding-top: 20px;
-        border-top: 2px solid #e9ecef;
+        border-top: 2px solid var(--roundsui-border);
       }
     ")),
     
@@ -95,7 +95,7 @@ mod_resident_table_ui <- function(id) {
             style = "display: flex; align-items: center; gap: 6px;",
             tags$label(
               "Review period:",
-              style = "font-size: 13px; color: #495057; margin: 0; white-space: nowrap;",
+              style = "font-size: 13px; color: var(--roundsui-ink-muted); margin: 0; white-space: nowrap;",
               `for` = ns("override_period")
             ),
             selectInput(
@@ -112,7 +112,7 @@ mod_resident_table_ui <- function(id) {
             ns("refresh_data_btn"),
             "Refresh Data",
             icon = icon("sync"),
-            class = "btn-info btn-sm"
+            class = "btn-secondary btn-sm"
           ),
           actionButton(
             ns("back_to_coach_select"),
@@ -152,7 +152,7 @@ mod_resident_table_ui <- function(id) {
         class = "ad-hoc-section",
         h5(icon("calendar-plus"), " Interim Reviews"),
         p(
-          style = "color: #666; font-size: 14px;",
+          style = "color: var(--roundsui-ink-muted); font-size: 14px;",
           "Create an interim (ad hoc) coaching review outside regular scheduled periods."
         ),
         actionButton(
@@ -211,7 +211,7 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
     output$last_loaded_display <- renderUI({
       if (is.null(last_loaded) || is.null(last_loaded())) return(NULL)
       span(
-        style = "color: #999; font-size: 12px; align-self: center;",
+        style = "color: var(--roundsui-ink-faint); font-size: 12px; align-self: center;",
         paste("Last loaded:", format(last_loaded(), "%I:%M %p"))
       )
     })
@@ -321,7 +321,7 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
       tryCatch({
       # Show spinners instead of false ✗ until Phase 2 data (all_forms) is loaded
       full_loaded <- isTRUE(app_data()$full_load_complete)
-      spinner_html <- '<span title="Loading..." style="color:#aaa;"><i class="fa fa-circle-notch fa-spin"></i></span>'
+      spinner_html <- '<span title="Loading..." style="color: var(--roundsui-ink-faint);"><i class="fa fa-circle-notch fa-spin"></i></span>'
 
       df <- df %>%
         mutate(

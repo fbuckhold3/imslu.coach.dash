@@ -15,10 +15,10 @@ mod_grad_plan_ui <- function(id) {
 
     # 2) Verification gate
     wellPanel(
-      style = "background:#fff8e1; border-left:4px solid #f59e0b; margin-top:14px;",
+      style = "background: var(--roundsui-warning-tint); border-left: 4px solid var(--roundsui-warning); margin-top:14px;",
       tags$label(
         "Is the graduation information above correct?",
-        style = "font-weight:600; color:#2c3e50; font-size:0.95rem;"
+        style = "font-weight:600; color:var(--roundsui-ink); font-size:0.95rem;"
       ),
       radioButtons(
         ns("verify_grad"),
@@ -35,29 +35,29 @@ mod_grad_plan_ui <- function(id) {
     hr(),
 
     # 3) Boards / Step 3 / MKSAP (gmed) — graduates still need Step 3
-    h4("Boards & Step 3 Status", style = "color: #34495e; margin-top: 10px;"),
+    h4("Boards & Step 3 Status", style = "color: var(--roundsui-ink); margin-top: 10px;"),
     gmed::mod_seval_boards_display_ui(ns("boards")),
 
     hr(),
 
     # 4) Coach summary (writes to coach_ilp_final)
     h4("Graduation Summary & Transition Notes",
-       style = "color: #34495e; margin-top: 20px;"),
+       style = "color: var(--roundsui-ink); margin-top: 20px;"),
 
     wellPanel(
-      style = "background-color: #ffffff; border-left: 4px solid #6610f2;",
+      style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
       div(
         style = "margin-bottom: 15px;",
         tags$label(
           "Coach Summary on Graduation:",
-          style = "font-weight: bold; color: #2c3e50;"
+          style = "font-weight: bold; color: var(--roundsui-ink);"
         ),
         tags$p(
           "Comprehensive note on the resident's transition out of residency.",
-          style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"
+          style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;"
         ),
         tags$ul(
-          style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;",
+          style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;",
           tags$li("Post-residency plans and readiness"),
           tags$li("Board preparation status and Step 3 timeline"),
           tags$li("Areas of strength and areas for ongoing development"),
@@ -67,7 +67,7 @@ mod_grad_plan_ui <- function(id) {
       ),
       coach_note_ui(ns, "coach_ilp_final"),
       div(
-        style = "text-align: right; font-size: 12px; color: #95a5a6;",
+        style = "text-align: right; font-size: 12px; color: var(--roundsui-ink-faint);",
         textOutput(ns("char_count"))
       )
     )
@@ -182,9 +182,9 @@ mod_grad_plan_server <- function(id, resident_data, current_period,
 
       div(
         class = "mt-3 p-3",
-        style = "background:#ffffff; border:1px solid #f0c463; border-radius:6px;",
+        style = "background:var(--roundsui-surface); border:1px solid var(--roundsui-warning); border-radius:6px;",
         h6("Edit graduation information",
-           style = "color:#92400e; font-weight:700;"),
+           style = "color:var(--roundsui-warning); font-weight:700;"),
         p(class = "small text-muted",
           "These fields write to resident_data when you click Save. To",
           "change the post-residency path itself (Primary Care / Hospitalist",
@@ -208,7 +208,7 @@ mod_grad_plan_server <- function(id, resident_data, current_period,
         ),
         hr(),
         h6("Practice details (Primary Care / Hospitalist / Other)",
-           style = "color:#475569;"),
+           style = "color:var(--roundsui-ink-muted);"),
         fluidRow(
           column(8, textInput(ns("edit_res_alumni_position"),
             "Position / planned position",

@@ -51,7 +51,7 @@ mod_wellness_ui <- function(id) {
       
       # Character count
       div(
-        style = "text-align: right; font-size: 12px; color: #95a5a6;",
+        style = "text-align: right; font-size: 12px; color: var(--roundsui-ink-faint);",
         textOutput(ns("char_count"))
       )
     )

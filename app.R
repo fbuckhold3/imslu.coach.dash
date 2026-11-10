@@ -55,13 +55,18 @@ local({
 # ==============================================================================
 
 # roundsui page shell ("Ward Notes"): a slim top bar over a server-driven
-# main view. gmed styles stay loaded for the gmed display modules used inside
-# the review sections; roundsui tokens are prefixed --roundsui-* so the two
-# don't collide during the migration.
+# main view. base_font/heading_font are left unset on purpose: passing
+# "Inter" sets a bare font-family with no fallback stack, so machines
+# without Inter installed render a serif. roundsui's default stack is used.
+#
+# gmed::load_gmed_styles() removed: nothing here (or in the gmed display
+# modules used inside the review sections) uses .gmed-* classes or --gmed-*
+# tokens, and its html/body rules fought roundsui's. If a future change
+# reintroduces a --gmed-* reference it will silently lose its styling -
+# grep for "--gmed-" across R/ and www/ before relying on it.
 ui <- roundsui::roundsui_page(
   title = "IMSLU Coaching Dashboard",
 
-  gmed::load_gmed_styles(theme = "slucare"),
   tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")),
 
   div(

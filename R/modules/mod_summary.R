@@ -20,26 +20,26 @@ mod_summary_ui <- function(id, period_num = NULL) {
     # P7: Overall Summary comes FIRST — the closing note right after
     # Milestones, before the completion checklist/preview clutter below.
     if (is_p7) tagList(
-      h4("Overall Summary", style = "color: #34495e; margin-top: 10px;"),
+      h4("Overall Summary", style = "color: var(--roundsui-ink); margin-top: 10px;"),
       wellPanel(
-        style = "background-color: #ffffff; border-left: 4px solid #3498db;",
-        tags$label("Summary:", style = "font-weight: bold; color: #2c3e50;"),
+        style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
+        tags$label("Summary:", style = "font-weight: bold; color: var(--roundsui-ink);"),
         tags$p("Overall summary of this entering-residency review.",
-               style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"),
+               style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;"),
         coach_note_ui(ns, "coach_summary"),
         div(
-          style = "text-align: right; font-size: 12px; color: #95a5a6;",
+          style = "text-align: right; font-size: 12px; color: var(--roundsui-ink-faint);",
           textOutput(ns("char_count_summary"))
         )
       ),
       hr()
     ),
 
-    h4("Review Completion Checklist", style = "color: #34495e; margin-top: 10px;"),
-    p(style = "color: #7f8c8d;", "Verify all sections are complete before submitting the review."),
+    h4("Review Completion Checklist", style = "color: var(--roundsui-ink); margin-top: 10px;"),
+    p(style = "color: var(--roundsui-ink-muted);", "Verify all sections are complete before submitting the review."),
 
     wellPanel(
-      style = "background-color: #f8f9fa; border-left: 4px solid #3498db;",
+      style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
       uiOutput(ns("completion_checklist"))
     ),
 
@@ -50,11 +50,11 @@ mod_summary_ui <- function(id, period_num = NULL) {
 
     hr(),
 
-    h4("Review Summary", style = "color: #34495e; margin-top: 20px;"),
-    p(style = "color: #7f8c8d;", "Preview of your coaching review entries:"),
+    h4("Review Summary", style = "color: var(--roundsui-ink); margin-top: 20px;"),
+    p(style = "color: var(--roundsui-ink-muted);", "Preview of your coaching review entries:"),
 
     wellPanel(
-      style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
+      style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
       uiOutput(ns("review_summary"))
     )
   )
@@ -104,22 +104,22 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
       create_checkbox_item <- function(label, is_complete) {
         icon_html <- if (is_complete) {
           tags$span(
-            style = "color: #27ae60; font-size: 18px; margin-right: 10px;",
+            style = "color: var(--roundsui-success); font-size: 18px; margin-right: 10px;",
             icon("check-circle")
           )
         } else {
           tags$span(
-            style = "color: #e74c3c; font-size: 18px; margin-right: 10px;",
+            style = "color: var(--roundsui-danger); font-size: 18px; margin-right: 10px;",
             icon("times-circle")
           )
         }
 
         div(
-          style = "margin-bottom: 10px; padding: 8px; background-color: white; border-radius: 4px;",
+          style = "margin-bottom: 10px; padding: 8px; background-color: var(--roundsui-surface); border-radius: 4px;",
           icon_html,
           tags$span(
             label,
-            style = if (is_complete) "color: #2c3e50;" else "color: #e74c3c; font-weight: bold;"
+            style = if (is_complete) "color: var(--roundsui-ink);" else "color: var(--roundsui-danger); font-weight: bold;"
           )
         )
       }
@@ -150,13 +150,13 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
           style = "text-align: center; margin-top: 15px;",
           if (all(unlist(status))) {
             tags$p(
-              style = "color: #27ae60; font-size: 16px; font-weight: bold;",
+              style = "color: var(--roundsui-success); font-size: 16px; font-weight: bold;",
               icon("check-circle"),
               " All sections complete! Ready to submit."
             )
           } else {
             tags$p(
-              style = "color: #e67e22; font-size: 16px; font-weight: bold;",
+              style = "color: var(--roundsui-warning); font-size: 16px; font-weight: bold;",
               icon("exclamation-triangle"),
               " Please complete all required sections before submitting."
             )
@@ -223,19 +223,19 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
       create_summary_section <- function(title, content) {
         if (is.null(content) || is.na(content) || content == "") {
           content_html <- tags$em(
-            style = "color: #95a5a6;",
+            style = "color: var(--roundsui-ink-faint);",
             "No comments entered"
           )
         } else {
           content_html <- p(
-            style = "color: #34495e;",
+            style = "color: var(--roundsui-ink);",
             truncate_text(content)
           )
         }
 
         div(
-          style = "margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 4px; border-left: 3px solid #3498db;",
-          h5(title, style = "color: #2980b9; margin-top: 0;"),
+          style = "margin-bottom: 20px; padding: 15px; background-color: var(--roundsui-surface-2); border-radius: 4px; border: 1px solid var(--roundsui-border);",
+          h5(title, style = "color: var(--roundsui-ink); margin-top: 0;"),
           content_html
         )
       }
@@ -299,16 +299,16 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
 
         if (!is.null(milestones_data())) {
           div(
-            style = "margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 4px; border-left: 3px solid #e74c3c;",
-            h5("Milestones", style = "color: #c0392b; margin-top: 0;"),
+            style = "margin-bottom: 20px; padding: 15px; background-color: var(--roundsui-surface-2); border-radius: 4px; border: 1px solid var(--roundsui-border);",
+            h5("Milestones", style = "color: var(--roundsui-ink); margin-top: 0;"),
             p(
-              style = "color: #34495e;",
+              style = "color: var(--roundsui-ink);",
               if (is_p7()) {
                 "Self-assessment reviewed (no coach ratings for Entering Residency)"
               } else if (milestones_data()$is_complete) {
                 "Milestone ratings have been entered"
               } else {
-                tags$em(style = "color: #e74c3c;", "Milestone ratings incomplete")
+                tags$em(style = "color: var(--roundsui-danger);", "Milestone ratings incomplete")
               }
             )
           )

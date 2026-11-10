@@ -20,7 +20,7 @@ mod_goals_ui <- function(id, period_num = NULL) {
   tagList(
     if (is_p7) {
       wellPanel(
-        style = "background-color: #f8f9fa; border-left: 4px solid #3498db;",
+        style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
         uiOutput(ns("p7_goals_display"))
       )
     } else {
@@ -43,24 +43,24 @@ mod_goals_ui <- function(id, period_num = NULL) {
     h4("Coach Assessment of Goals", style = "margin-top: 20px;"),
 
     wellPanel(
-      style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
+      style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
 
       div(
         style = "margin-bottom: 15px;",
         tags$label(
           "Coach Comments on Goals:",
-          style = "font-weight: bold; color: #2c3e50;"
+          style = "font-weight: bold; color: var(--roundsui-ink);"
         ),
         tags$p(
           "Provide feedback on the resident's goal selection, progress on previous goals, and support needed for goal achievement.",
-          style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"
+          style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;"
         )
       ),
 
       coach_note_ui(ns, "coach_mile_goal"),
 
       div(
-        style = "text-align: right; font-size: 12px; color: #95a5a6;",
+        style = "text-align: right; font-size: 12px; color: var(--roundsui-ink-faint);",
         textOutput(ns("char_count"))
       )
     ),
@@ -70,23 +70,23 @@ mod_goals_ui <- function(id, period_num = NULL) {
     if (!is_p7) tagList(
       hr(),
 
-      h4("Comprehensive ILP Summary", style = "color: #34495e; margin-top: 20px;"),
+      h4("Comprehensive ILP Summary", style = "color: var(--roundsui-ink); margin-top: 20px;"),
 
       wellPanel(
-        style = "background-color: #ffffff; border-left: 4px solid #3498db;",
+        style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
 
         div(
           style = "margin-bottom: 15px;",
           tags$label(
             "Finalized ILP Summary:",
-            style = "font-weight: bold; color: #2c3e50;"
+            style = "font-weight: bold; color: var(--roundsui-ink);"
           ),
           tags$p(
             "Provide a comprehensive ILP summary that considers: career plans, scholarly work, areas of improvement, exam scores and preparation, and current milestone goals.",
-            style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"
+            style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;"
           ),
           tags$ul(
-            style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;",
+            style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;",
             tags$li("Career planning and development"),
             tags$li("Scholarly activities and research"),
             tags$li("Areas identified for improvement"),
@@ -98,7 +98,7 @@ mod_goals_ui <- function(id, period_num = NULL) {
         coach_note_ui(ns, "coach_ilp_final"),
 
         div(
-          style = "text-align: right; font-size: 12px; color: #95a5a6;",
+          style = "text-align: right; font-size: 12px; color: var(--roundsui-ink-faint);",
           textOutput(ns("char_count_ilp"))
         )
       )
@@ -185,7 +185,7 @@ mod_goals_server <- function(id, resident_data, current_period, app_data, app_da
       }
 
       tagList(
-        h5("Goals for First 6 Months", style = "color: #2c3e50;"),
+        h5("Goals for First 6 Months", style = "color: var(--roundsui-ink);"),
         tags$ol(lapply(goals, tags$li))
       )
     })

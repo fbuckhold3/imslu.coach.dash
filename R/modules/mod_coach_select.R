@@ -18,10 +18,10 @@ mod_coach_select_ui <- function(id) {
   tagList(
     tags$style(HTML("
       .coach-select-container {
-        background: white;
+        background: var(--roundsui-surface);
         padding: 20px;
         border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: var(--roundsui-shadow);
         margin-bottom: 20px;
       }
       .coach-select-header {
@@ -31,16 +31,16 @@ mod_coach_select_ui <- function(id) {
       }
       .coach-select-header h4 {
         margin: 0;
-        color: #0072B2;
+        color: var(--roundsui-ink);
         flex-grow: 1;
       }
       .coach-select-info {
-        background: #f8f9fa;
+        background: var(--roundsui-surface-2);
         padding: 10px;
         border-radius: 4px;
         margin-top: 10px;
         font-size: 14px;
-        color: #666;
+        color: var(--roundsui-ink-muted);
       }
       .coach-stats {
         display: flex;
@@ -54,7 +54,7 @@ mod_coach_select_ui <- function(id) {
       }
       .coach-stat-label {
         font-weight: 600;
-        color: #333;
+        color: var(--roundsui-ink);
       }
     ")),
     

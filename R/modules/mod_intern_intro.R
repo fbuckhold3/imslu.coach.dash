@@ -69,51 +69,51 @@ mod_intern_intro_ui <- function(id) {
 
   tagList(
     # ----- 1. Background -----
-    h4("Background", style = "color: #34495e; margin-top: 10px;"),
+    h4("Background", style = "color: var(--roundsui-ink); margin-top: 10px;"),
     wellPanel(
-      style = "background-color: #f8f9fa; border-left: 4px solid #3498db;",
+      style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
       uiOutput(ns("background_display"))
     ),
     wellPanel(
-      style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
-      tags$label("Background Information:", style = "font-weight: bold; color: #2c3e50;"),
+      style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
+      tags$label("Background Information:", style = "font-weight: bold; color: var(--roundsui-ink);"),
       tags$p("Where is this resident from, what are they excited about?",
-             style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"),
+             style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;"),
       coach_note_ui(ns, "coach_intro_back")
     ),
 
     hr(),
 
     # ----- 2. Concerns + Coping and Adjustment -----
-    h4("Concerns & Adjustment", style = "color: #34495e; margin-top: 10px;"),
+    h4("Concerns & Adjustment", style = "color: var(--roundsui-ink); margin-top: 10px;"),
     wellPanel(
-      style = "background-color: #f8f9fa; border-left: 4px solid #3498db;",
+      style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
       uiOutput(ns("concern_display"))
     ),
     wellPanel(
-      style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
-      tags$label("Coping and Adjustment:", style = "font-weight: bold; color: #2c3e50;"),
+      style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
+      tags$label("Coping and Adjustment:", style = "font-weight: bold; color: var(--roundsui-ink);"),
       tags$p("How is the resident adjusting to residency?",
-             style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"),
+             style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;"),
       coach_note_ui(ns, "coach_coping")
     ),
 
     hr(),
 
     # ----- 3. Skills / Topics / Learning Styles (combined review) -----
-    h4("Skills, Topics & Learning Styles", style = "color: #34495e; margin-top: 10px;"),
+    h4("Skills, Topics & Learning Styles", style = "color: var(--roundsui-ink); margin-top: 10px;"),
     wellPanel(
-      style = "background-color: #f8f9fa; border-left: 4px solid #e67e22;",
+      style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
       uiOutput(ns("prep_display")),
       fluidRow(
         column(
           width = 6,
-          h5("Topics Least Comfortable With", style = "color: #e67e22;"),
+          h5("Topics Least Comfortable With", style = "color: var(--roundsui-ink);"),
           uiOutput(ns("learning_topics"))
         ),
         column(
           width = 6,
-          h5("Preferred Learning Styles", style = "color: #e67e22;"),
+          h5("Preferred Learning Styles", style = "color: var(--roundsui-ink);"),
           uiOutput(ns("learning_styles"))
         )
       )
@@ -121,14 +121,14 @@ mod_intern_intro_ui <- function(id) {
 
     # ----- 4. Comments on learning styles, topics, and skills -----
     wellPanel(
-      style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
+      style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
       tags$label("Comments on Learning Styles, Topics, and Skills:",
-                 style = "font-weight: bold; color: #2c3e50;"),
+                 style = "font-weight: bold; color: var(--roundsui-ink);"),
       tags$p("Provide feedback on the resident's preparedness, identified learning needs, and preferred learning approaches.",
-             style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"),
+             style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;"),
       coach_note_ui(ns, "coach_ls_and_topic"),
       div(
-        style = "text-align: right; font-size: 12px; color: #95a5a6;",
+        style = "text-align: right; font-size: 12px; color: var(--roundsui-ink-faint);",
         textOutput(ns("char_count"))
       )
     )
@@ -156,7 +156,7 @@ mod_intern_intro_server <- function(id, resident_data, current_period,
       }
 
       tags$p(
-        style = "font-size: 0.85rem; color: #37474f; margin-bottom: 4px;",
+        style = "font-size: 0.85rem; color: var(--roundsui-ink); margin-bottom: 4px;",
         "High school in MO: ", tags$strong(yn("hs_mo")), " • ",
         "College in MO: ", tags$strong(yn("college_mo")), " • ",
         "Med school in MO: ", tags$strong(yn("med_mo")), " • ",
@@ -177,7 +177,7 @@ mod_intern_intro_server <- function(id, resident_data, current_period,
       }
 
       tagList(
-        h5("Concerns Coming Into Residency", style = "color: #2c3e50;"),
+        h5("Concerns Coming Into Residency", style = "color: var(--roundsui-ink);"),
         p(concern)
       )
     })
@@ -211,13 +211,13 @@ mod_intern_intro_server <- function(id, resident_data, current_period,
       items <- items[order(vapply(items, function(x) as.numeric(x$raw), numeric(1)))]
 
       tagList(
-        h5("Preparedness Self-Assessment", style = "color: #e67e22;"),
-        tags$p("Sorted least-prepared first.", style = "font-size: 12px; color: #7f8c8d;"),
+        h5("Preparedness Self-Assessment", style = "color: var(--roundsui-ink);"),
+        tags$p("Sorted least-prepared first.", style = "font-size: 12px; color: var(--roundsui-ink-muted);"),
         tags$ul(
           style = "list-style: none; padding-left: 0;",
           lapply(items, function(it) {
             tags$li(
-              style = "padding: 6px 0; border-bottom: 1px solid #eee;",
+              style = "padding: 6px 0; border-bottom: 1px solid var(--roundsui-border);",
               tags$strong(it$label), " — ", it$display
             )
           })
@@ -231,19 +231,19 @@ mod_intern_intro_server <- function(id, resident_data, current_period,
       curr_data <- resident_data()$current_period$s_eval
 
       if (is.null(curr_data) || nrow(curr_data) == 0) {
-        return(div(style = "font-style: italic; color: #95a5a6;", "No learning assessment available"))
+        return(div(style = "font-style: italic; color: var(--roundsui-ink-faint);", "No learning assessment available"))
       }
 
       data_dict <- app_data()$data_dict
       topic_field_info <- data_dict %>% dplyr::filter(field_name == "s_e_topic_sel")
       if (nrow(topic_field_info) == 0) {
-        return(div(style = "font-style: italic; color: #95a5a6;", "Topic field configuration not found"))
+        return(div(style = "font-style: italic; color: var(--roundsui-ink-faint);", "Topic field configuration not found"))
       }
 
       choices_str <- topic_field_info$select_choices_or_calculations[1]
       topic_choices <- parse_choices_safe(choices_str)
       if (nrow(topic_choices) == 0) {
-        return(div(style = "font-style: italic; color: #95a5a6;", "No topics configured"))
+        return(div(style = "font-style: italic; color: var(--roundsui-ink-faint);", "No topics configured"))
       }
 
       topic_cols <- grep("^s_e_topic_sel___", names(curr_data), value = TRUE)
@@ -258,7 +258,7 @@ mod_intern_intro_server <- function(id, resident_data, current_period,
       }
 
       if (length(selected_topics) == 0) {
-        return(div(style = "font-style: italic; color: #95a5a6;", "No topics identified"))
+        return(div(style = "font-style: italic; color: var(--roundsui-ink-faint);", "No topics identified"))
       }
 
       tags$ul(
@@ -275,19 +275,19 @@ mod_intern_intro_server <- function(id, resident_data, current_period,
       curr_data <- resident_data()$current_period$s_eval
 
       if (is.null(curr_data) || nrow(curr_data) == 0) {
-        return(div(style = "font-style: italic; color: #95a5a6;", "No learning preferences available"))
+        return(div(style = "font-style: italic; color: var(--roundsui-ink-faint);", "No learning preferences available"))
       }
 
       data_dict <- app_data()$data_dict
       style_field_info <- data_dict %>% dplyr::filter(field_name == "s_e_learn_style")
       if (nrow(style_field_info) == 0) {
-        return(div(style = "font-style: italic; color: #95a5a6;", "Learning style field configuration not found"))
+        return(div(style = "font-style: italic; color: var(--roundsui-ink-faint);", "Learning style field configuration not found"))
       }
 
       choices_str <- style_field_info$select_choices_or_calculations[1]
       style_choices <- parse_choices_safe(choices_str)
       if (nrow(style_choices) == 0) {
-        return(div(style = "font-style: italic; color: #95a5a6;", "No learning styles configured"))
+        return(div(style = "font-style: italic; color: var(--roundsui-ink-faint);", "No learning styles configured"))
       }
 
       style_cols <- grep("^s_e_learn_style___", names(curr_data), value = TRUE)
@@ -302,7 +302,7 @@ mod_intern_intro_server <- function(id, resident_data, current_period,
       }
 
       if (length(selected_styles) == 0) {
-        return(div(style = "font-style: italic; color: #95a5a6;", "No learning styles identified"))
+        return(div(style = "font-style: italic; color: var(--roundsui-ink-faint);", "No learning styles identified"))
       }
 
       tags$ul(

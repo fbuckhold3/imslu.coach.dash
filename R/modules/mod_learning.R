@@ -33,29 +33,29 @@ mod_learning_ui <- function(id) {
 
   tagList(
     # Step 3 status + ITE-derived ABIM board prediction + MKSAP tracker link
-    h4("Step 3 & Board Preparation", style = "color: #34495e; margin-top: 10px;"),
+    h4("Step 3 & Board Preparation", style = "color: var(--roundsui-ink); margin-top: 10px;"),
     wellPanel(
-      style = "background-color: #f8f9fa; border-left: 4px solid #e67e22;",
+      style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
       gmed::mod_seval_boards_display_ui(ns("boards"))
     ),
 
     hr(),
 
     # Learning Topics and Styles Section
-    h4("Learning Assessment", style = "color: #34495e; margin-top: 20px;"),
+    h4("Learning Assessment", style = "color: var(--roundsui-ink); margin-top: 20px;"),
 
     wellPanel(
-      style = "background-color: #f8f9fa; border-left: 4px solid #e67e22;",
+      style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
 
       fluidRow(
         column(
           width = 6,
-          h5("Topics Least Comfortable With", style = "color: #e67e22;"),
+          h5("Topics Least Comfortable With", style = "color: var(--roundsui-ink);"),
           uiOutput(ns("learning_topics"))
         ),
         column(
           width = 6,
-          h5("Preferred Learning Styles", style = "color: #e67e22;"),
+          h5("Preferred Learning Styles", style = "color: var(--roundsui-ink);"),
           uiOutput(ns("learning_styles"))
         )
       )
@@ -70,17 +70,17 @@ mod_learning_ui <- function(id) {
     uiOutput(ns("previous_coach_comments")),
 
     wellPanel(
-      style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
+      style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
 
       div(
         style = "margin-bottom: 15px;",
         tags$label(
           "Comments on Learning Topics and Styles:",
-          style = "font-weight: bold; color: #2c3e50;"
+          style = "font-weight: bold; color: var(--roundsui-ink);"
         ),
         tags$p(
           "Provide feedback on the resident's identified learning needs and preferred learning approaches.",
-          style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"
+          style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;"
         )
       ),
 
@@ -92,11 +92,11 @@ mod_learning_ui <- function(id) {
         style = "margin-bottom: 15px;",
         tags$label(
           "Comments on Board Preparation and Exam Performance:",
-          style = "font-weight: bold; color: #2c3e50;"
+          style = "font-weight: bold; color: var(--roundsui-ink);"
         ),
         tags$p(
           "Provide feedback on the resident's board exam preparation, Step 3 status, and in-training exam performance.",
-          style = "font-size: 12px; color: #7f8c8d; margin-top: 5px;"
+          style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;"
         )
       ),
 
@@ -157,7 +157,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data, app
       if (is.null(curr_data) || nrow(curr_data) == 0) {
         return(
           div(
-            style = "font-style: italic; color: #95a5a6;",
+            style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No learning assessment available"
           )
         )
@@ -171,7 +171,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data, app
       if (nrow(topic_field_info) == 0) {
         return(
           div(
-            style = "font-style: italic; color: #95a5a6;",
+            style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "Topic field configuration not found"
           )
         )
@@ -184,7 +184,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data, app
       if (nrow(topic_choices) == 0) {
         return(
           div(
-            style = "font-style: italic; color: #95a5a6;",
+            style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No topics configured"
           )
         )
@@ -212,7 +212,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data, app
       if (length(selected_topics) == 0) {
         return(
           div(
-            style = "font-style: italic; color: #95a5a6;",
+            style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No topics identified"
           )
         )
@@ -239,7 +239,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data, app
       if (is.null(curr_data) || nrow(curr_data) == 0) {
         return(
           div(
-            style = "font-style: italic; color: #95a5a6;",
+            style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No learning preferences available"
           )
         )
@@ -253,7 +253,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data, app
       if (nrow(style_field_info) == 0) {
         return(
           div(
-            style = "font-style: italic; color: #95a5a6;",
+            style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "Learning style field configuration not found"
           )
         )
@@ -266,7 +266,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data, app
       if (nrow(style_choices) == 0) {
         return(
           div(
-            style = "font-style: italic; color: #95a5a6;",
+            style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No learning styles configured"
           )
         )
@@ -294,7 +294,7 @@ mod_learning_server <- function(id, resident_data, current_period, app_data, app
       if (length(selected_styles) == 0) {
         return(
           div(
-            style = "font-style: italic; color: #95a5a6;",
+            style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No learning styles identified"
           )
         )

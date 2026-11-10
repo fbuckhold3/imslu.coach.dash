@@ -23,7 +23,7 @@ coach_progress_bar_ui <- function(id) {
     class = "coach-progress-wrap sticky-top bg-white",
     style = paste(
       "padding: 10px 18px;",
-      "border-bottom: 1px solid #e5e7eb;",
+      "border-bottom: 1px solid var(--roundsui-border, #E2E5EC);",
       "z-index: 100;"),
     shiny::uiOutput(id)
   )
@@ -71,12 +71,12 @@ render_coach_progress <- function(sections, status, active = NULL) {
         style = "font-size:0.88rem;",
         sprintf("Review progress: %d of %d sections", n_done, n_total)),
       shiny::tags$span(
-        style = "color:#64748b; font-size:0.8rem;",
+        style = "color: var(--roundsui-ink-muted, #5B6472); font-size:0.8rem;",
         sprintf("%d%%", pct))
     ),
     shiny::div(
       class = "progress mb-2",
-      style = "height:6px; background:#f1f5f9;",
+      style = "height:6px; background: var(--roundsui-border, #E2E5EC);",
       shiny::div(
         class = "progress-bar",
         role  = "progressbar",

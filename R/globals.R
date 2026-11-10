@@ -17,7 +17,7 @@
 # SHINY CONFIGURATION
 # ==============================================================================
 options(shiny.launch.browser = TRUE)
-options(spinner.color = "#0072B2")  # SLU blue
+options(spinner.color = roundsui::roundsui_colors()$accent)  # Ward Notes accent
 
 # ==============================================================================
 # LOAD REQUIRED PACKAGES

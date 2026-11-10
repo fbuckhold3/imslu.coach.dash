@@ -19,32 +19,32 @@ mod_milestones_ui <- function(id, period_num = NULL) {
 
   tagList(
     if (is_p7) tagList(
-      h4("Resident Self-Assessment", style = "color: #34495e; margin-top: 10px;"),
-      p(style = "color: #7f8c8d;", "Baseline self-ratings across all 21 ACGME subcompetencies."),
+      h4("Resident Self-Assessment", style = "color: var(--roundsui-ink); margin-top: 10px;"),
+      p(style = "color: var(--roundsui-ink-muted);", "Baseline self-ratings across all 21 ACGME subcompetencies."),
       wellPanel(
-        style = "background-color: #f8f9fa; border-left: 4px solid #3498db;",
+        style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
         plotly::plotlyOutput(ns("self_assessment_spider"), height = "500px")
       ),
       wellPanel(
-        style = "background-color: #fff8e1; border-left: 4px solid #f39c12;",
+        style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
         uiOutput(ns("self_ratings_table"))
       )
     ) else tagList(
       # Resident Milestone Descriptions from current period
-      h4("Resident Milestone Descriptions", style = "color: #34495e; margin-top: 10px;"),
-      p(style = "color: #7f8c8d;", "Review resident's self-assessment descriptions for specific milestones."),
+      h4("Resident Milestone Descriptions", style = "color: var(--roundsui-ink); margin-top: 10px;"),
+      p(style = "color: var(--roundsui-ink-muted);", "Review resident's self-assessment descriptions for specific milestones."),
 
       wellPanel(
-        style = "background-color: #fff8e1; border-left: 4px solid #f39c12;",
+        style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
         uiOutput(ns("milestone_descriptions"))
       ),
 
       hr(),
       # Coach Milestone Entry (local module with visualizations)
-      h4("Coach Milestone Ratings", style = "color: #34495e; margin-top: 20px;"),
+      h4("Coach Milestone Ratings", style = "color: var(--roundsui-ink); margin-top: 20px;"),
 
       wellPanel(
-        style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
+        style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
         mod_milestone_entry_ui(ns("milestone_entry"))
       )
     )
@@ -144,9 +144,9 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
           r = values,
           theta = categories,
           name = 'Self-Assessment',
-          fillcolor = 'rgba(243, 156, 18, 0.3)',
-          line = list(color = 'rgb(243, 156, 18)', width = 2),
-          marker = list(size = 8, color = 'rgb(243, 156, 18)')
+          fillcolor = plotly::toRGB(roundsui::roundsui_colors()$accent, 0.25),
+          line = list(color = roundsui::roundsui_colors()$accent, width = 2),
+          marker = list(size = 8, color = roundsui::roundsui_colors()$accent)
         ) %>%
         plotly::layout(
           polar = list(
@@ -154,19 +154,20 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
           ),
           title = "Milestone Self-Assessment - Entering Residency",
           showlegend = TRUE
-        )
+        ) %>%
+        roundsui::roundsui_plotly_layout()
     })
 
     # ----- P7: full self-rating table (all 21 subcompetencies) -----
     output$self_ratings_table <- renderUI({
       rows <- self_rating_rows()
       if (is.null(rows)) {
-        return(p(style = "font-style: italic; color: #95a5a6;", "No milestone self-assessment available"))
+        return(p(style = "font-style: italic; color: var(--roundsui-ink-faint);", "No milestone self-assessment available"))
       }
 
       tags$table(
         class = "table table-striped table-bordered",
-        style = "background-color: white;",
+        style = "background-color: var(--roundsui-surface);",
         tags$thead(
           tags$tr(
             tags$th(style = "width: 45%;", "Milestone"),
@@ -179,7 +180,7 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
             tags$tr(
               tags$td(style = "vertical-align: top; font-weight: bold;", r$label),
               tags$td(style = "vertical-align: top;", r$rating),
-              tags$td(if (!is.null(r$desc)) r$desc else tags$em(style = "color: #95a5a6;", "—"))
+              tags$td(if (!is.null(r$desc)) r$desc else tags$em(style = "color: var(--roundsui-ink-faint);", "—"))
             )
           })
         )
@@ -194,7 +195,7 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
 
       if (is.null(curr_data) || nrow(curr_data) == 0) {
         return(
-          p(style = "font-style: italic; color: #95a5a6;",
+          p(style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No milestone self-assessment available")
         )
       }
@@ -228,18 +229,18 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
 
       if (length(descriptions) == 0) {
         return(
-          p(style = "font-style: italic; color: #95a5a6;",
+          p(style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No milestone descriptions provided by resident")
         )
       }
 
       # Build table
       tagList(
-        p(style = "color: #7f8c8d; margin-bottom: 15px;",
+        p(style = "color: var(--roundsui-ink-muted); margin-bottom: 15px;",
           "The resident provided the following descriptions for specific milestones:"),
         tags$table(
           class = "table table-striped table-bordered",
-          style = "background-color: white;",
+          style = "background-color: var(--roundsui-surface);",
           tags$thead(
             tags$tr(
               tags$th(style = "width: 30%;", "Milestone"),

@@ -6,10 +6,10 @@ mod_scholarship_ui <- function(id) {
 
   tagList(
     # Scholarship Display
-    h4("Scholarship Activities", style = "color: #34495e; margin-top: 10px;"),
+    h4("Scholarship Activities", style = "color: var(--roundsui-ink); margin-top: 10px;"),
 
     wellPanel(
-      style = "background-color: #f8f9fa; border-left: 4px solid #9b59b6;",
+      style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
       uiOutput(ns("scholarship_table"))
     ),
 
@@ -17,10 +17,10 @@ mod_scholarship_ui <- function(id) {
 
     # Coach verification — confirm the scholarship record is complete and accurate.
     wellPanel(
-      style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
+      style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
       tags$label(
         "Verify Scholarship Record",
-        style = "font-weight: bold; color: #2c3e50;"
+        style = "font-weight: bold; color: var(--roundsui-ink);"
       ),
       tags$p(
         "Review the scholarship list above with the resident. Confirm it includes ",
@@ -28,7 +28,7 @@ mod_scholarship_ui <- function(id) {
         "noon conference and other residency presentations, regional/national presentations, ",
         "committee work, and any other scholarly activity. We need accurate data — ",
         "missing entries should be added by the resident in their dashboard before you continue.",
-        style = "font-size: 13px; color: #7f8c8d; margin-top: 5px; margin-bottom: 12px;"
+        style = "font-size: 13px; color: var(--roundsui-ink-muted); margin-top: 5px; margin-bottom: 12px;"
       ),
       checkboxInput(
         ns("scholarship_verified"),
@@ -53,7 +53,7 @@ mod_scholarship_server <- function(id, resident_data, current_period, app_data) 
       if (!"scholarship" %in% names(app_data()$all_forms)) {
         return(
           div(
-            style = "font-style: italic; color: #95a5a6; padding: 15px;",
+            style = "font-style: italic; color: var(--roundsui-ink-faint); padding: 15px;",
             "No scholarship data available"
           )
         )
@@ -65,7 +65,7 @@ mod_scholarship_server <- function(id, resident_data, current_period, app_data) 
       if (nrow(scholarship_data) == 0) {
         return(
           div(
-            style = "font-style: italic; color: #95a5a6; padding: 15px;",
+            style = "font-style: italic; color: var(--roundsui-ink-faint); padding: 15px;",
             "No scholarship activities recorded"
           )
         )
@@ -148,7 +148,7 @@ mod_scholarship_server <- function(id, resident_data, current_period, app_data) 
 
             if (row_has_data) {
               type_rows[[length(type_rows) + 1]] <- tags$div(
-                style = "padding: 10px; margin-bottom: 10px; background-color: white; border-radius: 4px; border-left: 3px solid #9b59b6;",
+                style = "padding: 10px; margin-bottom: 10px; background-color: var(--roundsui-surface); border-radius: 4px; border: 1px solid var(--roundsui-border);",
                 row_content
               )
             }
@@ -161,7 +161,7 @@ mod_scholarship_server <- function(id, resident_data, current_period, app_data) 
                 icon(type_info$icon),
                 " ",
                 type_name,
-                style = "color: #9b59b6; margin-bottom: 10px;"
+                style = "color: var(--roundsui-ink); margin-bottom: 10px;"
               ),
               type_rows
             )
@@ -172,7 +172,7 @@ mod_scholarship_server <- function(id, resident_data, current_period, app_data) 
       if (length(output_sections) == 0) {
         return(
           div(
-            style = "font-style: italic; color: #95a5a6; padding: 15px;",
+            style = "font-style: italic; color: var(--roundsui-ink-faint); padding: 15px;",
             "No scholarship activities recorded"
           )
         )

@@ -13,9 +13,9 @@ mod_evaluations_ui <- function(id) {
     # Wellness/discussion/prog_assist live in the Wellness section.
     div(
       class = "mb-4",
-      h5(icon("user"), " Resident Reflection on Feedback", style = "color: #2c3e50;"),
+      h5(icon("user"), " Resident Reflection on Feedback", style = "color: var(--roundsui-ink);"),
       wellPanel(
-        style = "background-color: #fff8e1;",
+        style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
         gmed::mod_seval_reflection_display_ui(
           ns("reflection"),
           title  = NULL,
@@ -32,16 +32,16 @@ mod_evaluations_ui <- function(id) {
 
       # Clickable header to toggle visualizations
       tags$a(
-        `data-toggle` = "collapse",
+        `data-bs-toggle` = "collapse",
         href = paste0("#", ns("viz_collapse")),
         class = "text-decoration-none",
         div(
-          style = "background-color: #e8f5e9; padding: 12px; border-radius: 4px; border-left: 4px solid #4caf50; cursor: pointer; margin-bottom: 10px;",
+          style = "background-color: var(--roundsui-surface-2); padding: 12px; border-radius: 4px; border: 1px solid var(--roundsui-border); cursor: pointer; margin-bottom: 10px;",
           h5(
-            style = "margin: 0; color: #2c3e50;",
+            style = "margin: 0; color: var(--roundsui-ink);",
             icon("chart-bar"), " Assessment Data & Visualizations ",
             tags$small(
-              style = "float: right; color: #666;",
+              style = "float: right; color: var(--roundsui-ink-muted);",
               icon("chevron-down"), " Click to expand/collapse"
             )
           )
@@ -53,7 +53,7 @@ mod_evaluations_ui <- function(id) {
         id = ns("viz_collapse"),
         class = "collapse",
         div(
-          style = "border: 1px solid #e0e0e0; border-radius: 4px; padding: 15px; background-color: #fafafa;",
+          style = "border: 1px solid var(--roundsui-border); border-radius: 4px; padding: 15px; background-color: var(--roundsui-surface-2);",
 
           # Assessment progress charts
           gmed::assessment_viz_ui(ns("charts"), title = "Assessment Progress"),
@@ -84,7 +84,7 @@ mod_evaluations_ui <- function(id) {
           div(
             class = "mb-3",
             h5(
-              style = "color: #9b59b6; margin-bottom: 15px;",
+              style = "color: var(--roundsui-ink); margin-bottom: 15px;",
               icon("comments"), " Plus / Delta Feedback Details"
             ),
             p(
@@ -116,7 +116,7 @@ mod_evaluations_ui <- function(id) {
       mod_prev_notes_ui(ns("prev_notes")),
 
       wellPanel(
-        style = "background-color: #ffffff;",
+        style = "background-color: var(--roundsui-surface);",
 
         # Coach P/D Comments
         div(
@@ -127,7 +127,7 @@ mod_evaluations_ui <- function(id) {
           ),
           tags$p(
             "Review the resident's self-assessment and provide feedback on their insights.",
-            style = "font-size: 12px; color: #7f8c8d; margin-bottom: 5px;"
+            style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-bottom: 5px;"
           ),
           coach_note_ui(ns, "coach_p_d_comments")
         ),
@@ -141,7 +141,7 @@ mod_evaluations_ui <- function(id) {
           ),
           tags$p(
             "Comment on assessment completion status, faculty feedback quality, and any concerns.",
-            style = "font-size: 12px; color: #7f8c8d; margin-bottom: 5px;"
+            style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-bottom: 5px;"
           ),
           coach_note_ui(ns, "coach_evaluations")
         )

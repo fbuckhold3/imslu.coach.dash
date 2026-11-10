@@ -6,20 +6,20 @@ mod_career_ui <- function(id) {
 
   tagList(
     # Current Period Career Data
-    h4("Current Period - Career Planning", style = "color: #34495e; margin-top: 20px;"),
+    h4("Current Period - Career Planning", style = "color: var(--roundsui-ink); margin-top: 20px;"),
 
     wellPanel(
-      style = "background-color: #fff8e1; border-left: 4px solid #f39c12;",
+      style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
 
       fluidRow(
         column(
           width = 6,
-          h5("Career Path", style = "color: #f39c12;"),
+          h5("Career Path", style = "color: var(--roundsui-ink);"),
           uiOutput(ns("career_path"))
         ),
         column(
           width = 6,
-          h5("Fellowship Interests", style = "color: #f39c12;"),
+          h5("Fellowship Interests", style = "color: var(--roundsui-ink);"),
           uiOutput(ns("fellowship"))
         )
       ),
@@ -29,7 +29,7 @@ mod_career_ui <- function(id) {
       fluidRow(
         column(
           width = 12,
-          h5("Track Interest", style = "color: #f39c12;"),
+          h5("Track Interest", style = "color: var(--roundsui-ink);"),
           uiOutput(ns("track"))
         )
       )
@@ -44,17 +44,17 @@ mod_career_ui <- function(id) {
     uiOutput(ns("previous_coach_comments")),
 
     wellPanel(
-      style = "background-color: #ffffff; border-left: 4px solid #27ae60;",
+      style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
 
       div(
         style = "margin-bottom: 15px;",
         tags$label(
           "Career Planning Discussion:",
-          style = "font-weight: bold; color: #2c3e50;"
+          style = "font-weight: bold; color: var(--roundsui-ink);"
         ),
         tags$p(
           "Provide feedback on the resident's career interests, mentorship connections, and development plans.",
-          style = "font-size: 12px; color: #7f8c8d; margin-bottom: 5px;"
+          style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-bottom: 5px;"
         ),
         coach_note_ui(ns, "coach_career")
       )
@@ -132,7 +132,7 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
 
       if (is.null(curr_data) || nrow(curr_data) == 0) {
         return(
-          p(style = "font-style: italic; color: #95a5a6;",
+          p(style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No career planning data available")
         )
       }
@@ -149,7 +149,7 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
 
       if (career_path == "" && (is.na(career_oth) || is.null(career_oth) || career_oth == "")) {
         return(
-          p(style = "font-style: italic; color: #95a5a6;",
+          p(style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No career path specified")
         )
       }
@@ -172,7 +172,7 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
 
       if (is.null(curr_data) || nrow(curr_data) == 0) {
         return(
-          p(style = "font-style: italic; color: #95a5a6;",
+          p(style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No fellowship data available")
         )
       }
@@ -189,7 +189,7 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
 
       if (fellowship == "" && (is.na(fellow_oth) || is.null(fellow_oth) || fellow_oth == "")) {
         return(
-          p(style = "font-style: italic; color: #95a5a6;",
+          p(style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No fellowship interests specified")
         )
       }
@@ -221,7 +221,7 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
 
       if (is.null(curr_data) || nrow(curr_data) == 0) {
         return(
-          p(style = "font-style: italic; color: #95a5a6;",
+          p(style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No track data available")
         )
       }
@@ -238,7 +238,7 @@ mod_career_server <- function(id, resident_data, current_period, app_data) {
 
       if (track == "" && (is.na(track_type) || is.null(track_type) || track_type == "")) {
         return(
-          p(style = "font-style: italic; color: #95a5a6;",
+          p(style = "font-style: italic; color: var(--roundsui-ink-faint);",
             "No track interest specified")
         )
       }
