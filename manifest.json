@@ -1111,27 +1111,25 @@
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
-        "Suggests": "knitr, rmarkdown, testthat (>= 3.0.0)",
+        "Suggests": "knitr,\nrmarkdown,\ntestthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Imports": "dplyr, httr, curl, readr, jsonlite, DT, reactable, htmltools,\nplotly, rlang, config, lubridate, tidyr, shinyjs, shiny, bslib,\ndata.table, tibble, purrr, roundsui, iteviz",
-        "Remotes": "fbuckhold3/roundsui, fbuckhold3/im-ite-analyzer/r/iteviz",
         "Config/roxygen2/version": "8.0.0",
-        "RemoteType": "github",
-        "RemoteHost": "api.github.com",
-        "RemoteRepo": "gmed",
-        "RemoteUsername": "fbuckhold3",
-        "RemotePkgRef": "fbuckhold3/gmed@f5ce7b4e3aa54e75351dc53a2e07a6807e3793c4",
-        "RemoteRef": "f5ce7b4e3aa54e75351dc53a2e07a6807e3793c4",
-        "RemoteSha": "f5ce7b4e3aa54e75351dc53a2e07a6807e3793c4",
-        "GithubRepo": "gmed",
-        "GithubUsername": "fbuckhold3",
-        "GithubRef": "f5ce7b4e3aa54e75351dc53a2e07a6807e3793c4",
-        "GithubSHA1": "f5ce7b4e3aa54e75351dc53a2e07a6807e3793c4",
-        "NeedsCompilation": "no",
-        "Packaged": "2026-11-05 19:08:45 UTC; home_base",
         "Author": "First Last [aut, cre]",
         "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-11-05 19:08:47 UTC; unix"
+        "Built": "R 4.6.0; ; 2026-11-10 13:45:20 UTC; unix",
+        "RemoteType": "github",
+        "Remotes": "fbuckhold3/roundsui,\nfbuckhold3/im-ite-analyzer/r/iteviz",
+        "RemoteHost": "api.github.com",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRepo": "gmed",
+        "RemoteRef": "2a646547aa1756f464f11ec2c6ecc796e58dd707",
+        "RemoteSha": "2a646547aa1756f464f11ec2c6ecc796e58dd707",
+        "GithubHost": "api.github.com",
+        "GithubRepo": "gmed",
+        "GithubUsername": "fbuckhold3",
+        "GithubRef": "2a646547aa1756f464f11ec2c6ecc796e58dd707",
+        "GithubSHA1": "2a646547aa1756f464f11ec2c6ecc796e58dd707"
       }
     },
     "gtable": {
@@ -3058,7 +3056,7 @@
   },
   "files": {
     "app.R": {
-      "checksum": "aeed95d76fa2eac42e26a1e10fff8530"
+      "checksum": "443143711e43fd9c83103989faea9c4f"
     },
     "CLAUDE.md": {
       "checksum": "30a1ae79bc550e46993b1a80aaeeffae"
@@ -3085,7 +3083,7 @@
       "checksum": "f67b34aa09986ee52b5e77edaf1f3b72"
     },
     "R/globals.R": {
-      "checksum": "1535eeb75f03829a243df31e840d6489"
+      "checksum": "e6ae905039637855d125be6e09d23383"
     },
     "R/helpers/data_retrievers.R": {
       "checksum": "3159904ba79b9b696e5b7ae9818fc211"
@@ -3094,7 +3092,7 @@
       "checksum": "916ed5e29ca8dcd1f5f3fd9b2d9730e9"
     },
     "R/helpers/section_shell.R": {
-      "checksum": "b4625d83d1a03a30466bbc4a777c9bf9"
+      "checksum": "5a9ae4b0f21abe1eb1aa78b0902ef673"
     },
     "R/helpers/step_creators.R": {
       "checksum": "6bb262ab22134fd8143dd8d7191146e3"
@@ -3103,52 +3101,52 @@
       "checksum": "6711c8e02ad209d1894cb791e6889110"
     },
     "R/modules/mod_career.R": {
-      "checksum": "608029a6169b570a6f22e9904c058f7d"
+      "checksum": "5ee73dcb2ebc13ffe5f49be707f665cb"
     },
     "R/modules/mod_coach_select.R": {
-      "checksum": "cdec4b5ccbd23e7cb41e7a3a3fd2eb45"
+      "checksum": "ea0481a53621cd87bfff2d296b5a4f3b"
     },
     "R/modules/mod_evaluations.R": {
-      "checksum": "0750001bda52c743dabbaa85d6575949"
+      "checksum": "53d71fb16536ab9caccdf70e1065f8dc"
     },
     "R/modules/mod_goals.R": {
-      "checksum": "1e5cf223df3ee37c0be97c8163c88c19"
+      "checksum": "508a01c538a839462de23aba272a37d6"
     },
     "R/modules/mod_grad_plan.R": {
-      "checksum": "699ff69b132b4e9fb72a92004b44a60b"
+      "checksum": "da09d0c08c4e5e4cd432421ae8ae7cd7"
     },
     "R/modules/mod_intern_intro.R": {
-      "checksum": "e221904be205732c3ed52c8ee85d7dd0"
+      "checksum": "0dd17221c26f577f1f885a1cd515c96c"
     },
     "R/modules/mod_learning.R": {
-      "checksum": "90725a224eabfdcb574bef9b82bbfc73"
+      "checksum": "d2d729ade62e636e32e6f50f1a066293"
     },
     "R/modules/mod_login.R": {
-      "checksum": "9a7fb0b6c452c61f2962b4c77f4db8f3"
+      "checksum": "ce56ab97dd1ed5c77d8cb0ea00f4ea42"
     },
     "R/modules/mod_milestone_entry.R": {
       "checksum": "c9053d9966bb1bd37b504aa45cda3f39"
     },
     "R/modules/mod_milestones.R": {
-      "checksum": "8d81c733a762f5d56039b1e72352fcbe"
+      "checksum": "61ca52b9e9ec8208adc2a7b41cbf4def"
     },
     "R/modules/mod_resident_table.R": {
-      "checksum": "1e17fe7da7cf1e3f9efc32a677b6bee1"
+      "checksum": "b03a796c2be5f40c9680d88c9338cd12"
     },
     "R/modules/mod_review_interface.R": {
-      "checksum": "e5862043cc17ac3a9e28cfac5b4a27c4"
+      "checksum": "44ee8c38ea111b94264e5aa02ac871e7"
     },
     "R/modules/mod_scholarship.R": {
-      "checksum": "e878e3b92914a00b106cd5f7d4aab238"
+      "checksum": "fe41285d4fe4db5aa20eb968762a97d4"
     },
     "R/modules/mod_second_review.R": {
-      "checksum": "e04107c52cc829606e857739c4b397af"
+      "checksum": "3f83ffd00bc28113b96545c5c5c67626"
     },
     "R/modules/mod_summary.R": {
-      "checksum": "7947a19739d4c47104ca24f9935b99c4"
+      "checksum": "ad8ef2af75dc1b8deb2349a9959d1a26"
     },
     "R/modules/mod_wellness.R": {
-      "checksum": "e8e31199dfb37dd21352407f46ea2b93"
+      "checksum": "a3b66081e44e0c8d605aaeb65c27b8a5"
     },
     "R/server_components/authentication.R": {
       "checksum": "3065c0aa8f9069eaead4a48c69ea6239"
@@ -3172,7 +3170,7 @@
       "checksum": "2addde7c05ff2b12259117364ff53971"
     },
     "renv.lock": {
-      "checksum": "35320912b509bfd24d2036e2948cf134"
+      "checksum": "ef52d037038be6f8d66b7eac6dd9a030"
     },
     "www/app.js": {
       "checksum": "c54972e9b5f2878bec6e46b389009899"
@@ -3241,7 +3239,7 @@
       "checksum": "39a2b5f47f9d809f83daf6f216cefb66"
     },
     "www/styles.css": {
-      "checksum": "2ed9bc96453762a11dacd81ccd39b54c"
+      "checksum": "b2b951df6a1264572f8edf31d8b80610"
     }
   },
   "users": null
