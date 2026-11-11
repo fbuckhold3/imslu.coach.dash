@@ -145,23 +145,12 @@ mod_resident_table_ui <- function(id) {
           icon("info-circle"),
           span("Click any row to open review")
         )
-      ),
-      
-      # Interim review section
-      div(
-        class = "ad-hoc-section",
-        h5(icon("calendar-plus"), " Interim Reviews"),
-        p(
-          style = "color: var(--roundsui-ink-muted); font-size: 14px;",
-          "Create an interim (ad hoc) coaching review outside regular scheduled periods."
-        ),
-        actionButton(
-          ns("ad_hoc_btn"),
-          "Create Interim Review",
-          icon = icon("plus"),
-          class = "btn-secondary"
-        )
       )
+
+      # "Create Interim Review" (coach_rev, coach_period 8) removed
+      # 2026-11-11: interim notes now go through "Add interim note" on each
+      # review (coach_interim, mod_interim_note.R). Its server handlers
+      # (input$ad_hoc_btn / input$submit_interim) are left in place, unused.
     )
   )
 }
