@@ -194,30 +194,32 @@
       "description": {
         "Package": "amiontools",
         "Title": "Shared Amion Schedule Fetch, Classification, and Crosswalk Tools",
-        "Version": "0.1.0",
+        "Version": "0.2.1",
         "Authors@R": "\n    person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
         "Description": "Shared functions for pulling resident schedule data from\n    Amion, classifying assignments into top-level rotation categories, and\n    crosswalking Amion identities against RDM resident_id records. Used by\n    amion-va-report and downstream rotation-analysis, attendance-\n    reconciliation, and duty-hour tools across the IMSLU / GME Tools\n    ecosystem.",
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
-        "Imports": "dplyr,\nDT,\ngmed,\nhttr,\njsonlite,\nlubridate,\nplotly,\nREDCapR,\nshiny,\nshinycssloaders,\ntidyr",
+        "Imports": "dplyr, DT, gmed, httr, jsonlite, lubridate, plotly, REDCapR,\nshiny, shinycssloaders, tidyr",
         "Suggests": "testthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Config/roxygen2/version": "8.0.0",
-        "Author": "Fred Buckhold [aut, cre]",
-        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-10-25 18:50:19 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
-        "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "amiontools",
-        "RemoteRef": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
-        "RemoteSha": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
-        "GithubHost": "api.github.com",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRef": "e7336d989faeb3daad92a1d16cbf687993f6f833",
+        "RemoteSha": "e7336d989faeb3daad92a1d16cbf687993f6f833",
         "GithubRepo": "amiontools",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
-        "GithubSHA1": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6"
+        "GithubRef": "e7336d989faeb3daad92a1d16cbf687993f6f833",
+        "GithubSHA1": "e7336d989faeb3daad92a1d16cbf687993f6f833",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-11-11 01:40:26 UTC; home_base",
+        "Author": "Fred Buckhold [aut, cre]",
+        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
+        "Depends": "R (>= 4.1.0)",
+        "Built": "R 4.6.0; ; 2026-11-11 01:40:26 UTC; unix"
       }
     },
     "askpass": {
@@ -1111,25 +1113,26 @@
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
-        "Suggests": "knitr,\nrmarkdown,\ntestthat (>= 3.0.0)",
+        "Suggests": "knitr, rmarkdown, testthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Imports": "dplyr, httr, curl, readr, jsonlite, DT, reactable, htmltools,\nplotly, rlang, config, lubridate, tidyr, shinyjs, shiny, bslib,\ndata.table, tibble, purrr, roundsui, iteviz",
+        "Remotes": "fbuckhold3/roundsui, fbuckhold3/im-ite-analyzer/r/iteviz",
         "Config/roxygen2/version": "8.0.0",
-        "Author": "First Last [aut, cre]",
-        "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-11-10 13:45:20 UTC; unix",
         "RemoteType": "github",
-        "Remotes": "fbuckhold3/roundsui,\nfbuckhold3/im-ite-analyzer/r/iteviz",
         "RemoteHost": "api.github.com",
-        "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "gmed",
-        "RemoteRef": "2a646547aa1756f464f11ec2c6ecc796e58dd707",
-        "RemoteSha": "2a646547aa1756f464f11ec2c6ecc796e58dd707",
-        "GithubHost": "api.github.com",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRef": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
+        "RemoteSha": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "2a646547aa1756f464f11ec2c6ecc796e58dd707",
-        "GithubSHA1": "2a646547aa1756f464f11ec2c6ecc796e58dd707"
+        "GithubRef": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
+        "GithubSHA1": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-11-11 01:40:21 UTC; home_base",
+        "Author": "First Last [aut, cre]",
+        "Maintainer": "First Last <first.last@example.com>",
+        "Built": "R 4.6.0; ; 2026-11-11 01:40:22 UTC; unix"
       }
     },
     "gtable": {
@@ -2216,6 +2219,41 @@
         "Built": "R 4.6.0; ; 2026-05-17 02:15:01 UTC; unix"
       }
     },
+    "reviewkit": {
+      "Source": "github",
+      "Repository": null,
+      "description": {
+        "Package": "reviewkit",
+        "Title": "Shared Data Snapshot and Readiness Gate for Semi-Annual Resident\nReview",
+        "Version": "0.3.0",
+        "Authors@R": "\n    person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
+        "Description": "One snapshot of a resident's review-window data (duty hours,\n    conference attendance, MKSAP, peer reviews, faculty assessments, ITE),\n    built once when the self-evaluation is submitted and read by every later\n    step of the review (coach, second reviewer, CCC), so each step sees the\n    same numbers. Also the data-readiness gate the self-evaluation enforces\n    before submission, and JSON storage for the frozen snapshot. Built on\n    amiontools (schedule, duty hours, attendance) and gmed (RDM loading).",
+        "License": "MIT + file LICENSE",
+        "Encoding": "UTF-8",
+        "Roxygen": "list(markdown = TRUE)",
+        "Depends": "R (>= 4.1)",
+        "Imports": "amiontools (>= 0.2.0), dplyr, gmed, jsonlite, shiny, tibble",
+        "Remotes": "fbuckhold3/amiontools, fbuckhold3/gmed",
+        "Suggests": "testthat (>= 3.0.0)",
+        "Config/testthat/edition": "3",
+        "Config/roxygen2/version": "8.0.0",
+        "RemoteType": "github",
+        "RemoteHost": "api.github.com",
+        "RemoteRepo": "reviewkit",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRef": "5a00dad64b94817a453eb8d0119ec627fff1b4e4",
+        "RemoteSha": "5a00dad64b94817a453eb8d0119ec627fff1b4e4",
+        "GithubRepo": "reviewkit",
+        "GithubUsername": "fbuckhold3",
+        "GithubRef": "5a00dad64b94817a453eb8d0119ec627fff1b4e4",
+        "GithubSHA1": "5a00dad64b94817a453eb8d0119ec627fff1b4e4",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-11-11 14:06:40 UTC; home_base",
+        "Author": "Fred Buckhold [aut, cre]",
+        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
+        "Built": "R 4.6.0; ; 2026-11-11 14:06:41 UTC; unix"
+      }
+    },
     "rlang": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -3083,7 +3121,13 @@
       "checksum": "f67b34aa09986ee52b5e77edaf1f3b72"
     },
     "R/globals.R": {
-      "checksum": "e6ae905039637855d125be6e09d23383"
+      "checksum": "0acc94a479b919a8891da979b76ac01e"
+    },
+    "R/helpers/coach_context_ui.R": {
+      "checksum": "9ff2b01675241778d8fd9327556cd054"
+    },
+    "R/helpers/coach_context.R": {
+      "checksum": "6b90ca79d16605c8d77b02d2ce83b8ea"
     },
     "R/helpers/data_retrievers.R": {
       "checksum": "3159904ba79b9b696e5b7ae9818fc211"
@@ -3109,11 +3153,17 @@
     "R/modules/mod_evaluations.R": {
       "checksum": "53d71fb16536ab9caccdf70e1065f8dc"
     },
+    "R/modules/mod_gate_override.R": {
+      "checksum": "6aa75b4c39214d11fa3a45e65c89f418"
+    },
     "R/modules/mod_goals.R": {
       "checksum": "508a01c538a839462de23aba272a37d6"
     },
     "R/modules/mod_grad_plan.R": {
       "checksum": "da09d0c08c4e5e4cd432421ae8ae7cd7"
+    },
+    "R/modules/mod_interim_note.R": {
+      "checksum": "36f742faa008f968474912efacc0eebe"
     },
     "R/modules/mod_intern_intro.R": {
       "checksum": "0dd17221c26f577f1f885a1cd515c96c"
@@ -3128,13 +3178,13 @@
       "checksum": "c9053d9966bb1bd37b504aa45cda3f39"
     },
     "R/modules/mod_milestones.R": {
-      "checksum": "61ca52b9e9ec8208adc2a7b41cbf4def"
+      "checksum": "e1c088564fdf78ad95f3c049838a5002"
     },
     "R/modules/mod_resident_table.R": {
       "checksum": "b03a796c2be5f40c9680d88c9338cd12"
     },
     "R/modules/mod_review_interface.R": {
-      "checksum": "44ee8c38ea111b94264e5aa02ac871e7"
+      "checksum": "a97d51c0af63da2f4ac1927b754bc52d"
     },
     "R/modules/mod_scholarship.R": {
       "checksum": "fe41285d4fe4db5aa20eb968762a97d4"
@@ -3170,7 +3220,13 @@
       "checksum": "2addde7c05ff2b12259117364ff53971"
     },
     "renv.lock": {
-      "checksum": "ef52d037038be6f8d66b7eac6dd9a030"
+      "checksum": "4869a9dc0f628d9488cd133ec2270531"
+    },
+    "tests/manual/smoke_pass1_modules.R": {
+      "checksum": "5ce54898d79074f93b912cfbd99ea64a"
+    },
+    "tests/testthat/test-coach_context.R": {
+      "checksum": "5f858f08c5016036ab44ffba7be6bc46"
     },
     "www/app.js": {
       "checksum": "c54972e9b5f2878bec6e46b389009899"

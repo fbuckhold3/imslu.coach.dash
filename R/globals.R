@@ -1073,14 +1073,30 @@ check_seval_complete <- function(all_forms, record_id, period_name) {
 
   if (nrow(s_eval_data) == 0) return(FALSE)
 
-  if ("s_eval_complete" %in% names(s_eval_data)) {
-    return(s_eval_data$s_eval_complete[1] == "2")
-  }
+  # Submitted = the data snapshot is stored (ind.dash writes it at Submit,
+  # from the Nov 2026 gate launch on). ind.dash never sets s_eval_complete,
+  # so on prod it is always 0; that check alone showed every self-eval as
+  # not completed.
+  snap <- if ("s_e_snapshot_json" %in% names(s_eval_data)) s_eval_data$s_e_snapshot_json else NA
+  if (any(!is.na(snap) & nzchar(trimws(as.character(snap))))) return(TRUE)
+  if ("s_eval_complete" %in% names(s_eval_data) &&
+      any(as.character(s_eval_data$s_eval_complete) %in% "2")) return(TRUE)
 
+  # Before the gate there was no Submit: a self-eval with content counts.
+  pre_gate <- if ("s_e_date" %in% names(s_eval_data)) {
+    d <- suppressWarnings(as.Date(as.character(s_eval_data$s_e_date)))
+    !is.na(d) & d < SEVAL_GATE_LAUNCH
+  } else rep(FALSE, nrow(s_eval_data))
+  if (!any(pre_gate)) return(FALSE)
   key_fields <- intersect(c("s_e_well", "s_e_plus", "s_e_delta"), names(s_eval_data))
   if (length(key_fields) == 0) return(FALSE)
-  any(!is.na(s_eval_data[key_fields]) & s_eval_data[key_fields] != "")
+  old <- s_eval_data[pre_gate, key_fields, drop = FALSE]
+  any(!is.na(old) & old != "")
 }
+
+# First day self-evals were submitted through the gate (ind.dash
+# review-gate). Self-evals dated before it count when they have content.
+SEVAL_GATE_LAUNCH <- as.Date("2026-11-25")
 
 #' Check Coach Review Completion Status
 #'
@@ -1473,6 +1489,8 @@ source("R/modules/mod_login.R")
 source("R/modules/mod_coach_select.R")
 source("R/modules/mod_resident_table.R")
 source("R/modules/mod_wellness.R")
+source("R/modules/mod_gate_override.R")
+source("R/modules/mod_interim_note.R")
 source("R/modules/mod_review_interface.R")
 source("R/modules/mod_second_review.R")
 source("R/modules/mod_evaluations.R")

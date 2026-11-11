@@ -201,7 +201,8 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
       }
 
       # Get all _self_desc fields that have content (resident self-assessment descriptions)
-      desc_fields <- grep("^rep_.*_self_desc$", names(curr_data), value = TRUE)
+      # SBP 1's field is rep_sbp1_self_desc1 (the only one with a trailing 1).
+      desc_fields <- grep("^rep_.*_self_desc1?$", names(curr_data), value = TRUE)
 
       descriptions <- list()
       for (field in desc_fields) {
@@ -210,7 +211,7 @@ mod_milestones_server <- function(id, resident_data, current_period, app_data, d
           # Get milestone code (e.g., "m_pc1" from "rep_pc1_self_desc")
           # Remove "rep_" prefix and "_self_desc" suffix, add "m_" prefix
           milestone_base <- sub("^rep_", "", field)
-          milestone_base <- sub("_self_desc$", "", milestone_base)
+          milestone_base <- sub("_self_desc1?$", "", milestone_base)
           milestone_code <- paste0("m_", milestone_base)
 
           # Get label

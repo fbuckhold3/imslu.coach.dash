@@ -201,6 +201,15 @@ mod_review_interface_ui <- function(id) {
     # review is still open (or a quiet note once it's resolved).
     uiOutput(ns("ccc_banner")),
 
+    # Review architecture Phase 3: the self-eval's frozen data + gate
+    # override, and the interim-note / CCC thread. No completion badges, so
+    # they don't change how sections are marked done.
+    div(
+      style = "max-width: 1400px; margin: 0 auto;",
+      mod_gate_override_ui(ns("gate_data")),
+      mod_interim_note_ui(ns("thread"))
+    ),
+
     # Sticky progress bar \u2014 sections-as-pills + percentage + bar
     coach_progress_bar_ui(ns("progress_bar")),
 
@@ -406,6 +415,18 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         ctx_ccc_status(rdm_data()$all_forms, selected_resident()$record_id, dd)
       )
     })
+
+    # Self-eval data + gate override; interim notes + CCC thread.
+    coach_default_r <- reactive({
+      ri <- selected_resident()$resident_info
+      v <- if (!is.null(ri) && "coach" %in% names(ri)) as.character(ri$coach[1]) else NA_character_
+      if (length(v) == 0 || is.na(v) || !nzchar(v)) NA_character_ else v
+    })
+    rid_r <- reactive({ req(selected_resident()); as.character(selected_resident()$record_id) })
+    mod_gate_override_server("gate_data", record_id_r = rid_r,
+                             period_r = reactive({ req(current_period()); current_period() }),
+                             coach_name_r = coach_default_r)
+    mod_interim_note_server("thread", record_id_r = rid_r, coach_name_r = coach_default_r)
 
     # Call Section 1 module
     wellness_data <- mod_wellness_server("wellness", resident_data, current_period, rdm_data)

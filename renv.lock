@@ -212,7 +212,7 @@
     },
     "amiontools": {
       "Package": "amiontools",
-      "Version": "0.1.0",
+      "Version": "0.2.1",
       "Source": "GitHub",
       "Title": "Shared Amion Schedule Fetch, Classification, and Crosswalk Tools",
       "Authors@R": "person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
@@ -242,8 +242,8 @@
       "RemoteHost": "api.github.com",
       "RemoteUsername": "fbuckhold3",
       "RemoteRepo": "amiontools",
-      "RemoteRef": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
-      "RemoteSha": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6"
+      "RemoteRef": "e7336d989faeb3daad92a1d16cbf687993f6f833",
+      "RemoteSha": "e7336d989faeb3daad92a1d16cbf687993f6f833"
     },
     "askpass": {
       "Package": "askpass",
@@ -1342,8 +1342,8 @@
       "RemoteHost": "api.github.com",
       "RemoteUsername": "fbuckhold3",
       "RemoteRepo": "gmed",
-      "RemoteRef": "2a646547aa1756f464f11ec2c6ecc796e58dd707",
-      "RemoteSha": "2a646547aa1756f464f11ec2c6ecc796e58dd707"
+      "RemoteRef": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
+      "RemoteSha": "61c250db23d3b881fd5c79a6ddfca266333d3ab7"
     },
     "gtable": {
       "Package": "gtable",
@@ -2791,6 +2791,40 @@
       "Author": "Kevin Ushey [aut, cre] (ORCID: <https://orcid.org/0000-0003-2880-7407>), Hadley Wickham [aut] (ORCID: <https://orcid.org/0000-0003-4757-117X>), Posit Software, PBC [cph, fnd]",
       "Maintainer": "Kevin Ushey <kevin@rstudio.com>",
       "Repository": "CRAN"
+    },
+    "reviewkit": {
+      "Package": "reviewkit",
+      "Version": "0.3.0",
+      "Source": "GitHub",
+      "Title": "Shared Data Snapshot and Readiness Gate for Semi-Annual Resident Review",
+      "Authors@R": "person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
+      "Description": "One snapshot of a resident's review-window data (duty hours, conference attendance, MKSAP, peer reviews, faculty assessments, ITE), built once when the self-evaluation is submitted and read by every later step of the review (coach, second reviewer, CCC), so each step sees the same numbers. Also the data-readiness gate the self-evaluation enforces before submission, and JSON storage for the frozen snapshot. Built on amiontools (schedule, duty hours, attendance) and gmed (RDM loading).",
+      "License": "MIT + file LICENSE",
+      "Encoding": "UTF-8",
+      "Roxygen": "list(markdown = TRUE)",
+      "Depends": [
+        "R (>= 4.1)"
+      ],
+      "Imports": [
+        "amiontools (>= 0.2.0)",
+        "dplyr",
+        "gmed",
+        "jsonlite",
+        "shiny",
+        "tibble"
+      ],
+      "Remotes": "fbuckhold3/amiontools, fbuckhold3/gmed",
+      "Suggests": [
+        "testthat (>= 3.0.0)"
+      ],
+      "Config/testthat/edition": "3",
+      "Config/roxygen2/version": "8.0.0",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "fbuckhold3",
+      "RemoteRepo": "reviewkit",
+      "RemoteRef": "5a00dad64b94817a453eb8d0119ec627fff1b4e4",
+      "RemoteSha": "5a00dad64b94817a453eb8d0119ec627fff1b4e4"
     },
     "rlang": {
       "Package": "rlang",
