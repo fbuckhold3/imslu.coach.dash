@@ -2794,7 +2794,7 @@
     },
     "reviewkit": {
       "Package": "reviewkit",
-      "Version": "0.3.0",
+      "Version": "0.3.1",
       "Source": "GitHub",
       "Title": "Shared Data Snapshot and Readiness Gate for Semi-Annual Resident Review",
       "Authors@R": "person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
@@ -2823,8 +2823,8 @@
       "RemoteHost": "api.github.com",
       "RemoteUsername": "fbuckhold3",
       "RemoteRepo": "reviewkit",
-      "RemoteRef": "5a00dad64b94817a453eb8d0119ec627fff1b4e4",
-      "RemoteSha": "5a00dad64b94817a453eb8d0119ec627fff1b4e4"
+      "RemoteRef": "5bac14267a7773ff94f09cd221f57de0229ace38",
+      "RemoteSha": "5bac14267a7773ff94f09cd221f57de0229ace38"
     },
     "rlang": {
       "Package": "rlang",
