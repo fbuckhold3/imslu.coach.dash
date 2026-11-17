@@ -200,24 +200,26 @@
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
-        "Imports": "dplyr,\nDT,\ngmed,\nhttr,\njsonlite,\nlubridate,\nplotly,\nREDCapR,\nshiny,\nshinycssloaders,\ntidyr",
+        "Imports": "dplyr, DT, gmed, httr, jsonlite, lubridate, plotly, REDCapR,\nshiny, shinycssloaders, tidyr",
         "Suggests": "testthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Config/roxygen2/version": "8.0.0",
-        "Author": "Fred Buckhold [aut, cre]",
-        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-11-13 19:49:24 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
-        "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "amiontools",
-        "RemoteRef": "e7336d989faeb3daad92a1d16cbf687993f6f833",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRef": "e7336d9",
         "RemoteSha": "e7336d989faeb3daad92a1d16cbf687993f6f833",
-        "GithubHost": "api.github.com",
         "GithubRepo": "amiontools",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "e7336d989faeb3daad92a1d16cbf687993f6f833",
-        "GithubSHA1": "e7336d989faeb3daad92a1d16cbf687993f6f833"
+        "GithubRef": "e7336d9",
+        "GithubSHA1": "e7336d989faeb3daad92a1d16cbf687993f6f833",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-11-17 23:31:29 UTC; home_base",
+        "Author": "Fred Buckhold [aut, cre]",
+        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
+        "Depends": "R (>= 4.1.0)",
+        "Built": "R 4.6.0; ; 2026-11-17 23:31:29 UTC; unix"
       }
     },
     "askpass": {
@@ -1105,31 +1107,32 @@
       "description": {
         "Package": "gmed",
         "Title": "What the Package Does (One Line, Title Case)",
-        "Version": "0.0.3",
+        "Version": "0.0.4",
         "Authors@R": "\n    person(\"First\", \"Last\", , \"first.last@example.com\", role = c(\"aut\", \"cre\"))",
         "Description": "What the package does (one paragraph).",
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
-        "Suggests": "knitr,\nrmarkdown,\ntestthat (>= 3.0.0)",
+        "Suggests": "knitr, rmarkdown, testthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Imports": "dplyr, httr, curl, readr, jsonlite, DT, reactable, htmltools,\nplotly, rlang, config, lubridate, tidyr, shinyjs, shiny, bslib,\ndata.table, tibble, purrr, roundsui, iteviz",
+        "Remotes": "fbuckhold3/roundsui, fbuckhold3/im-ite-analyzer/r/iteviz",
         "Config/roxygen2/version": "8.0.0",
-        "Author": "First Last [aut, cre]",
-        "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-11-13 19:49:21 UTC; unix",
         "RemoteType": "github",
-        "Remotes": "fbuckhold3/roundsui,\nfbuckhold3/im-ite-analyzer/r/iteviz",
         "RemoteHost": "api.github.com",
-        "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "gmed",
-        "RemoteRef": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
-        "RemoteSha": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
-        "GithubHost": "api.github.com",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRef": "d31098277750277fbe7383b73709a02e0c7561e4",
+        "RemoteSha": "d31098277750277fbe7383b73709a02e0c7561e4",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
-        "GithubSHA1": "61c250db23d3b881fd5c79a6ddfca266333d3ab7"
+        "GithubRef": "d31098277750277fbe7383b73709a02e0c7561e4",
+        "GithubSHA1": "d31098277750277fbe7383b73709a02e0c7561e4",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-11-17 23:30:23 UTC; home_base",
+        "Author": "First Last [aut, cre]",
+        "Maintainer": "First Last <first.last@example.com>",
+        "Built": "R 4.6.0; ; 2026-11-17 23:30:24 UTC; unix"
       }
     },
     "gtable": {
@@ -2221,33 +2224,34 @@
       "Repository": null,
       "description": {
         "Package": "reviewkit",
-        "Title": "Shared Data Snapshot and Readiness Gate for Semi-Annual Resident Review",
-        "Version": "0.3.1",
+        "Title": "Shared Data Snapshot and Readiness Gate for Semi-Annual Resident\nReview",
+        "Version": "0.3.2",
         "Authors@R": "\n    person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
         "Description": "One snapshot of a resident's review-window data (duty hours,\n    conference attendance, MKSAP, peer reviews, faculty assessments, ITE),\n    built once when the self-evaluation is submitted and read by every later\n    step of the review (coach, second reviewer, CCC), so each step sees the\n    same numbers. Also the data-readiness gate the self-evaluation enforces\n    before submission, and JSON storage for the frozen snapshot. Built on\n    amiontools (schedule, duty hours, attendance) and gmed (RDM loading).",
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
         "Depends": "R (>= 4.1)",
-        "Imports": "amiontools (>= 0.2.0),\ndplyr,\ngmed,\njsonlite,\nshiny,\ntibble",
+        "Imports": "amiontools (>= 0.2.0), dplyr, gmed, jsonlite, shiny, tibble",
+        "Remotes": "fbuckhold3/amiontools, fbuckhold3/gmed",
         "Suggests": "testthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Config/roxygen2/version": "8.0.0",
-        "Author": "Fred Buckhold [aut, cre]",
-        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-11-13 19:49:44 UTC; unix",
         "RemoteType": "github",
-        "Remotes": "fbuckhold3/amiontools,\nfbuckhold3/gmed",
         "RemoteHost": "api.github.com",
-        "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "reviewkit",
-        "RemoteRef": "5bac14267a7773ff94f09cd221f57de0229ace38",
-        "RemoteSha": "5bac14267a7773ff94f09cd221f57de0229ace38",
-        "GithubHost": "api.github.com",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRef": "bac603bc9a70f99e332d98f67ef3704dbf97bfe8",
+        "RemoteSha": "bac603bc9a70f99e332d98f67ef3704dbf97bfe8",
         "GithubRepo": "reviewkit",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "5bac14267a7773ff94f09cd221f57de0229ace38",
-        "GithubSHA1": "5bac14267a7773ff94f09cd221f57de0229ace38"
+        "GithubRef": "bac603bc9a70f99e332d98f67ef3704dbf97bfe8",
+        "GithubSHA1": "bac603bc9a70f99e332d98f67ef3704dbf97bfe8",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-11-17 23:30:28 UTC; home_base",
+        "Author": "Fred Buckhold [aut, cre]",
+        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
+        "Built": "R 4.6.0; ; 2026-11-17 23:30:28 UTC; unix"
       }
     },
     "rlang": {
@@ -3089,6 +3093,9 @@
     }
   },
   "files": {
+    ".gitignore": {
+      "checksum": "a6c1da70959de6db2eab323e2477596a"
+    },
     "app.R": {
       "checksum": "443143711e43fd9c83103989faea9c4f"
     },
@@ -3101,11 +3108,17 @@
     "dev_setup.R": {
       "checksum": "f6af228117f281e4173548590e4309c3"
     },
+    "docs/.DS_Store": {
+      "checksum": "194577a7e20bdcc7afbb718f502c134c"
+    },
     "docs/redcap_reference_guide.md": {
       "checksum": "fcd28144a40e732671f97b69a684fd48"
     },
     "IMSLU_COACH_DASH_STRUCTURE.md": {
       "checksum": "adeb6c5a1ff2fdaf3b6234e4df357710"
+    },
+    "imslu.coach.dash.Rproj": {
+      "checksum": "399311708132d13ff9756afdd939539c"
     },
     "intro_app_backgup.R": {
       "checksum": "2d995ce28a451bb2179aed5e31203f9c"
@@ -3117,10 +3130,10 @@
       "checksum": "f67b34aa09986ee52b5e77edaf1f3b72"
     },
     "R/globals.R": {
-      "checksum": "0acc94a479b919a8891da979b76ac01e"
+      "checksum": "72d568d9ac20feabe10750699417e469"
     },
     "R/helpers/coach_context_ui.R": {
-      "checksum": "9ff2b01675241778d8fd9327556cd054"
+      "checksum": "6d8fbcbe7ddd7568045d2653a0a7bd00"
     },
     "R/helpers/coach_context.R": {
       "checksum": "6b90ca79d16605c8d77b02d2ce83b8ea"
@@ -3147,25 +3160,28 @@
       "checksum": "ea0481a53621cd87bfff2d296b5a4f3b"
     },
     "R/modules/mod_evaluations.R": {
-      "checksum": "53d71fb16536ab9caccdf70e1065f8dc"
+      "checksum": "c9d9dfb45f5c19f85f2e4d924c6055f1"
     },
     "R/modules/mod_gate_override.R": {
       "checksum": "6aa75b4c39214d11fa3a45e65c89f418"
     },
     "R/modules/mod_goals.R": {
-      "checksum": "508a01c538a839462de23aba272a37d6"
+      "checksum": "b33281ebd99d1b2434e507c1da1c2644"
     },
     "R/modules/mod_grad_plan.R": {
-      "checksum": "da09d0c08c4e5e4cd432421ae8ae7cd7"
+      "checksum": "475dcfadbaa5f52f0caec1f8d2237fe6"
+    },
+    "R/modules/mod_ilp_summary.R": {
+      "checksum": "fdab4d348f87db40253035f644c46902"
     },
     "R/modules/mod_interim_note.R": {
-      "checksum": "36f742faa008f968474912efacc0eebe"
+      "checksum": "d4eea38a649b81b839e78562accb4a70"
     },
     "R/modules/mod_intern_intro.R": {
       "checksum": "0dd17221c26f577f1f885a1cd515c96c"
     },
     "R/modules/mod_learning.R": {
-      "checksum": "d2d729ade62e636e32e6f50f1a066293"
+      "checksum": "98ddea6237bbc932defa5d7543f86a46"
     },
     "R/modules/mod_login.R": {
       "checksum": "ce56ab97dd1ed5c77d8cb0ea00f4ea42"
@@ -3177,19 +3193,25 @@
       "checksum": "e1c088564fdf78ad95f3c049838a5002"
     },
     "R/modules/mod_resident_table.R": {
-      "checksum": "ef41391cb77e0a7c124e316a42c46bec"
+      "checksum": "de3c47c194bf46bcca2457038a19fe3e"
     },
     "R/modules/mod_review_interface.R": {
-      "checksum": "a97d51c0af63da2f4ac1927b754bc52d"
+      "checksum": "129da18480c535ae71fb490505275e99"
+    },
+    "R/modules/mod_roadmap.R": {
+      "checksum": "e20125bd31fe53adaf9e734767a9eeb8"
     },
     "R/modules/mod_scholarship.R": {
-      "checksum": "fe41285d4fe4db5aa20eb968762a97d4"
+      "checksum": "1e597798f238419473a32552a650493c"
     },
     "R/modules/mod_second_review.R": {
       "checksum": "3f83ffd00bc28113b96545c5c5c67626"
     },
     "R/modules/mod_summary.R": {
-      "checksum": "ad8ef2af75dc1b8deb2349a9959d1a26"
+      "checksum": "8a8aa0887f94fb7445e11969497b3553"
+    },
+    "R/modules/mod_touch_base.R": {
+      "checksum": "683aa88acc18e70e245f3ac125402b0e"
     },
     "R/modules/mod_wellness.R": {
       "checksum": "a3b66081e44e0c8d605aaeb65c27b8a5"
@@ -3216,7 +3238,7 @@
       "checksum": "2addde7c05ff2b12259117364ff53971"
     },
     "renv.lock": {
-      "checksum": "76a06627842a3dd0b90db569a580ed87"
+      "checksum": "eb8cdd5db145f2de1a49d619e2b7eed2"
     },
     "tests/manual/smoke_pass1_modules.R": {
       "checksum": "5ce54898d79074f93b912cfbd99ea64a"
@@ -3226,6 +3248,9 @@
     },
     "www/app.js": {
       "checksum": "c54972e9b5f2878bec6e46b389009899"
+    },
+    "www/milestones/.DS_Store": {
+      "checksum": "194577a7e20bdcc7afbb718f502c134c"
     },
     "www/milestones/ics1.png": {
       "checksum": "65c2d5169d71200a805c96405a33f4f1"
