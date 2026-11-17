@@ -8,6 +8,12 @@ mod_scholarship_ui <- function(id) {
     # Same list the resident sees in ind.dash (gmed), read-only here.
     gmed::mod_scholarship_view_ui(ns("schol_view")),
 
+    # QI / patient safety / committee answers from the self-evaluation.
+    h5("Quality Improvement, Patient Safety & Committees",
+       style = "color: var(--roundsui-ink); margin-top: 16px;"),
+    div(style = "padding: 10px 14px; border: 1px solid var(--roundsui-border); border-radius: 8px; background: var(--roundsui-surface);",
+        uiOutput(ns("qi_ps"))),
+
     hr(),
 
     # Coach verification — confirm the scholarship record is complete and accurate.
@@ -61,6 +67,15 @@ mod_scholarship_server <- function(id, resident_data, current_period, app_data) 
     gmed::mod_scholarship_view_server("schol_view", schol_data = schol_rows,
                                       title = "Scholarship Activities",
                                       show_intro = FALSE, actions = FALSE)
+
+    output$qi_ps <- renderUI({
+      req(resident_data(), app_data())
+      rid <- resident_data()$resident_info$record_id
+      se <- app_data()$all_forms$s_eval
+      if (!is.null(se) && nrow(se) > 0) se <- se[as.character(se$record_id) == as.character(rid), , drop = FALSE]
+      dd <- tryCatch(app_data()$data_dict, error = function(e) NULL)
+      gmed::seval_qi_ps_ui(se, get_period_name(current_period()), data_dict = dd)
+    })
 
     # Previous period's scholarship notes + the coach note box, pre-filled
     # from the saved coach_rev value (see coach_note_server).

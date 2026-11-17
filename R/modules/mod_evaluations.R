@@ -55,6 +55,13 @@ mod_evaluations_ui <- function(id) {
         div(
           style = "border: 1px solid var(--roundsui-border); border-radius: 4px; padding: 15px; background-color: var(--roundsui-surface-2);",
 
+          # Evaluation feedback: type breakdown, written feedback, score
+          # badges per evaluation (same view as ind.dash and the CCC).
+          h5(style = "color: var(--roundsui-ink);", icon("clipboard-list"), " Evaluation Feedback"),
+          gmed::mod_eval_feedback_ui(ns("eval_feedback")),
+
+          hr(),
+
           # Assessment progress charts
           gmed::assessment_viz_ui(ns("charts"), title = "Assessment Progress"),
 
@@ -318,6 +325,15 @@ mod_evaluations_server <- function(id, resident_data, current_period, app_data, 
       rdm_data = combined_data,
       record_id = record_id,
       resident_data = resident_info_data
+    )
+
+    # Evaluation feedback view (gmed): full assessment data, filtered by
+    # record_id inside the module.
+    gmed::mod_eval_feedback_server(
+      "eval_feedback",
+      assessment_data = raw_assessment_data,
+      record_id       = record_id,
+      data_dict       = data_dict
     )
 
     # Plus/Delta table - doesn't use data_dict
