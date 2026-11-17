@@ -206,8 +206,11 @@ mod_review_interface_ui <- function(id) {
     # they don't change how sections are marked done.
     div(
       style = "max-width: 1400px; margin: 0 auto;",
+      mod_roadmap_ui(ns("roadmap")),
       mod_gate_override_ui(ns("gate_data")),
-      mod_interim_note_ui(ns("thread"))
+      mod_interim_note_ui(ns("thread")),
+      # P1-5: which coach form this sitting is (Evaluation & ILP / Touch-base)
+      uiOutput(ns("form_picker"))
     ),
 
     # Sticky progress bar \u2014 sections-as-pills + percentage + bar
@@ -228,22 +231,7 @@ mod_review_interface_ui <- function(id) {
       column(
         width = 12,
         style = "margin-top: 20px; margin-bottom: 20px;",
-        div(
-          style = "text-align: center;",
-          actionButton(
-            ns("submit_review"),
-            "Go to Final Review",
-            class = "btn-primary btn-lg",
-            style = "padding: 10px 30px;",
-            icon = icon("eye")
-          ),
-          br(),
-          br(),
-          p(
-            style = "color: var(--roundsui-ink-muted); font-size: 14px;",
-            "Complete all required sections, then review and submit"
-          )
-        )
+        uiOutput(ns("submit_row"))
       )
     )
   )
@@ -263,6 +251,7 @@ mod_review_interface_ui <- function(id) {
     career      = list(label = "Career Planning",            icon = "briefcase"),
     goals       = list(label = "Goals & ILP",                icon = "bullseye"),
     milestones  = list(label = "Milestones",                 icon = "graph-up"),
+    ilp_summary = list(label = "ILP at a Glance",            icon = "clipboard-check"),
     summary     = list(label = "Summary",                    icon = "list-check")
   )
 
@@ -303,8 +292,36 @@ mod_review_interface_ui <- function(id) {
     return(sec)
   }
 
-  # P1-5 standard
+  # P1-5 standard: both coach forms; .coach_sections_for_form() splits them.
+  std$touch <- list(label = "ILP Check-in", icon = "bullseye")
   std
+}
+
+# P1-5 split the review into two coach forms. Touch-base sections; every
+# other section belongs to the Evaluation & ILP form.
+.COACH_TOUCH_SECTIONS <- c("wellness", "scholarship", "career", "touch")
+
+.coach_is_split <- function(period_num) {
+  pn <- suppressWarnings(as.integer(period_num))
+  !is.na(pn) && pn %in% 1:5
+}
+
+.coach_form_of <- function(section) {
+  if (section %in% .COACH_TOUCH_SECTIONS) "touch" else "eval"
+}
+
+# Sections of one form ("eval" / "touch"); P6/P7 have a single form.
+.coach_sections_for_form <- function(period_num, form) {
+  sec <- .coach_sections_for_period(period_num)
+  if (!.coach_is_split(period_num)) return(sec)
+  sec[vapply(names(sec), .coach_form_of, character(1)) == form]
+}
+
+# coach_rev instance for a resident's period (scheduled review).
+.coach_rev_instance <- function(res_info, period_num) {
+  gmed::get_redcap_instance(level = res_info$Level,
+                            period = get_period_name(period_num),
+                            review_type = "scheduled")
 }
 
 # Render placeholder body for a section that doesn't have its own module
@@ -426,7 +443,48 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     mod_gate_override_server("gate_data", record_id_r = rid_r,
                              period_r = reactive({ req(current_period()); current_period() }),
                              coach_name_r = coach_default_r)
-    mod_interim_note_server("thread", record_id_r = rid_r, coach_name_r = coach_default_r)
+    # Bumped after a touch-base save so the thread and roadmap re-read REDCap.
+    refresh_rv <- reactiveVal(0)
+    thread_forms <- mod_interim_note_server("thread", record_id_r = rid_r,
+                                            coach_name_r = coach_default_r,
+                                            refresh_r = refresh_rv)
+    mod_roadmap_server("roadmap", forms_r = thread_forms, record_id_r = rid_r,
+                       current_period = current_period)
+
+    # Touch-base ILP check-in (P1-5)
+    touch_data <- mod_touch_base_server(
+      "touch", resident_data,
+      # Data dictionary, for the milestone-level descriptions on the goal cards.
+      data_dict = reactive(if (shiny::is.reactivevalues(app_data_rv)) app_data_rv$data_dict)
+    )
+
+    # ---- Which coach form (P1-5) -------------------------------------------
+    is_split <- reactive({ req(current_period()); .coach_is_split(current_period()) })
+    # Evaluation & ILP is in for this period: form marked complete (raw "2" or
+    # the translated label) or a finalized ILP saved -- same rule the roadmap uses.
+    eval_done <- reactive({
+      rd <- resident_data()
+      coach_note_saved_value(rd, "coach_rev_complete") %in% c("2", "Complete") ||
+        nzchar(trimws(coach_note_saved_value(rd, "coach_ilp_final")))
+    })
+    output$form_picker <- renderUI({
+      if (!is_split()) return(NULL)
+      done <- eval_done()
+      div(class = "card mb-3",
+          div(class = "card-body", style = "padding: 10px 14px;",
+              tags$strong("Coach form for this meeting"),
+              radioButtons(ns("form"), NULL, inline = TRUE,
+                           choices = c("Evaluation & ILP" = "eval", "Touch-base" = "touch"),
+                           selected = if (done) "touch" else "eval"),
+              tags$div(class = "text-muted small",
+                       if (done) "Evaluation & ILP is submitted for this period. Touch-base is the follow-up meeting: wellness, scholarship, career and an ILP check-in."
+                       else "Evaluation & ILP comes first (milestones, ILP, completion; the second review reads it). Touch-base is the later follow-up meeting.")))
+    })
+    form_r <- reactive({
+      if (!is_split()) return("eval")
+      f <- input$form
+      if (is.null(f) || !f %in% c("eval", "touch")) { if (eval_done()) "touch" else "eval" } else f
+    })
 
     # Call Section 1 module
     wellness_data <- mod_wellness_server("wellness", resident_data, current_period, rdm_data)
@@ -459,8 +517,39 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       as.data.frame(as.list(stats::setNames(as.character(vals[keep]), field_map[names(vals)[keep]])),
                     stringsAsFactors = FALSE)
     })
-    goals_data <- mod_goals_server("goals", resident_data, current_period, rdm_data, app_data_rv,
-                                   live_coach_row = live_coach_milestones)
+    goals_raw <- mod_goals_server("goals", resident_data, current_period, rdm_data, app_data_rv,
+                                  live_coach_row = live_coach_milestones)
+    # ILP at a Glance section (P1-5, after Milestones): display only (goals,
+    # spider, notes). coach_ilp_final is entered in the Summary section.
+    # Live inputs for its "At a Glance" row: this review's milestone ratings
+    # and the coach's notes from the other Evaluation & ILP sections
+    # (wellness / scholarship / career are on the Touch-base form). milestones_data and the
+    # section reactives are only looked up when these evaluate.
+    ilp_summary_data <- mod_ilp_summary_server(
+      "ilp_summary", resident_data, goals_raw,
+      milestone_scores = reactive({
+        md <- tryCatch(milestones_data(), error = function(e) NULL)
+        md$milestone_ratings$scores
+      }),
+      section_notes = reactive({
+        .v <- function(r, f) {
+          x <- tryCatch(r(), error = function(e) NULL)
+          v <- x[[f]]; if (is.null(v) || length(v) == 0 || is.na(v[1])) "" else as.character(v[1])
+        }
+        c("Plus/delta reflections"  = .v(evaluations_data, "coach_p_d_comments"),
+          "Assessments"             = .v(evaluations_data, "coach_evaluations"),
+          "Learning topics & styles" = .v(learning_data, "coach_ls_and_topic"),
+          "Boards & ITE"            = .v(learning_data, "coach_step_board"))
+      })
+    )
+    # Downstream (save, preview) reads goals_data()$coach_ilp_final as
+    # before; merge it in from the Summary section.
+    goals_data <- reactive({
+      g <- goals_raw(); if (is.null(g)) return(NULL)
+      pn <- suppressWarnings(as.integer(current_period()))
+      if (!is.na(pn) && pn %in% 1:5) g$coach_ilp_final <- summary_data()$coach_ilp_final %||% ""
+      g
+    })
 
     # P6 Graduation Plan & Alumni — uses gmed grad_plan + boards displays;
     # writes coach_ilp_final (which surfaces in CCC dashboard).
@@ -480,7 +569,9 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       "summary",
       resident_data,
       wellness_data, evaluations_data, learning_data,
-      scholarship_data, career_data, milestones_data, goals_data,
+      # goals_raw, not goals_data: goals_data takes coach_ilp_final from
+      # this module, so passing it back in would make a reactive loop.
+      scholarship_data, career_data, milestones_data, goals_raw,
       grad_plan_data, intro_data,
       current_period = current_period
     )
@@ -489,10 +580,15 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     # Sequential-section shell: progress bar + per-period section list
     # \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
-    # Period-aware section list \u2014 recomputed when the period changes.
-    sections_r <- reactive({
+    # Every section of the period (rendered once per period) and the
+    # sections of the form being filled in (drives progress + shell state).
+    all_sections_r <- reactive({
       req(current_period())
       .coach_sections_for_period(current_period())
+    })
+    sections_r <- reactive({
+      req(current_period())
+      .coach_sections_for_form(current_period(), form_r())
     })
 
     # Shell state: tracks which section is "active" + per-section completion.
@@ -510,11 +606,13 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         learning    = learning_data,
         scholarship = scholarship_data,
         career      = career_data,
-        goals       = goals_data,
+        goals       = goals_raw,
         milestones  = milestones_data,
+        ilp_summary = ilp_summary_data,
         grad_plan   = grad_plan_data,
         summary     = NULL,        # validation-only; complete iff all others
-        intro_stub  = intro_data   # P7 Entering Residency (mod_intern_intro)
+        intro_stub  = intro_data,  # P7 Entering Residency (mod_intern_intro)
+        touch       = touch_data   # P1-5 touch-base ILP check-in
       )
     })
 
@@ -538,7 +636,8 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     # are routed through dedicated uiOutput slots so they can update
     # reactively without re-rendering the body.
     output$sections_ui <- renderUI({
-      secs <- sections_r()                       # only re-render on period change
+      secs <- all_sections_r()                   # only re-render on period change
+      split <- .coach_is_split(current_period())
       tagList(lapply(names(secs), function(nm) {
         meta <- secs[[nm]]
 
@@ -551,13 +650,15 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           career      = mod_career_ui(ns("career")),
           goals       = mod_goals_ui(ns("goals"), period_num = current_period()),
           milestones  = mod_milestones_ui(ns("milestones"), period_num = current_period()),
+          ilp_summary = mod_ilp_summary_ui(ns("ilp_summary")),
           grad_plan   = mod_grad_plan_ui(ns("grad_plan")),
           summary     = mod_summary_ui(ns("summary"), period_num = current_period()),
           intro_stub  = mod_intern_intro_ui(ns("intro_stub")),
+          touch       = mod_touch_base_ui(ns("touch")),
           tags$em("Unknown section")
         )
 
-        coach_sec_card(
+        card <- coach_sec_card(
           name       = nm,
           title      = meta$label,
           icon       = meta$icon,
@@ -565,14 +666,41 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           badge_slot = uiOutput(ns(paste0("badge_", nm)),
                                 inline = TRUE),
           body,
-          # Skip continue button on the final summary section
-          if (!identical(nm, "summary"))
+          # Skip continue button on the last section of each form
+          if (!nm %in% c("summary", "touch"))
             coach_continue_btn(ns, paste0("continue_", nm),
                                label     = "Save & Continue",
                                warn_slot = uiOutput(ns(paste0("warn_", nm)),
                                                     inline = TRUE))
         )
+        # P1-5: show only the sections of the selected form. Rendered once
+        # and hidden client-side, so typed notes survive switching forms.
+        if (!split) return(card)
+        frm <- .coach_form_of(nm)
+        conditionalPanel(
+          sprintf("(input['%s'] || '%s') == '%s'", ns("form"),
+                  if (isolate(eval_done())) "touch" else "eval", frm),
+          card)
       }))
+    })
+
+    # Submit row: Evaluation & ILP -> review + submit; Touch-base -> save.
+    output$submit_row <- renderUI({
+      if (identical(form_r(), "touch")) {
+        div(style = "text-align: center;",
+            actionButton(ns("save_touch"), "Save touch-base", class = "btn-primary btn-lg",
+                         style = "padding: 10px 30px;", icon = icon("floppy-disk")),
+            br(), br(),
+            p(style = "color: var(--roundsui-ink-muted); font-size: 14px;",
+              "Saves wellness, scholarship and career notes and the ILP check-in to this period's coach review."))
+      } else {
+        div(style = "text-align: center;",
+            actionButton(ns("submit_review"), "Go to Final Review", class = "btn-primary btn-lg",
+                         style = "padding: 10px 30px;", icon = icon("eye")),
+            br(), br(),
+            p(style = "color: var(--roundsui-ink-muted); font-size: 14px;",
+              "Complete all required sections, then review and submit"))
+      }
     })
 
     # Per-section reactive renderers for badge + Continue-button warning.
@@ -587,7 +715,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         is_active <- identical(sec_name, names(secs)[st$step])
 
         output[[paste0("badge_", sec_name)]] <- renderUI({
-          done <- isTRUE(shell_state()$complete[[sec_name]])
+          done <- isTRUE(unname(shell_state()$complete[sec_name]))  # NA when the section is on the other form
           if (done) {
             roundsui::roundsui_status_badge("Complete", status = "complete")
           } else {
@@ -596,7 +724,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         })
 
         output[[paste0("warn_", sec_name)]] <- renderUI({
-          done <- isTRUE(shell_state()$complete[[sec_name]])
+          done <- isTRUE(unname(shell_state()$complete[sec_name]))  # NA when the section is on the other form
           if (done) return(NULL)
           tags$span(class = "text-warning ms-2",
             style = "font-size:0.78rem;",
@@ -619,7 +747,7 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
     # We register one observer per *possible* section name (matches input ids).
     .all_section_names <- c("wellness", "evaluations", "learning",
                             "scholarship", "career", "goals", "milestones",
-                            "grad_plan", "intro_stub")
+                            "ilp_summary", "grad_plan", "intro_stub")
     lapply(.all_section_names, function(nm) {
       observeEvent(input[[paste0("continue_", nm)]], {
         st <- shell_state(); req(st)
@@ -695,9 +823,9 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       # Required sections vary by period; only req() what we'll actually
       # consume so P6/P7 don't get stuck waiting on dropped sections.
       if (!is_p6 && !is_p7) {
-        req(wellness_data()); req(evaluations_data()); req(learning_data())
-        req(scholarship_data()); req(career_data()); req(milestones_data())
-        req(goals_data())
+        # Wellness / Scholarship / Career are on the Touch-base form now.
+        req(evaluations_data()); req(learning_data())
+        req(milestones_data()); req(goals_data())
       } else if (is_p6) {
         req(evaluations_data()); req(scholarship_data())
         req(milestones_data()); req(grad_plan_data())
@@ -719,6 +847,8 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         intro       = if (!is.null(intro_data()))       intro_data()       else NULL,
         summary     = if (!is.null(summary_data()))     summary_data()     else NULL
       )
+      # P1-5: the Touch-base form owns these; not part of this submission.
+      if (.coach_is_split(pn)) review_data[c("wellness", "scholarship", "career")] <- list(NULL)
 
       # Validate per-period required sections
       incomplete_sections <- c()
@@ -732,7 +862,6 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         # entry for P7 (always is_complete=TRUE — see mod_milestones.R).
         if (!isTRUE(review_data$intro$is_complete)) incomplete_sections <- c(incomplete_sections, "Entering Residency")
       } else {
-        if (!isTRUE(review_data$wellness$is_complete))    incomplete_sections <- c(incomplete_sections, "Wellness")
         if (!isTRUE(review_data$evaluations$is_complete)) incomplete_sections <- c(incomplete_sections, "Evaluations")
         if (!isTRUE(review_data$learning$is_complete))    incomplete_sections <- c(incomplete_sections, "Learning")
         if (!isTRUE(review_data$milestones$is_complete))  incomplete_sections <- c(incomplete_sections, "Milestones")
@@ -912,6 +1041,8 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
         intro       = if (!is.null(intro_data()))       intro_data()       else NULL,
         summary     = if (!is.null(summary_data()))     summary_data()     else NULL
       )
+      # P1-5: the Touch-base form owns these; not part of this submission.
+      if (.coach_is_split(pn)) review_data[c("wellness", "scholarship", "career")] <- list(NULL)
 
       # Show processing notification
       notification_id <- showNotification(
@@ -963,7 +1094,11 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           ),
           coach_step_board = as.character(review_data$learning$coach_step_board %||% ""),
           coach_career = as.character(review_data$career$coach_career %||% ""),
+          coach_scholarship = as.character(review_data$scholarship$coach_scholarship %||% ""),
           coach_mile_goal = as.character(review_data$goals$coach_mile_goal %||% ""),
+          coach_goal_pcmk    = as.character(review_data$goals$coach_goal_pcmk    %||% ""),
+          coach_goal_sbppbl  = as.character(review_data$goals$coach_goal_sbppbl  %||% ""),
+          coach_goal_profics = as.character(review_data$goals$coach_goal_profics %||% ""),
           coach_ilp_final = as.character(
             if (is_p6) (review_data$grad_plan$coach_ilp_final %||% "")
             else (review_data$goals$coach_ilp_final %||% "")
@@ -982,6 +1117,13 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
           coach_rev_complete = "2",  # Raw format (string)
           stringsAsFactors = FALSE
         )
+        # P1-5: wellness and career are written by the Touch-base save; leave
+        # whatever it saved alone.
+        if (.coach_is_split(period_num)) {
+          coach_rev_record$coach_wellness <- NULL
+          coach_rev_record$coach_career   <- NULL
+          coach_rev_record$coach_scholarship <- NULL
+        }
 
         # Submit coach_rev to REDCap using REDCapR
         coach_result <- tryCatch({
@@ -1203,6 +1345,61 @@ mod_review_interface_server <- function(id, selected_resident, rdm_data, current
       })
     })
     
+    # ---- Touch-base save (P1-5) ---------------------------------------------
+    # Same coach_rev instance as the Evaluation & ILP form. Writes only the
+    # touch-base fields and never coach_rev_complete (that's the evaluation's).
+    observeEvent(input$save_touch, {
+      req(resident_data(), current_period(), is_split())
+      td <- touch_data()
+      if (!isTRUE(td$is_complete)) {
+        showNotification("Add the ILP check-in and the touch-base date before saving.",
+                         type = "warning", duration = 6)
+        return()
+      }
+      res_info <- resident_data()$resident_info
+      period_num <- current_period()
+      .val <- function(r, f) as.character((if (is.null(r)) NULL else r[[f]]) %||% "")
+      rec <- data.frame(
+        record_id                = res_info$record_id,
+        redcap_repeat_instrument = "coach_rev",
+        redcap_repeat_instance   = .coach_rev_instance(res_info, period_num),
+        coach_period             = coach_period_code(period_num),
+        coach_wellness           = .val(wellness_data(), "coach_wellness"),
+        coach_scholarship        = .val(scholarship_data(), "coach_scholarship"),
+        coach_career             = .val(career_data(), "coach_career"),
+        coach_ilp_checkin        = td$coach_ilp_checkin,
+        coach_touch_date         = td$coach_touch_date,
+        stringsAsFactors = FALSE
+      )
+      res <- tryCatch(
+        REDCapR::redcap_write_oneshot(ds = rec, redcap_uri = REDCAP_CONFIG$url,
+                                      token = REDCAP_CONFIG$rdm_token, verbose = FALSE),
+        error = function(e) list(success = FALSE, outcome_message = conditionMessage(e)))
+      if (!isTRUE(res$success)) {
+        showNotification(paste("Touch-base not saved:", res$outcome_message %||% "unknown error"),
+                         type = "error", duration = 15)
+        return()
+      }
+      message(sprintf("[touch-base] saved record=%s instance=%s", rec$record_id,
+                      rec$redcap_repeat_instance))
+      refresh_rv(refresh_rv() + 1)
+      showModal(modalDialog(
+        title = tagList(icon("check-circle", class = "text-success"), " Touch-base saved"),
+        easyClose = TRUE,
+        footer = tagList(modalButton("Close"),
+                         actionButton(ns("touch_return"), "Return to Resident Table",
+                                      class = "btn-primary")),
+        p(tags$strong("Resident: "), res_info$full_name, br(),
+          tags$strong("Period: "), PERIOD_NAMES[period_num + 1], br(),
+          tags$strong("Date: "), td$coach_touch_date),
+        tags$strong("ILP check-in"),
+        div(style = "white-space: pre-wrap;", td$coach_ilp_checkin)))
+    })
+    observeEvent(input$touch_return, {
+      removeModal()
+      post_submit_return_rv(post_submit_return_rv() + 1)
+    })
+
     # Return reactive values
     return(
       list(

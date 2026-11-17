@@ -269,6 +269,13 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
           record_id,
           review_period
         ),
+        # Next expected coach encounter (mod_roadmap.R): e.g. "Mid Intern
+        # touch-base" once the evaluation is in.
+        next_step = tryCatch(
+          coach_next_step(coach_roadmap_steps(
+            app_data()$all_forms$coach_rev, NULL, record_id,
+            unname(.rm_code(review_period)))),
+          error = function(e) NA_character_),
         
         # Format for display
         display_name = full_name,
@@ -284,7 +291,8 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
         review_role,
         seval_complete,
         coach_complete,
-        second_complete
+        second_complete,
+        next_step
       ) %>%
       arrange(display_name)
 
@@ -329,6 +337,11 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
             !full_loaded    ~ spinner_html,
             TRUE            ~ '<span class="completion-icon completion-incomplete" title="Not Completed">&#x25CF;</span>'
           ),
+          Next = case_when(
+            !full_loaded      ~ spinner_html,
+            is.na(next_step)  ~ "",
+            TRUE              ~ htmltools::htmlEscape(next_step)
+          ),
           Role = case_when(
             review_role == "primary" ~ '<span class="badge text-bg-primary">Primary</span>',
             review_role == "secondary" ~ '<span class="badge text-bg-secondary">Secondary</span>',
@@ -345,7 +358,8 @@ mod_resident_table_server <- function(id, coach_data, app_data, last_loaded = NU
           Role,
           `Self-Eval`,
           `Coach Review`,
-          `Second Review`
+          `Second Review`,
+          Next
         )
       
       # Create DataTable

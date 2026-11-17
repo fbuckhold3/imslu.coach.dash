@@ -15,8 +15,33 @@
 mod_summary_ui <- function(id, period_num = NULL) {
   ns <- NS(id)
   is_p7 <- identical(suppressWarnings(as.integer(period_num)), 0L)
+  pn <- suppressWarnings(as.integer(period_num))
+  is_std <- !is.na(pn) && pn %in% 1:5
 
   tagList(
+    # P1-5: the Finalized ILP summary (coach_ilp_final) is the closing entry,
+    # here with the checklist and preview. The ILP at a Glance section before
+    # this one shows the goals, spider and notes to write it from.
+    if (is_std) tagList(
+      h4("Finalized ILP Summary", style = "color: var(--roundsui-ink); margin-top: 10px;"),
+      wellPanel(
+        style = "background-color: var(--roundsui-surface); border-left: 4px solid var(--roundsui-accent);",
+        tags$p("Summarize the resident's milestones and learning from this review, and the plan going forward.",
+               style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 0;"),
+        tags$ul(
+          style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;",
+          tags$li("Milestone ratings and progress on the ILP goals"),
+          tags$li("Learning: evaluations, topics, board preparation and ITE"),
+          tags$li("Areas identified for improvement"),
+          tags$li("Career planning and scholarly work")
+        ),
+        coach_note_ui(ns, "coach_ilp_final"),
+        div(style = "text-align: right; font-size: 12px; color: var(--roundsui-ink-faint);",
+            textOutput(ns("char_count_ilp")))
+      ),
+      hr()
+    ),
+
     # P7: Overall Summary comes FIRST — the closing note right after
     # Milestones, before the completion checklist/preview clutter below.
     if (is_p7) tagList(
@@ -71,6 +96,10 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
     # (Learning's topics/styles moved into mod_intern_intro.R for P7).
     is_p6 <- reactive(identical(as.integer(current_period() %||% NA_integer_), 6L))
     is_p7 <- reactive(identical(as.integer(current_period() %||% NA_integer_), 0L))
+    # P1-5 split the review into two coach forms: this summary belongs to the
+    # Evaluation & ILP form; Wellness, Scholarship and Career moved to the
+    # Touch-base form (mod_touch_base.R), so they're not checked or shown here.
+    is_std <- reactive(!is_p6() && !is_p7())
 
     # Calculate overall completion status
     completion_status <- reactive({
@@ -94,7 +123,12 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
         base$coach_summary <- !is.null(input$coach_summary) &&
                                nchar(trimws(input$coach_summary %||% "")) > 0
         base
-      } else base
+      } else {
+        base <- base[setdiff(names(base), c("wellness", "scholarship", "career"))]
+        # Finalized ILP summary: entered at the top of this section.
+        base$ilp_summary <- nzchar(trimws(input$coach_ilp_final %||% ""))
+        base
+      }
     })
 
     # Display completion checklist
@@ -131,7 +165,8 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
         scholarship   = "Scholarship",
         career        = "Career Planning",
         milestones    = "Milestones",
-        goals         = "Goals & ILP (including ILP Final Summary)",
+        goals         = "Goals & ILP (note on each goal)",
+        ilp_summary   = "Finalized ILP Summary (top of this section)",
         grad_plan     = "Graduation Plan & Alumni",
         intro         = "Background, Coping, Skills/Topics/Learning Styles",
         coach_summary = "Overall Summary"
@@ -190,6 +225,7 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
         career        = "Career Planning",
         milestones    = "Milestones",
         goals         = "Goals & ILP",
+        ilp_summary   = "Finalized ILP Summary (top of this section)",
         grad_plan     = "Graduation Plan & Alumni",
         intro         = "Background, Coping, Skills/Topics/Learning Styles",
         coach_summary = "Overall Summary"
@@ -241,7 +277,7 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
       }
 
       tagList(
-        if (!is.null(wellness_data()) && !is_p7()) {
+        if (!is.null(wellness_data()) && !is_p7() && !is_std()) {
           create_summary_section(
             "Wellness & Progress",
             wellness_data()$coach_wellness
@@ -268,14 +304,15 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
           )
         },
 
-        if (!is.null(scholarship_data()) && !is_p7()) {
+        if (!is.null(scholarship_data()) && !is_p7() && !is_std()) {
           create_summary_section(
             "Scholarship",
             scholarship_data()$coach_scholarship
           )
         },
 
-        if (!is.null(career_data()) && !is_p6() && !is_p7()) {
+        # P1-5 career notes are on the Touch-base form now.
+        if (FALSE && !is.null(career_data())) {
           create_summary_section(
             "Career Planning",
             career_data()$coach_career
@@ -322,7 +359,7 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
             ),
             create_summary_section(
               "ILP Final Summary",
-              goals_data()$coach_ilp_final
+              input$coach_ilp_final
             )
           )
         },
@@ -350,6 +387,10 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
 
     # Coach note textareas, rendered pre-filled from the saved coach_rev
     # value (see coach_note_server in R/helpers/section_shell.R).
+    output$char_count_ilp <- renderText(sprintf("%d characters", nchar(input$coach_ilp_final %||% "")))
+    coach_note_server(output, session, "coach_ilp_final", resident_data,
+                      width = "100%", height = "300px",
+                      placeholder = "Milestones and learning this period, and the plan going forward...")
     coach_note_server(output, session, "coach_summary", resident_data,
                       width = "100%", height = "150px", placeholder = "Summarize this entering-residency review...")
 
@@ -360,7 +401,8 @@ mod_summary_server <- function(id, resident_data, wellness_data, evaluations_dat
         list(
           all_complete = all(unlist(status)),
           completion_status = status,
-          coach_summary = input$coach_summary
+          coach_summary = input$coach_summary,
+          coach_ilp_final = input$coach_ilp_final %||% ""
         )
       })
     )

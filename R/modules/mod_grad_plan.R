@@ -110,6 +110,15 @@ mod_grad_plan_server <- function(id, resident_data, current_period,
     # ----- Boards / Step 3 / MKSAP (reused from mod_learning) -----
     gmed::mod_seval_boards_display_server(
       "boards",
+      # Program's MKSAP import for this resident (replaces the self-reported
+      # completion question residents are no longer asked).
+      mksap_progress = reactive({
+        ad <- app_data(); rd <- resident_data()
+        if (is.null(ad) || is.null(rd)) return(NULL)
+        mk <- ad$all_forms$mksap_progress
+        rid <- rd$resident_info$record_id[1]
+        if (is.null(mk) || !nrow(mk)) NULL else mk[as.character(mk$record_id) == as.character(rid), , drop = FALSE]
+      }),
       current_s_eval = reactive({
         rd <- resident_data(); if (is.null(rd)) NULL else rd$current_period$s_eval
       }),

@@ -1,17 +1,12 @@
 # Section 4: Scholarship Module
-# Displays resident scholarship activities
+# Resident scholarship (shared gmed view, read-only) + coach verify and note
 
 mod_scholarship_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
-    # Scholarship Display
-    h4("Scholarship Activities", style = "color: var(--roundsui-ink); margin-top: 10px;"),
-
-    wellPanel(
-      style = "background-color: var(--roundsui-surface-2); border: 1px solid var(--roundsui-border);",
-      uiOutput(ns("scholarship_table"))
-    ),
+    # Same list the resident sees in ind.dash (gmed), read-only here.
+    gmed::mod_scholarship_view_ui(ns("schol_view")),
 
     hr(),
 
@@ -35,6 +30,19 @@ mod_scholarship_ui <- function(id) {
         label = "I have reviewed this with the resident and confirm the scholarship record is complete and up to date.",
         value = FALSE
       )
+    ),
+
+    # Coach notes on scholarship (coach_scholarship). Optional.
+    mod_prev_notes_ui(ns("prev_notes")),
+    wellPanel(
+      tags$label("Coach Comments on Scholarship:", style = "font-weight: bold;"),
+      tags$p(
+        "Projects in progress, opportunities or mentors to connect with, presentation or publication plans.",
+        style = "font-size: 12px; color: var(--roundsui-ink-muted); margin-top: 5px;"
+      ),
+      coach_note_ui(ns, "coach_scholarship"),
+      div(style = "text-align: right; font-size: 12px; color: var(--roundsui-ink-faint);",
+          textOutput(ns("char_count")))
     )
   )
 }
@@ -42,150 +50,34 @@ mod_scholarship_ui <- function(id) {
 mod_scholarship_server <- function(id, resident_data, current_period, app_data) {
   moduleServer(id, function(input, output, session) {
 
-    # Display scholarship table
-    output$scholarship_table <- renderUI({
+    # This resident's scholarship rows -> shared gmed view, no edit buttons.
+    schol_rows <- reactive({
       req(resident_data(), app_data())
-
-      resident_info <- resident_data()$resident_info
-      record_id <- resident_info$record_id
-
-      # Get scholarship data for this resident
-      if (!"scholarship" %in% names(app_data()$all_forms)) {
-        return(
-          div(
-            style = "font-style: italic; color: var(--roundsui-ink-faint); padding: 15px;",
-            "No scholarship data available"
-          )
-        )
-      }
-
-      scholarship_data <- app_data()$all_forms$scholarship %>%
-        dplyr::filter(record_id == !!record_id)
-
-      if (nrow(scholarship_data) == 0) {
-        return(
-          div(
-            style = "font-style: italic; color: var(--roundsui-ink-faint); padding: 15px;",
-            "No scholarship activities recorded"
-          )
-        )
-      }
-
-      # Group by type and display
-      scholarship_types <- list(
-        "QI Project" = list(fields = c("schol_qi"), icon = "tasks"),
-        "Research" = list(fields = c("schol_res", "schol_res_mentor", "schol_res_status"), icon = "flask"),
-        "Presentation" = list(fields = c("schol_pres", "schol_pres_type", "schol_pres_conf"), icon = "presentation"),
-        "Publication" = list(fields = c("schol_cit", "schol_pub"), icon = "book"),
-        "Committee" = list(fields = c("schol_comm"), icon = "users"),
-        "Patient Safety" = list(fields = c("schol_ps", "schol_rca"), icon = "shield-alt")
-      )
-
-      # Build output by type
-      output_sections <- list()
-
-      for (type_name in names(scholarship_types)) {
-        type_info <- scholarship_types[[type_name]]
-
-        # Check if any records have data for this type
-        has_data <- FALSE
-        for (field in type_info$fields) {
-          if (field %in% names(scholarship_data)) {
-            field_data <- scholarship_data[[field]]
-            if (any(!is.na(field_data) & field_data != "" & field_data != "0")) {
-              has_data <- TRUE
-              break
-            }
-          }
-        }
-
-        if (has_data) {
-          # Get rows with data for this type
-          type_rows <- list()
-
-          for (i in 1:nrow(scholarship_data)) {
-            row_has_data <- FALSE
-            row_content <- list()
-
-            for (field in type_info$fields) {
-              if (field %in% names(scholarship_data)) {
-                value <- scholarship_data[[field]][i]
-                if (!is.na(value) && value != "" && value != "0") {
-                  row_has_data <- TRUE
-
-                  # Format field display
-                  field_label <- switch(field,
-                    "schol_qi" = "Description",
-                    "schol_res" = "Description",
-                    "schol_res_mentor" = "Mentor",
-                    "schol_res_status" = "Status",
-                    "schol_pres" = "Presented",
-                    "schol_pres_type" = "Type",
-                    "schol_pres_conf" = "Conference",
-                    "schol_cit" = "Citation",
-                    "schol_pub" = "Published",
-                    "schol_comm" = "Committee",
-                    "schol_ps" = "Patient Safety Review",
-                    "schol_rca" = "Root Cause Analysis",
-                    field
-                  )
-
-                  # Parse yesno fields
-                  display_value <- if (field %in% c("schol_pres", "schol_pub", "schol_ps", "schol_rca")) {
-                    if (value == "1") "Yes" else if (value == "0") "No" else value
-                  } else {
-                    value
-                  }
-
-                  row_content[[length(row_content) + 1]] <- tags$div(
-                    style = "margin-bottom: 5px;",
-                    tags$strong(paste0(field_label, ": ")),
-                    display_value
-                  )
-                }
-              }
-            }
-
-            if (row_has_data) {
-              type_rows[[length(type_rows) + 1]] <- tags$div(
-                style = "padding: 10px; margin-bottom: 10px; background-color: var(--roundsui-surface); border-radius: 4px; border: 1px solid var(--roundsui-border);",
-                row_content
-              )
-            }
-          }
-
-          if (length(type_rows) > 0) {
-            output_sections[[length(output_sections) + 1]] <- tags$div(
-              style = "margin-bottom: 20px;",
-              h5(
-                icon(type_info$icon),
-                " ",
-                type_name,
-                style = "color: var(--roundsui-ink); margin-bottom: 10px;"
-              ),
-              type_rows
-            )
-          }
-        }
-      }
-
-      if (length(output_sections) == 0) {
-        return(
-          div(
-            style = "font-style: italic; color: var(--roundsui-ink-faint); padding: 15px;",
-            "No scholarship activities recorded"
-          )
-        )
-      }
-
-      tagList(output_sections)
+      rid <- resident_data()$resident_info$record_id
+      sch <- app_data()$all_forms$scholarship
+      if (is.null(sch) || nrow(sch) == 0) return(NULL)
+      sch[as.character(sch$record_id) == as.character(rid), , drop = FALSE]
     })
+    gmed::mod_scholarship_view_server("schol_view", schol_data = schol_rows,
+                                      title = "Scholarship Activities",
+                                      show_intro = FALSE, actions = FALSE)
+
+    # Previous period's scholarship notes + the coach note box, pre-filled
+    # from the saved coach_rev value (see coach_note_server).
+    mod_prev_notes_server("prev_notes", resident_data, current_period,
+                          fields = c(coach_scholarship = "Scholarship"))
+    coach_note_server(output, session, "coach_scholarship", resident_data,
+                      width = "100%", height = "150px",
+                      placeholder = "Scholarship discussion, next steps...")
+    output$char_count <- renderText(sprintf("%d characters", nchar(input$coach_scholarship %||% "")))
 
     # Return reactive with completion status — coach must verify the
     # scholarship record is complete before this section is marked done.
+    # The note is optional.
     return(
       reactive({
         list(
+          coach_scholarship = input$coach_scholarship %||% "",
           scholarship_verified = isTRUE(input$scholarship_verified),
           is_complete = isTRUE(input$scholarship_verified)
         )

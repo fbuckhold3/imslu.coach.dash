@@ -140,46 +140,7 @@ goal_followthrough_ui <- function(rows, goal_period_name) {
       icon = icon("bullseye"), compact = TRUE))
   }
 
-  cards <- lapply(seq_len(nrow(rows)), function(i) {
-    r <- rows[i, ]
-    stat <- .GOAL_VERDICT_STATUS[[r$verdict]]
-    notes <- c(
-      if (isTRUE(r$mismatch))
-        sprintf("Resident says “%s” but the rating says “%s”.", r$resident_says, r$verdict),
-      if (isTRUE(r$below_expected))
-        sprintf("Target (%s) was below the program expectation for %s (%s).",
-                r$target_rating, goal_period_name, r$expected_rating),
-      if (isTRUE(r$met_when_set))
-        "Already at target when the goal was set."
-    )
-    div(
-      class = "coach-goal-card",
-      style = paste("flex: 1 1 260px; padding: 12px 14px; border-radius: 10px;",
-                    "background: var(--roundsui-surface, #fff);",
-                    "border: 1px solid var(--roundsui-border, #E2E5EC);"),
-      div(style = paste("font-size: 0.72rem; text-transform: uppercase; letter-spacing: .04em;", .ctx_muted),
-          r$domain_label),
-      div(style = "font-weight: 700; margin: 2px 0 8px;", r$subcomp_label),
-      roundsui::roundsui_status_badge(r$verdict, status = stat),
-      tags$table(
-        style = "width: 100%; margin-top: 10px; font-size: 0.85rem;",
-        tags$tbody(
-          tags$tr(tags$td(style = .ctx_muted, "Target"),
-                  tags$td(if (is.na(r$target_rating)) "—"
-                          else sprintf("%s (goal level %s)", r$target_rating, r$goal_level))),
-          tags$tr(tags$td(style = .ctx_muted, "When set"), tags$td(.fmt_rating(r$baseline, r$baseline_source))),
-          tags$tr(tags$td(style = .ctx_muted, "Now"), tags$td(.fmt_rating(r$current, r$current_source))),
-          tags$tr(tags$td(style = .ctx_muted, "Self-rating now"), tags$td(.fmt_rating(r$self_current, ""))),
-          tags$tr(tags$td(style = .ctx_muted, "Resident says"),
-                  tags$td(if (nzchar(r$resident_says)) r$resident_says else "—"))
-        )
-      ),
-      if (length(notes)) div(
-        style = paste("margin-top: 8px; font-size: 0.8rem; color: var(--roundsui-warning, #C2760A);"),
-        lapply(notes, function(n) div(icon("circle-info"), " ", n))
-      )
-    )
-  })
+  cards <- lapply(seq_len(nrow(rows)), function(i) goal_followthrough_card(rows[i, ], goal_period_name))
 
   tagList(
     p(style = paste("font-size: 0.85rem;", .ctx_muted),
@@ -187,6 +148,51 @@ goal_followthrough_ui <- function(rows, goal_period_name) {
       ". Ratings use ACGME when available, otherwise the coach rating. ",
       "Goal level 1–5 maps to rating 1, 3, 5, 7, 9."),
     div(style = "display: flex; flex-wrap: wrap; gap: 12px;", cards)
+  )
+}
+
+# One goal's follow-through card (one row of ctx_goal_followthrough()).
+# compact = TRUE drops the domain / goal header, for use inside a card that
+# already shows the goal (mod_goals.R's per-domain groups).
+goal_followthrough_card <- function(r, goal_period_name, compact = FALSE) {
+  stat <- .GOAL_VERDICT_STATUS[[r$verdict]]
+  notes <- c(
+    if (isTRUE(r$mismatch))
+      sprintf("Resident says “%s” but the rating says “%s”.", r$resident_says, r$verdict),
+    if (isTRUE(r$below_expected))
+      sprintf("Target (%s) was below the program expectation for %s (%s).",
+              r$target_rating, goal_period_name, r$expected_rating),
+    if (isTRUE(r$met_when_set))
+      "Already at target when the goal was set."
+  )
+  div(
+    class = "coach-goal-card",
+    style = paste("flex: 1 1 260px; padding: 12px 14px; border-radius: 10px;",
+                  "background: var(--roundsui-surface, #fff);",
+                  "border: 1px solid var(--roundsui-border, #E2E5EC);"),
+    if (!compact) div(style = paste("font-size: 0.72rem; text-transform: uppercase; letter-spacing: .04em;", .ctx_muted),
+        r$domain_label),
+    if (!compact) div(style = "font-weight: 700; margin: 2px 0 8px;", r$subcomp_label),
+    if (compact) div(style = paste("font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px;", .ctx_muted),
+        "Did it move?"),
+    roundsui::roundsui_status_badge(r$verdict, status = stat),
+    tags$table(
+      style = "width: 100%; margin-top: 10px; font-size: 0.85rem;",
+      tags$tbody(
+        tags$tr(tags$td(style = .ctx_muted, "Target"),
+                tags$td(if (is.na(r$target_rating)) "—"
+                        else sprintf("%s (goal level %s)", r$target_rating, r$goal_level))),
+        tags$tr(tags$td(style = .ctx_muted, "When set"), tags$td(.fmt_rating(r$baseline, r$baseline_source))),
+        tags$tr(tags$td(style = .ctx_muted, "Now"), tags$td(.fmt_rating(r$current, r$current_source))),
+        tags$tr(tags$td(style = .ctx_muted, "Self-rating now"), tags$td(.fmt_rating(r$self_current, ""))),
+        tags$tr(tags$td(style = .ctx_muted, "Resident says"),
+                tags$td(if (nzchar(r$resident_says)) r$resident_says else "—"))
+      )
+    ),
+    if (length(notes)) div(
+      style = paste("margin-top: 8px; font-size: 0.8rem; color: var(--roundsui-warning, #C2760A);"),
+      lapply(notes, function(n) div(icon("circle-info"), " ", n))
+    )
   )
 }
 

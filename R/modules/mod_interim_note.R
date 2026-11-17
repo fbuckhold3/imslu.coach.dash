@@ -32,7 +32,12 @@ mod_interim_note_ui <- function(id) {
 
 #' @param record_id_r Reactive record_id.
 #' @param coach_name_r Reactive default for the note's coach name.
-mod_interim_note_server <- function(id, record_id_r, coach_name_r = reactive(NA)) {
+#' @param refresh_r    Reactive that changes when another part of the review
+#'   saved to REDCap (e.g. a touch-base), so the thread re-reads.
+#' @return Reactive list of the freshly read forms (coach_interim, ccc_review,
+#'   coach_rev), NULL while loading; the roadmap reads it too.
+mod_interim_note_server <- function(id, record_id_r, coach_name_r = reactive(NA),
+                                    refresh_r = reactive(NULL)) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     forms <- reactiveVal(NULL)
@@ -50,6 +55,7 @@ mod_interim_note_server <- function(id, record_id_r, coach_name_r = reactive(NA)
       invisible()
     }
     observeEvent(record_id_r(), { forms(NULL); reload() })
+    observeEvent(refresh_r(), reload(), ignoreInit = TRUE, ignoreNULL = TRUE)
 
     thread <- reactive({
       f <- forms()
@@ -138,5 +144,7 @@ mod_interim_note_server <- function(id, record_id_r, coach_name_r = reactive(NA)
       reload()
       showNotification("Interim note saved.", type = "message")
     })
+
+    forms
   })
 }
