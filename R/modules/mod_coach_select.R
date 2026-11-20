@@ -78,19 +78,46 @@ mod_coach_select_ui <- function(id) {
 #'
 #' @param id Module namespace ID
 #' @param app_data Reactive containing complete RDM data structure
+#' @param login_info Reactive returning the mod_login_server() result.
+#'   Leadership gets the coach dropdown; everyone else is locked to their
+#'   own coach label from login.
 #' @return Reactive list with selected_coach and filtered_residents
 #' @export
-mod_coach_select_server <- function(id, app_data) {
+mod_coach_select_server <- function(id, app_data, login_info = reactive(NULL)) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     
     # Initialize coach selection state
     selected_coach <- reactiveVal(NULL)
+
+    is_leader <- reactive({ isTRUE(login_info()$is_leader) })
+
+    # Regular coaches: identity comes from login, not from a dropdown
+    observe({
+      info <- login_info()
+      if (is.null(info) || isTRUE(info$is_leader)) return()
+      coach <- info$coach_name
+      selected_coach(if (is.null(coach) || is.na(coach) || !nzchar(coach)) NULL else coach)
+    })
     
     # Render the coach selector dynamically so it populates from Phase 1 data
     # the moment the view appears (avoids updateSelectInput timing issue where
     # the update fires before the input exists in the DOM).
     output$coach_name_ui <- renderUI({
+      req(login_info())
+
+      # Not leadership: no dropdown. Only reached when the coach has no
+      # linked residents (otherwise the app goes straight to the table).
+      if (!is_leader()) {
+        return(div(
+          class = "coach-select-info",
+          icon("circle-info"), " ",
+          sprintf("Signed in as %s. No residents are currently assigned to you as coach or second reviewer. ",
+                  login_info()$fac_name),
+          "If this looks wrong, please contact the program office."
+        ))
+      }
+
       req(app_data())
 
       choices <- tryCatch({
@@ -117,6 +144,8 @@ mod_coach_select_server <- function(id, app_data) {
     
     # Update selected coach when dropdown changes
     observeEvent(input$coach_name, {
+      # Server-side guard: only leadership may pick a coach
+      if (!is_leader()) return()
       if (nzchar(input$coach_name)) {
         selected_coach(input$coach_name)
         

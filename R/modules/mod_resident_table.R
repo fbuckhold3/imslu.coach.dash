@@ -18,7 +18,7 @@
 #' @param id Module namespace ID
 #' @return UI elements for resident selection table
 #' @export
-mod_resident_table_ui <- function(id) {
+mod_resident_table_ui <- function(id, show_coach_switch = TRUE) {
   ns <- NS(id)
   
   tagList(
@@ -114,7 +114,8 @@ mod_resident_table_ui <- function(id) {
             icon = icon("sync"),
             class = "btn-secondary btn-sm"
           ),
-          actionButton(
+          # Leadership only: regular coaches are locked to their own residents
+          if (isTRUE(show_coach_switch)) actionButton(
             ns("back_to_coach_select"),
             "\u2190 Back to Coach Selection",
             class = "btn-secondary",

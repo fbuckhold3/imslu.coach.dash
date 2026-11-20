@@ -3,8 +3,8 @@
 # R/modules/mod_login.R
 # ==============================================================================
 #
-# Simple access code authentication for coaching dashboard
-# Validates against ACCESS_CODE environment variable
+# Per-coach access code authentication. Each coach enters the personal code
+# stored in the FAC database (fac_access). See R/helpers/faculty_access.R.
 #
 # ==============================================================================
 
@@ -78,7 +78,7 @@ mod_login_ui <- function(id) {
       textInput(
         ns("access_code"),
         label = "Access Code",
-        placeholder = "Enter access code",
+        placeholder = "Enter your personal access code",
         width = "100%"
       ),
       
@@ -86,7 +86,8 @@ mod_login_ui <- function(id) {
         id = ns("error_message"),
         class = "login-error",
         icon("exclamation-triangle"),
-        " Invalid access code. Please try again."
+        " ",
+        textOutput(ns("error_text"), inline = TRUE)
       ),
       
       actionButton(
@@ -110,89 +111,91 @@ mod_login_ui <- function(id) {
 
 #' Login Module Server
 #'
+#' Checks the typed code against each faculty member's personal FAC access
+#' code (see R/helpers/faculty_access.R), or with the shared ACCESS_CODE,
+#' which always works and opens the coach picker (any coach's residents).
+#'
 #' @param id Module namespace ID
-#' @param access_code Valid access code (from environment or config)
-#' @return Reactive logical indicating authentication status
+#' @param coach_labels Reactive returning the RDM coach labels in use
+#'   (used to link a faculty member to their assigned residents)
+#' @param fallback_code Shared program code (always accepted, coach picker)
+#' @return reactiveVal: NULL until login, then
+#'   list(authenticated, fac_name, coach_name, is_leader, via)
 #' @export
-mod_login_server <- function(id, access_code = AUTH_CONFIG$access_code) {
+mod_login_server <- function(id,
+                             coach_labels  = reactive(character(0)),
+                             fallback_code = AUTH_CONFIG$access_code) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    
-    # Authentication state
-    authenticated <- reactiveVal(FALSE)
-    
-    # Track failed login attempts
+
+    login_info      <- reactiveVal(NULL)
     failed_attempts <- reactiveVal(0)
-    
-    # Handle login button click
+    error_text      <- reactiveVal("Invalid access code. Please try again.")
+
+    output$error_text <- renderText(error_text())
+
+    show_error <- function(msg) {
+      error_text(msg)
+      shinyjs::runjs(sprintf("$('#%s').addClass('show');", ns("error_message")))
+    }
+
+    stamp <- function() format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+
     observeEvent(input$login_btn, {
       req(input$access_code)
-      
-      # Validate access code
-      if (nzchar(access_code) && input$access_code == access_code) {
-        # Successful login
-        authenticated(TRUE)
-        
-        # Clear input
-        updateTextInput(session, "access_code", value = "")
-        
-        # Hide error message
-        shinyjs::runjs(sprintf("
-          $('#%s').removeClass('show');
-        ", ns("error_message")))
-        
-        # Log successful authentication
-        message(sprintf(
-          "[%s] Successful login",
-          format(Sys.time(), "%Y-%m-%d %H:%M:%S")
-        ))
-        
+      typed <- trimws(input$access_code)
+      updateTextInput(session, "access_code", value = "")
+
+      # Shared program code: always accepted, opens the coach picker
+      if (nzchar(fallback_code) && identical(typed, fallback_code)) {
+        res <- list(status = "ok", fac_name = "Shared code",
+                    coach_name = NA_character_, is_leader = TRUE,
+                    via = "shared")
       } else {
-        # Failed login
-        failed_attempts(failed_attempts() + 1)
-        
-        # Show error message
-        shinyjs::runjs(sprintf("
-          $('#%s').addClass('show');
-        ", ns("error_message")))
-        
-        # Clear input
-        updateTextInput(session, "access_code", value = "")
-        
-        # Log failed attempt
-        message(sprintf(
-          "[%s] Failed login attempt #%d",
-          format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-          failed_attempts()
+        fac <- load_faculty_access()
+        res <- if (is.null(fac)) list(status = "unavailable") else
+          match_access_code(typed, fac, coach_labels())
+      }
+
+      if (identical(res$status, "ok")) {
+        shinyjs::runjs(sprintf("$('#%s').removeClass('show');", ns("error_message")))
+        failed_attempts(0)
+        login_info(list(
+          authenticated = TRUE,
+          fac_name      = res$fac_name,
+          coach_name    = res$coach_name,
+          is_leader     = isTRUE(res$is_leader),
+          via           = if (is.null(res$via)) "fac" else res$via
         ))
-        
-        # Rate limiting: Add delay after multiple failed attempts
-        if (failed_attempts() >= 3) {
-          shinyjs::disable("login_btn")
-          shinyjs::delay(3000, shinyjs::enable("login_btn"))
-          
-          showNotification(
-            "Too many failed attempts. Please wait a moment.",
-            type = "warning",
-            duration = 3
-          )
-        }
+        message(sprintf("[%s] Login: %s (coach label: %s, leadership: %s, via %s)",
+                        stamp(), res$fac_name,
+                        ifelse(is.na(res$coach_name), "none", res$coach_name),
+                        isTRUE(res$is_leader),
+                        if (is.null(res$via)) "fac" else res$via))
+        return()
+      }
+
+      # Failed login
+      failed_attempts(failed_attempts() + 1)
+      show_error(switch(
+        res$status,
+        duplicate   = "This code is linked to more than one faculty record. Please contact the program office.",
+        unavailable = "The faculty directory is unavailable right now. Please try again in a few minutes.",
+        "Invalid access code. Please try again."
+      ))
+      message(sprintf("[%s] Failed login attempt #%d (%s)",
+                      stamp(), failed_attempts(), res$status))
+
+      # Rate limiting: pause after repeated failures
+      if (failed_attempts() >= 3) {
+        shinyjs::disable("login_btn")
+        shinyjs::delay(3000, shinyjs::enable("login_btn"))
+        showNotification("Too many failed attempts. Please wait a moment.",
+                         type = "warning", duration = 3)
       }
     })
-    
-    # Session timeout (optional)
-    observe({
-      req(authenticated())
-      
-      # Reset timeout on any input change
-      invalidateLater(AUTH_CONFIG$timeout_minutes * 60 * 1000, session)
-      
-      # Could add auto-logout logic here
-      # For now, sessions persist until browser close
-    })
-    
-    # Return authentication status
-    return(authenticated)
+
+    login_info
   })
 }
 
@@ -216,4 +219,23 @@ is_access_code_configured <- function() {
 should_bypass_login <- function() {
   bypass <- Sys.getenv("BYPASS_LOGIN", unset = "false")
   tolower(bypass) %in% c("true", "yes", "1")
+}
+
+#' Login Info for Development Bypass
+#'
+#' With BYPASS_LOGIN=true, set DEV_COACH to an RDM coach label (a last name,
+#' e.g. "Kunnath") to test as that coach. Leave DEV_COACH unset to get the
+#' leadership view.
+#'
+#' @return list in the same shape mod_login_server() returns
+#' @export
+bypass_login_info <- function() {
+  dev_coach <- trimws(Sys.getenv("DEV_COACH", unset = ""))
+  list(
+    authenticated = TRUE,
+    fac_name      = if (nzchar(dev_coach)) dev_coach else "Developer",
+    coach_name    = if (nzchar(dev_coach)) dev_coach else NA_character_,
+    is_leader     = !nzchar(dev_coach),
+    via           = "bypass"
+  )
 }

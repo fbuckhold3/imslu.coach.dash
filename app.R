@@ -119,6 +119,10 @@ server <- function(input, output, session) {
     app_state$authenticated <- TRUE
     app_state$current_view <- "coach_select"
   }
+
+  # Who is logged in: list(authenticated, fac_name, coach_name, is_leader, via)
+  login_info <- reactiveVal(if (should_bypass_login()) bypass_login_info() else NULL)
+  is_leader  <- reactive({ isTRUE(login_info()$is_leader) })
   
   # Phase 1 data is already in app_data — mark loaded immediately so the
   # coach selector renders without waiting for Phase 2.
@@ -147,16 +151,25 @@ server <- function(input, output, session) {
     }
   })
   
-  # Login module
-  authenticated <- mod_login_server("login")
-  
+  # Login module: per-coach FAC access codes. Coach labels (RDM last names)
+  # link a faculty member to the residents they coach or second-review.
+  login_result <- mod_login_server(
+    "login",
+    coach_labels = reactive({
+      res <- app_data$data$residents
+      if (is.null(res)) character(0) else unique(c(res$coach, res$second_rev))
+    })
+  )
+
   # Update app state when authenticated via login
-  observe({
-    if (authenticated()) {
-      app_state$authenticated <- TRUE
-      app_state$current_view <- "coach_select"
-      # Data loading is now handled by the unified loader above
-    }
+  observeEvent(login_result(), {
+    info <- login_result()
+    req(isTRUE(info$authenticated))
+    login_info(info)
+    app_state$authenticated <- TRUE
+    # Regular coaches are moved on to their resident table by the
+    # coach-selection observer below as soon as their coach label is set.
+    app_state$current_view <- "coach_select"
   })
   
   # ==========================================================================
@@ -166,7 +179,8 @@ server <- function(input, output, session) {
   # Wrap app_data$data in reactive for modules that expect reactiveVal
   app_data_reactive <- reactive({ app_data$data })
 
-  coach_data <- mod_coach_select_server("coach_select", app_data_reactive)
+  coach_data <- mod_coach_select_server("coach_select", app_data_reactive,
+                                        login_info = login_info)
 
   # Update view when coach is selected
   observe({
@@ -303,15 +317,16 @@ server <- function(input, output, session) {
     app_state$current_view <- "resident_table"
   }, ignoreInit = TRUE, ignoreNULL = TRUE)
 
-  # "Change Coach" — primary review interface
+  # "Change Coach" — primary review interface (leadership only; the button
+  # is hidden for regular coaches and this guard blocks it server-side)
   observeEvent(review_interface$change_coach_clicked(), {
     resident_selection$clear_selection()
-    app_state$current_view <- "coach_select"
+    app_state$current_view <- if (is_leader()) "coach_select" else "resident_table"
   }, ignoreInit = TRUE, ignoreNULL = TRUE)
 
-  # "Back to Coach Selection" — resident table
+  # "Back to Coach Selection" — resident table (leadership only)
   observeEvent(resident_selection$back_to_coach_clicked(), {
-    app_state$current_view <- "coach_select"
+    if (is_leader()) app_state$current_view <- "coach_select"
   }, ignoreInit = TRUE, ignoreNULL = TRUE)
   
   # ==========================================================================
@@ -396,7 +411,8 @@ server <- function(input, output, session) {
               ),
               p(
                 style = "color: var(--roundsui-ink-muted); margin-bottom: 24px;",
-                "Select your name below to view your assigned residents."
+                if (is_leader()) "Select a coach below to view their assigned residents."
+                else "Your coaching assignments"
               ),
               mod_coach_select_ui("coach_select")
             )
@@ -410,7 +426,7 @@ server <- function(input, output, session) {
           column(12,
             div(
               style = "max-width: 1200px; margin: 20px auto;",
-              mod_resident_table_ui("resident_table")
+              mod_resident_table_ui("resident_table", show_coach_switch = is_leader())
             )
           )
         )
@@ -433,7 +449,7 @@ server <- function(input, output, session) {
           # Show primary review interface
           fluidRow(
             column(12,
-              mod_review_interface_ui("review")
+              mod_review_interface_ui("review", show_coach_switch = is_leader())
             )
           )
         }

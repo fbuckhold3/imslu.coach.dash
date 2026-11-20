@@ -160,7 +160,7 @@ create_review_preview <- function(review_data, resident_data, current_period, se
   )
 }
 
-mod_review_interface_ui <- function(id) {
+mod_review_interface_ui <- function(id, show_coach_switch = TRUE) {
   ns <- NS(id)
 
   tagList(
@@ -182,7 +182,8 @@ mod_review_interface_ui <- function(id) {
               class = "btn-secondary",
               icon = icon("table")
             ),
-            actionButton(
+            # Leadership only: regular coaches are locked to their own residents
+            if (isTRUE(show_coach_switch)) actionButton(
               ns("change_coach"),
               "Change Coach",
               class = "btn-outline-secondary",

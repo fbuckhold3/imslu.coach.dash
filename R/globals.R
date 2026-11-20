@@ -69,6 +69,7 @@ httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
 REDCAP_CONFIG <- list(
   url = "https://redcapsurvey.slu.edu/api/",
   rdm_token = Sys.getenv("RDM_TOKEN"),
+  fac_token = Sys.getenv("FAC_TOKEN"),  # faculty DB: per-coach access codes
   timeout = 300  # 5 minutes for large data pulls
 )
 
@@ -87,6 +88,15 @@ PIN_CONFIG <- list(
 )
 
 # Authentication configuration
+# Two ways in:
+#   - ACCESS_CODE (shared program code): always accepted, opens the coach
+#     picker so the user can view any coach's residents.
+#   - Personal FAC access code (fac_access): regular coaches see only their
+#     own residents; APD / Core IM PD get the coach picker.
+# To move to personal codes only, unset ACCESS_CODE on Connect.
+if (!nzchar(Sys.getenv("FAC_TOKEN"))) {
+  warning("FAC_TOKEN not set: personal access codes will not work")
+}
 AUTH_CONFIG <- list(
   access_code = Sys.getenv("ACCESS_CODE", unset = ""),
   timeout_minutes = 120  # Auto-logout after 2 hours of inactivity
@@ -1479,6 +1489,7 @@ get_review_instance <- function(level, period_name, review_type = "scheduled") {
 source("R/helpers/section_shell.R")
 source("R/helpers/coach_context.R")
 source("R/helpers/coach_context_ui.R")
+source("R/helpers/faculty_access.R")
 
 # ==============================================================================
 # SOURCE MODULE FILES
